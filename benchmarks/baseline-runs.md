@@ -402,3 +402,35 @@ pre-existing, not counted against the patch.
   changed files was rejected for breaking another check, so the kept PR never
   named `rich/traceback.py` or `CHANGELOG.md` (same stall as run 2). Fixed
   after this run: missing file names are now appended from the diff.
+
+## Run 8: python-humanize/humanize#459 (2026-10-29)
+
+`naturalsize(1.5)` returns "1 Bytes": below 1 kB the value is truncated with
+`int()`. humanize has ~770 stars. Issue open (the author's team said they're
+working on it); no linked PR. Repo at `6b817b9`; 15 of humanize's own tests
+already error on the original code (a pytest-codspeed / pytest 9 mismatch)
+and are reported as pre-existing.
+
+| Candidate | Proves the fix | Failing checks | Tests | Lines |
+|---|---|---|---|---|
+| **1 (single-prompt baseline, chosen)** | yes | 1 | 741/890 | +17 |
+| 2 | yes | 1 | 744/893 | +22 |
+| 3 | yes | 1 | 742/891 | +18 |
+
+| Measure | First draft | After |
+|---|---|---|
+| Tests | 741/890 | 742/891 |
+| New tests prove the fix | yes | yes |
+| CodePolish checks / critic | 3/4, 96 | 4/4, 92 |
+| SecurityPolish checks / critic | 1/1, 100 | 1/1, 98 |
+| DocPolish checks / critic | 4/4, 95 | 4/4, 95 |
+| WritePolish checks / critic | 5/6, 78 | 6/6, 94 |
+
+- Status: **clean**. Cost $0.390. Wall time 2 min 51 s.
+- Fix: whole byte counts keep the old output; fractional ones are formatted
+  (`if bytes_.is_integer(): ... else f"{format % bytes_} ..."`).
+- First run with automatic file listing: WritePolish narrowed to the one
+  missing item ("Fixes #459") and was approved in round 4.
+- `tests_included` wrongly failed every candidate: humanize adds tests as new
+  parametrized cases, and the check only counted new `def test_` functions.
+  CodePolish worked around it by adding a function. Fixed after this run.

@@ -64,6 +64,14 @@ describe("code checks", () => {
     expect(checks.find((c) => c.testType === "debug_leftovers")!.message).not.toMatch(/test_slugify/);
   });
 
+  it("count new cases in an existing parametrized test as new tests", () => {
+    const param = `import pytest\nfrom tinyslug import slugify\n\n\n@pytest.mark.parametrize("text, expected", [\n    ("a b", "a-b"),\n])\ndef test_slug(text, expected):\n    assert slugify(text) == expected\n`;
+    const snap = { ...DEMO_SNAPSHOT, files: { ...DEMO_SNAPSHOT.files, [TESTS]: param } };
+    const withCase = param.replace('    ("a b", "a-b"),\n', '    ("a b", "a-b"),\n    ("Hello, World!", "hello-world"),\n');
+    expect(failing(codeStaticChecks({ [TESTS]: withCase }, snap))).not.toContain("tests_included");
+    expect(failing(codeStaticChecks({ [TESTS]: param.replace("a-b", "a_b") }, snap))).toContain("tests_included");
+  });
+
   it("allow deliberate output such as print(..., file=sys.stderr) in a CLI", () => {
     const src = base[SRC].replace("    text = text", '    print("cannot use events.json", file=sys.stderr)\n    text = text');
     const checks = codeStaticChecks({ [SRC]: src }, DEMO_SNAPSHOT);

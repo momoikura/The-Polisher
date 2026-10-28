@@ -17,6 +17,23 @@ function addedLines(snapshot: RepoSnapshot, path: string, content: string): stri
 }
 
 const count = (text: string, re: RegExp) => (text.match(re) ?? []).length;
+
+const NEW_TEST_FUNCTION = /^\s*(async\s+)?def\s+test_/;
+// An assertion, an expected exception, or a case in a parametrize list (a tuple or pytest.param line).
+const TEST_CASE_LINE = /^\s*(assert\b|with\s+pytest\.raises|pytest\.param\(|\(.*\),?\s*$)/;
+
+/**
+ * Whether a test file gains a test: a new test function, or more assertions or parametrized cases
+ * than it lost (an edited case shows up as one removed and one added line, which isn't new).
+ */
+function addsTest(snapshot: RepoSnapshot, path: string, content: string): boolean {
+  const before = baseContent(snapshot, path) ?? "";
+  const changes = computeLineDiff(before, content);
+  if (changes.some((c) => c.type === "added" && NEW_TEST_FUNCTION.test(c.content))) return true;
+  const casesOnly = /@pytest\.mark\.parametrize/.test(before + content) ? TEST_CASE_LINE : /^\s*(assert\b|with\s+pytest\.raises)/;
+  const net = (type: "added" | "removed") => changes.filter((c) => c.type === type && casesOnly.test(c.content)).length;
+  return net("added") > net("removed");
+}
 const testNames = (text: string) => [...text.matchAll(/^\s*(?:async\s+)?def\s+(test_\w+)/gm)].map((m) => m[1]);
 
 // ─── CodePolish (fix + tests) ─────────────────────────────────────────────
@@ -35,7 +52,7 @@ export function codeStaticChecks(code: FileMap, snapshot: RepoSnapshot): TestChe
   if (totalAdded > MAX_ADDED_LINES) scope.push(`${totalAdded} added lines; keep the fix focused (max ${MAX_ADDED_LINES})`);
 
   const testFiles = changed.filter(isTestPath);
-  const addsTests = testFiles.some((p) => addedLines(snapshot, p, code[p]).some((l) => /^\s*(async\s+)?def\s+test_/.test(l)));
+  const addsTests = testFiles.some((p) => addsTest(snapshot, p, code[p]));
 
   const intact: string[] = [];
   for (const p of testFiles) {
@@ -63,7 +80,7 @@ export function codeStaticChecks(code: FileMap, snapshot: RepoSnapshot): TestChe
 
   return [
     check("patch_scope", scope, "Patch is focused and only touches Python files."),
-    check("tests_included", addsTests ? [] : ["no new test functions were added"], "Adds at least one new test."),
+    check("tests_included", addsTests ? [] : ["no new test was added (a test function, assertion or parametrized case)"], "Adds at least one new test."),
     check("tests_intact", intact, "No existing tests removed, weakened or skipped."),
     check("debug_leftovers", leftovers, "No debug leftovers in library code."),
   ];
