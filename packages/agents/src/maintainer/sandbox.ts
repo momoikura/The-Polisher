@@ -20,6 +20,9 @@ export const ValidationSchema = z.object({
     errors: z.number(),
     skipped: z.number(),
     failures: z.array(z.object({ test: z.string(), message: z.string() })),
+    /** Failing tests that also fail on the original code; not counted against the patch. */
+    preexisting: z.array(z.string()).optional(),
+    preexistingCount: z.number().optional(),
     outputTail: z.string(),
   }),
   failToPass: z
@@ -107,16 +110,21 @@ export class ModalSandboxClient implements SandboxClient {
 
 export function validationChecks(v: Validation): TestCheck[] {
   const tests = v.tests;
-  const testProblems = !v.install.ok
-    ? [`dependencies failed to install: ${v.install.logTail.split("\n").slice(-2).join(" ")}`]
-    : !tests.ran
-      ? ["pytest did not run"]
-      : tests.total === 0
-        ? ["no tests were collected"]
-        : [
-            ...tests.failures.slice(0, 5).map((f) => `${f.test}: ${f.message.slice(0, 160)}`),
-            ...(tests.failed + tests.errors > tests.failures.length ? [`${tests.failed + tests.errors} failing in total`] : []),
-          ];
+  // Failures that also happen on the original code aren't the patch's doing.
+  const preexisting = tests.preexistingCount ?? 0;
+  const newFailing = Math.max(tests.failed + tests.errors - preexisting, 0);
+  // A failed install only matters if the tests couldn't run; an optional dev tool failing doesn't.
+  const testProblems = !tests.ran
+    ? [!v.install.ok ? `dependencies failed to install: ${v.install.logTail.split("\n").slice(-2).join(" ")}` : "pytest did not run"]
+    : tests.total === 0
+      ? ["no tests were collected"]
+      : [
+          ...tests.failures.slice(0, 5).map((f) => `${f.test}: ${f.message.slice(0, 160)}`),
+          ...(newFailing > tests.failures.length ? [`${newFailing} failing in total`] : []),
+        ];
+  const testsPassMessage = preexisting
+    ? `No new failures (${preexisting} tests already failed on the original code).`
+    : `All ${tests.total} tests pass.`;
 
   const ftp = v.failToPass;
   const ftpProblems = !ftp
@@ -134,7 +142,7 @@ export function validationChecks(v: Validation): TestCheck[] {
   return [
     check("py_compile", v.compile.errors.slice(0, 5), "All changed files compile."),
     check("py_lint", v.lint.issues.slice(0, 8).map((i) => `${i.file}:${i.line} ${i.code} ${i.message}`), "No lint errors in changed files."),
-    check("py_tests", testProblems, `All ${tests.total} tests pass.`),
+    check("py_tests", testProblems, testsPassMessage),
     check("fail_to_pass", ftpProblems, "New tests fail before the fix and pass after it."),
     check("security_scan", securityProblems(v.security), "The patch adds no medium or high security findings (bandit)."),
   ];

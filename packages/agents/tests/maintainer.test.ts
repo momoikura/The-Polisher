@@ -197,6 +197,31 @@ describe("sandbox checks", () => {
     expect(ftp(proving(null)).passed).toBe(true);
   });
 
+  const withTests = (tests: Partial<Validation["tests"]>): Validation => {
+    const v = secure({ ran: true, newIssues: [] });
+    return { ...v, tests: { ...v.tests, ...tests } };
+  };
+  const pyTests = (v: Validation) => validationChecks(v).find((c) => c.testType === "py_tests")!;
+
+  it("ignore tests that already failed on the original code", () => {
+    const v = withTests({ total: 982, passed: 949, failed: 8, errors: 0, failures: [], preexisting: ["tests.test_syntax::test_python_render"], preexistingCount: 8 });
+    expect(pyTests(v).passed).toBe(true);
+    expect(pyTests(v).message).toMatch(/8 tests already failed on the original code/);
+  });
+
+  it("still fail on a test the patch broke, next to ones that already failed", () => {
+    const v = withTests({
+      total: 982,
+      passed: 948,
+      failed: 9,
+      errors: 0,
+      failures: [{ test: "tests.test_markup::test_escape", message: "AssertionError" }],
+      preexistingCount: 8,
+    });
+    expect(pyTests(v).passed).toBe(false);
+    expect(pyTests(v).message).toContain("test_escape");
+  });
+
   it("include the security scan when the sandbox is unavailable", () => {
     expect(validationFailureChecks("down").map((c) => c.testType)).toContain("security_scan");
   });

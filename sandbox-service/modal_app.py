@@ -39,6 +39,50 @@ TAIL_CHARS = 2_000
 LINT_RULES = "E9,F63,F7,F82,F401,F811,F841"
 REQUIREMENT_FILES = ["requirements.txt", "requirements-dev.txt", "requirements_dev.txt", "dev-requirements.txt", "test-requirements.txt", "requirements-test.txt"]
 
+# Runs inside the sandbox. Installs the project and whatever its tests need, and exits non-zero
+# if any step failed, so a broken install is never reported as OK.
+INSTALL_SCRIPT = f'''
+import os, pathlib, subprocess, sys, tomllib
+
+import re
+
+data = tomllib.loads(pathlib.Path("pyproject.toml").read_text()) if pathlib.Path("pyproject.toml").exists() else {{}}
+dist = data.get("project", {{}}).get("name") or data.get("tool", {{}}).get("poetry", {{}}).get("name") or ""
+
+# The repo arrives as a tarball without .git; setuptools-scm / hatch-vcs need a version from somewhere.
+# Newer setuptools-scm only honours the per-distribution form of the variable.
+env = {{**os.environ, "SETUPTOOLS_SCM_PRETEND_VERSION": "0.0.0"}}
+if dist:
+    env["SETUPTOOLS_SCM_PRETEND_VERSION_FOR_" + re.sub(r"[^A-Za-z0-9]+", "_", dist).upper()] = "0.0.0"
+ok = True
+
+def pip(*args):
+    return subprocess.run([sys.executable, "-m", "pip", "install", "-q", *args], env=env).returncode == 0
+
+if pathlib.Path("pyproject.toml").exists() or pathlib.Path("setup.py").exists():
+    # Test dependencies often live in a [dev] or [test] extra; pip only warns about extras a project lacks.
+    ok &= pip("-e", ".[dev,test,tests]") or pip("-e", ".")
+TEST_GROUPS = ("dev", "test", "tests", "testing")
+# PEP 735 dependency groups (pip >= 25.1).
+for name in TEST_GROUPS:
+    if name in data.get("dependency-groups", {{}}):
+        ok &= pip("--group", name)
+# Poetry groups: install the package names; poetry's version syntax isn't pip's.
+poetry = data.get("tool", {{}}).get("poetry", {{}})
+names = [k for k in poetry.get("dev-dependencies", {{}}) if k != "python"]
+for group, spec in poetry.get("group", {{}}).items():
+    if group in TEST_GROUPS:
+        names += [k for k in spec.get("dependencies", {{}}) if k != "python"]
+if names:
+    ok &= pip(*sorted(set(names)))
+
+for req in {REQUIREMENT_FILES!r}:
+    if pathlib.Path(req).exists():
+        ok &= pip("-r", req)
+
+sys.exit(0 if ok else 1)
+'''
+
 app = modal.App(APP_NAME)
 
 web_image = modal.Image.debian_slim(python_version="3.12").pip_install("fastapi[standard]")
@@ -154,6 +198,19 @@ def classify_base_failures(xml_text: str) -> dict:
     return {"reproduced": reproduced, "missingCode": missing, "example": example}
 
 
+MAX_FAILURES_KEPT = 2000
+
+
+def failing_ids(xml_text: str) -> set[str]:
+    """Every failing or erroring test in a junit report, as classname::name."""
+    root = ET.fromstring(xml_text)
+    return {
+        f"{case.get('classname', '')}::{case.get('name', '')}"
+        for case in root.iter("testcase")
+        if case.find("failure") is not None or case.find("error") is not None
+    }
+
+
 def parse_junit(xml_text: str, new_test_modules: list[str]) -> dict:
     root = ET.fromstring(xml_text)
     suites = [root] if root.tag == "testsuite" else list(root.iter("testsuite"))
@@ -168,7 +225,7 @@ def parse_junit(xml_text: str, new_test_modules: list[str]) -> dict:
         if any(classname == m or classname.startswith(m + ".") for m in new_test_modules):
             new_cases += 1
             new_ok = new_ok and bad is None
-        if bad is not None and len(failures) < 10:
+        if bad is not None and len(failures) < MAX_FAILURES_KEPT:
             failures.append({"test": f"{classname}::{case.get('name', '')}", "message": (bad.get("message") or bad.text or "")[:500]})
     return {
         "total": total,
@@ -200,14 +257,9 @@ def validate_patch(repo: str, sha: str, changes: dict[str, str], new_tests: list
         if code != 0:
             raise RuntimeError(f"could not download {repo}@{sha}: {tail(err)}")
 
-        install_cmd = (
-            "set -o pipefail; "
-            # Test dependencies usually live in a [dev] or [test] extra; pip only warns about extras a project lacks.
-            "if [ -f pyproject.toml ] || [ -f setup.py ]; then pip install -q -e '.[dev,test,tests]' ; fi; "
-            f"for r in {' '.join(REQUIREMENT_FILES)}; do [ -f \"$r\" ] && pip install -q -r \"$r\"; done; true"
-        )
-        icode, iout, ierr = run(sb, install_cmd, timeout=INSTALL_TIMEOUT_S)
-        install_ok = icode == 0 and "ERROR" not in ierr
+        sb.filesystem.write_text(INSTALL_SCRIPT, "/tmp/install_deps.py")
+        icode, iout, ierr = run(sb, "python /tmp/install_deps.py", timeout=INSTALL_TIMEOUT_S)
+        install_ok = icode == 0
 
         # Fail-to-pass, part 1: only the new/changed tests on the ORIGINAL code.
         fail_to_pass = None
@@ -237,6 +289,9 @@ def validate_patch(repo: str, sha: str, changes: dict[str, str], new_tests: list
         # Security, part 1: scan the source files the patch changes, as they are now.
         sources = [p for p in changes if p.endswith(".py") and not TEST_PATH.search(p)]
         security_before = bandit_scan(sb, [p for p in sources if read_file(sb, p) is not None])
+
+        # Kept so the original code can be re-tested if anything fails with the patch.
+        originals = {path: read_file(sb, path) for path in changes}
 
         # Apply the full patch.
         for path, content in changes.items():
@@ -271,6 +326,22 @@ def validate_patch(repo: str, sha: str, changes: dict[str, str], new_tests: list
             pass
         if junit_text:
             j = parse_junit(junit_text, [module_of(t) for t in tests])
+            # Failures that also happen on the original code (a flaky or environment-dependent test,
+            # an upstream dependency change) aren't the patch's doing. Only checked when something failed.
+            preexisting: list[str] = []
+            if j["failures"]:
+                for path, original in originals.items():
+                    if original is None:
+                        run(sb, f"rm -f {shlex.quote(path)}")
+                    else:
+                        write_file(sb, path, original)
+                run(sb, "python -m pytest -q -p no:cacheprovider --junitxml=/tmp/base_full.xml", timeout=TEST_TIMEOUT_S)
+                try:
+                    on_base = failing_ids(sb.filesystem.read_text("/tmp/base_full.xml"))
+                    preexisting = sorted(f["test"] for f in j["failures"] if f["test"] in on_base)
+                except Exception:
+                    preexisting = []
+            fresh = [f for f in j["failures"] if f["test"] not in set(preexisting)]
             tests_result = {
                 "ran": True,
                 "total": j["total"],
@@ -278,7 +349,9 @@ def validate_patch(repo: str, sha: str, changes: dict[str, str], new_tests: list
                 "failed": j["failed"],
                 "errors": j["errors"],
                 "skipped": j["skipped"],
-                "failures": j["failures"],
+                "failures": fresh[:10],
+                "preexisting": preexisting[:50],
+                "preexistingCount": len(preexisting),
                 "outputTail": tail(tout + terr),
             }
             if fail_to_pass is not None:

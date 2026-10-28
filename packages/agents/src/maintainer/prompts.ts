@@ -72,7 +72,7 @@ export function describeValidation(v: Validation | null): string {
   const sec = !v.security?.ran
     ? "security scan: not run"
     : `security scan (bandit): ${found.length} new finding(s)${found.map((i) => `\n  - ${i.file}:${i.line} ${i.testId} (${i.severity.toLowerCase()}): ${i.text}`).slice(0, 5).join("")}`;
-  return `Sandbox: ${v.tests.passed}/${v.tests.total} tests pass, ${v.tests.failed + v.tests.errors} failing; ${ftp}; ${v.lint.issues.length} lint issue(s); compiles: ${v.compile.ok}; ${sec}.${v.tests.failures.length ? `\nFailures:\n${v.tests.failures.slice(0, 5).map((f) => `- ${f.test}: ${f.message.slice(0, 300)}`).join("\n")}` : ""}`;
+  return `Sandbox: ${v.tests.passed}/${v.tests.total} tests pass, ${v.tests.failed + v.tests.errors} failing${v.tests.preexistingCount ? ` (${v.tests.preexistingCount} of them already failed on the original code: not caused by the patch, leave them alone)` : ""}; ${ftp}; ${v.lint.issues.length} lint issue(s); compiles: ${v.compile.ok}; ${sec}.${v.tests.failures.length ? `\nFailures:\n${v.tests.failures.slice(0, 5).map((f) => `- ${f.test}: ${f.message.slice(0, 300)}`).join("\n")}` : ""}`;
 }
 
 // ─── Planning + baseline ──────────────────────────────────────────────────
