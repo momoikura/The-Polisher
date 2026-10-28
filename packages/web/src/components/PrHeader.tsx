@@ -14,6 +14,7 @@ const PHASES = [
 function stateLabel(view: MaintainerView): { text: string; tone: "solid" | "outline" } {
   if (!view.result) return { text: "In review", tone: "outline" };
   if (view.result.status === "clean") return { text: "Ready to merge", tone: "solid" };
+  if (view.result.status === "verified") return { text: "Verified by tests", tone: "solid" };
   if (view.result.status === "failed") return { text: "Failed", tone: "outline" };
   return { text: "Changes requested", tone: "outline" };
 }

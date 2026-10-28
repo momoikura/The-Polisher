@@ -171,7 +171,13 @@ async function openPullRequest(res: ServerResponse, id: string): Promise<void> {
       branch: `polishloop/issue-${snapshot.issue.number}-${id.slice(0, 8)}`,
       files,
       title,
-      body: `${body}\n\n---\n_AI-assisted: opened by [The Polisher](https://github.com/momoikura/The-Polisher) using ${providerStatus().model} after ${status === "clean" ? "all four agents signed off and the sandbox confirmed the tests" : "the run stopped before every agent signed off"}. A person reviewed it and chose to open it._`,
+      body: `${body}\n\n---\n_AI-assisted: opened by [The Polisher](https://github.com/momoikura/The-Polisher) using ${providerStatus().model} after ${
+        status === "clean"
+          ? "all four agents signed off and the sandbox confirmed the tests"
+          : status === "verified"
+            ? "the sandbox confirmed the tests prove the fix, though not every reviewer signed off on style"
+            : "the run stopped before every agent signed off"
+      }. A person reviewed it and chose to open it._`,
     });
     session.meta.prUrl = opened.url;
     sendJson(res, 201, { url: opened.url });

@@ -19,21 +19,25 @@ export function MergeBox({ view, isSimulated, hasGitHubToken, pr, onOpenPr }: Pr
   const result = view.result;
   const repo = view.context?.repo ?? "the repository";
   const isClean = result?.status === "clean";
+  const isVerified = result?.status === "verified";
   const canOpen = Boolean(result?.canOpenPr) && !isSimulated && hasGitHubToken;
 
   const heading = !result
     ? "Review in progress"
     : isClean
       ? "All reviewers approved"
-      : result.status === "failed"
-        ? "The run failed"
-        : "Some reviewers requested changes";
+      : isVerified
+        ? "Verified by tests, polish pending"
+        : result.status === "failed"
+          ? "The run failed"
+          : "Some reviewers requested changes";
+  const icon = !result ? "circleNotch" : isClean || isVerified ? "checkCircle" : "timesCircle";
 
   return (
-    <section className={`merge-box${isClean ? " is-ready" : ""}`} aria-labelledby="merge-title" aria-live="polite">
+    <section className={`merge-box${isClean || isVerified ? " is-ready" : ""}`} aria-labelledby="merge-title" aria-live="polite">
       <div className="merge-row merge-summary">
         <span className="merge-icon" aria-hidden="true">
-          <Icon name={!result ? "circleNotch" : isClean ? "checkCircle" : "timesCircle"} size={24} className={!result ? "spin" : ""} />
+          <Icon name={icon} size={24} className={!result ? "spin" : ""} />
         </span>
         <div>
           <h2 id="merge-title">{heading}</h2>

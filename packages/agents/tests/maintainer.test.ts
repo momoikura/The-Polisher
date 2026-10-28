@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { runMaintainer } from "../src/maintainer/orchestrator.js";
+import { runMaintainer, verdict } from "../src/maintainer/orchestrator.js";
 import { DEMO_SNAPSHOT, createSimulatedMaintainerClient, createSimulatedSandbox } from "../src/maintainer/simulated.js";
 import { GitHubClient, parseIssueUrl } from "../src/maintainer/github.js";
 import { codeStaticChecks, docChecks, prChecks, uxChecks } from "../src/maintainer/checks.js";
@@ -365,5 +365,22 @@ describe("ModalSandboxClient", () => {
     await sandbox.validate({ repo: "o/r", sha: "abc1234", changes: { "src/a.py": "x = 1\n", "CHANGELOG.md": "notes" }, newTests: [] });
 
     expect(Object.keys(sent.changes)).toEqual(["src/a.py"]);
+  });
+});
+
+describe("verdict", () => {
+  it("approves when every agent signed off", () => {
+    expect(verdict({ approved: ["code", "ui", "doc", "write"], objectivelyPassing: true, budgetHit: false }).status).toBe("clean");
+  });
+
+  it("reports verified when every objective check passes but a critic wants more polish", () => {
+    const v = verdict({ approved: ["ui", "doc", "write"], objectivelyPassing: true, budgetHit: false });
+    expect(v.status).toBe("verified");
+    expect(v.message).toMatch(/new tests prove the fix/);
+    expect(v.message).toContain("CodePolish");
+  });
+
+  it("is not clean when an objective check still fails", () => {
+    expect(verdict({ approved: ["ui", "doc", "write"], objectivelyPassing: false, budgetHit: true }).status).toBe("not_clean");
   });
 });

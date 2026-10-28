@@ -211,7 +211,7 @@ export function maintainerReducer(view: MaintainerView, event: MaintainerEvent):
       return pushFeed(
         { ...view, costUSD: event.totalUSD, result: { status: event.status, message: event.message, lanes: event.lanes, totalUSD: event.totalUSD, canOpenPr: event.canOpenPr } },
         event,
-        { lane: null, tone: event.status === "clean" ? "good" : event.status === "failed" ? "bad" : "warn", text: event.message }
+        { lane: null, tone: event.status === "clean" || event.status === "verified" ? "good" : event.status === "failed" ? "bad" : "warn", text: event.message }
       );
   }
 }

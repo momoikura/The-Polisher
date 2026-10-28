@@ -26,7 +26,7 @@ import type { LaneSummary, MaintainerEvent, MaintainerEventInput, MaintainerStat
 import { GitHubClient, parseIssueUrl } from "./github.js";
 import { MaintainerLaneAgent, ValidationBoard, type OwnerLane, type RepairInfo, type UxReview } from "./lanes.js";
 import { BaselineSchema, MAINTAINER_PROMPT_VERSION, PlanSchema, buildBaselineMessages, buildPlanMessages } from "./prompts.js";
-import { summarizeValidation, type SandboxClient, type Validation } from "./sandbox.js";
+import { summarizeValidation, validationChecks, type SandboxClient, type Validation } from "./sandbox.js";
 
 export type MaintainerSource =
   | { kind: "github"; issueUrl: string; github: GitHubClient }
@@ -106,6 +106,35 @@ function selectFiles(snapshot: RepoSnapshot, sizes: Record<string, number>, want
 }
 
 /** Keep only what each lane may own; anything else the baseline produced is dropped. */
+const AGENT_NAMES: Record<LaneId, string> = { code: "CodePolish", ui: "UIPolish", doc: "DocPolish", write: "WritePolish" };
+
+/**
+ * The run's outcome. "verified" is reported separately from "clean" so a fix the
+ * sandbox proves is never presented as failed just because a critic wants polish,
+ * and never presented as approved when a critic hasn't signed off.
+ */
+export function verdict(input: { approved: readonly LaneId[]; objectivelyPassing: boolean; budgetHit: boolean }): {
+  status: MaintainerStatus;
+  message: string;
+} {
+  const pending = LANES.filter((l) => !input.approved.includes(l)).map((l) => AGENT_NAMES[l]);
+  if (pending.length === 0) {
+    return { status: "clean", message: "Every check passes, the new tests prove the fix in the sandbox, and all four agents signed off." };
+  }
+  if (input.objectivelyPassing) {
+    return {
+      status: "verified",
+      message: `Every check passes and the new tests prove the fix in the sandbox. ${pending.join(" and ")} still ${pending.length === 1 ? "wants" : "want"} more polish before signing off.`,
+    };
+  }
+  return {
+    status: "not_clean",
+    message: input.budgetHit
+      ? "Budget reached before every agent signed off. The best version of each part is kept."
+      : "Some agents stopped improving before signing off. The best version of each part is kept.",
+  };
+}
+
 function sanitizeBaseline(raw: { code: Record<string, string>; docs: Record<string, string>; pr: string }): PrBundle {
   return { code: ownedFiles("code", raw.code), docs: ownedFiles("doc", raw.docs), pr: raw.pr };
 }
@@ -249,14 +278,17 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     });
 
     const lanes = summarize(snap, ws);
-    const allClean = LANES.every((l) => lanes[l].clean);
-    const budgetHit = totalSpent() >= cfg.budgetUSD * 0.98;
-    const message = allClean
-      ? "Every check passes, the new tests prove the fix in the sandbox, and all four agents signed off."
-      : budgetHit
-        ? "Budget reached before every agent signed off. The best version of each part is kept."
-        : "Some agents stopped improving before signing off. The best version of each part is kept.";
-    return finish(allClean ? "clean" : "not_clean", message, lanes);
+    const objectivelyPassing =
+      finalValidation !== null &&
+      validationChecks(finalValidation).every((c) => c.passed) &&
+      uxChecks(final.code, snap).every((c) => c.passed) &&
+      OWNER_LANES.every((l) => failing(l, snap, ws).length === 0);
+    const v = verdict({
+      approved: LANES.filter((l) => lanes[l].clean),
+      objectivelyPassing,
+      budgetHit: totalSpent() >= cfg.budgetUSD * 0.98,
+    });
+    return finish(v.status, v.message, lanes);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     emit({ type: "error", message });

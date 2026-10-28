@@ -139,3 +139,12 @@ What still went wrong:
 - Remaining critic findings are real UX polish: the non-object error says
   `int`/`str` instead of the JSON terms the user wrote, and the missing-field
   wording is awkward.
+
+## Reporting change: "verified" (after run 2c)
+
+Runs now end in one of four states: **clean** (every check passes and every
+critic approved), **verified** (every objective check passes and the new tests
+prove the fix in the sandbox, but a critic wants more polish), **not clean**,
+or **failed**. Under this rule runs 2b and 2c would have been reported as
+verified: in both, CodePolish passed every check and only its critic score
+(82, 78) was under the 85 bar. The critic bar itself is unchanged.

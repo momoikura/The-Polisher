@@ -5,7 +5,11 @@ import type { FileDiff } from "./bundle.js";
 
 export type MaintainerPhase = "fetching" | "planning" | "baseline" | "polishing" | "reconciling" | "done";
 export type LaneState = "waiting" | "evaluating" | "testing" | "validating" | "repairing" | "reviewing" | "clean" | "not_clean" | "failed";
-export type MaintainerStatus = "clean" | "not_clean" | "failed";
+/**
+ * clean: every check passes and every critic approved.
+ * verified: every objective check passes and the new tests prove the fix, but a critic wants more polish.
+ */
+export type MaintainerStatus = "clean" | "verified" | "not_clean" | "failed";
 
 export interface SideMetrics {
   testsPassed: number | null;
