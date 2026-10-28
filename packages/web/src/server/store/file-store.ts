@@ -36,6 +36,10 @@ export class FileRunStore implements RunStore {
     }
   }
 
+  async countSince(user: string, sinceIso: string): Promise<number> {
+    return (await this.list(Number.MAX_SAFE_INTEGER)).filter((r) => r.user === user && r.startedAt >= sinceIso).length;
+  }
+
   async list(limit: number): Promise<RunRecord[]> {
     let names: string[];
     try {

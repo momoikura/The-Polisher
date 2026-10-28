@@ -10,6 +10,7 @@ import { FileExperienceStore, type ExperienceStore } from "@thepolisher/agents";
 import { dataDir } from "../http.js";
 import { DynamoExperienceStore, DynamoRunStore } from "./dynamo.js";
 import { FileRunStore } from "./file-store.js";
+import { DynamoSessionStore, MemorySessionStore, type SessionStore } from "../auth/sessions.js";
 import type { RunStore } from "./types.js";
 
 export type { RunRecord, RunStatus, RunStore, SavedRun } from "./types.js";
@@ -33,6 +34,15 @@ export function runStore(): RunStore {
   const name = table();
   runs ??= name ? new DynamoRunStore(client(), name) : new FileRunStore(dataDir("runs"));
   return runs;
+}
+
+let sessions: SessionStore | null = null;
+
+/** Signed-in sessions: in DynamoDB when configured (they survive restarts), otherwise in memory. */
+export function sessionStore(): SessionStore {
+  const name = table();
+  sessions ??= name ? new DynamoSessionStore(client(), name) : new MemorySessionStore();
+  return sessions;
 }
 
 /** One instance per provider, so its read cache is shared by every run on this server. */

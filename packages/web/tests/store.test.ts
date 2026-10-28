@@ -79,6 +79,14 @@ describe("FileRunStore", () => {
     expect((await store.list(10)).map((r) => r.id)).toEqual(["run-1", "old"]);
   });
 
+  it("counts a user's runs since a time, for the daily limit", async () => {
+    const store = new FileRunStore(dir);
+    await store.start(record({ id: "a", user: "momoikura", startedAt: "2026-10-28T23:00:00.000Z" }));
+    await store.start(record({ id: "b", user: "momoikura", startedAt: "2026-10-29T01:00:00.000Z" }));
+    await store.start(record({ id: "c", user: "someone-else", startedAt: "2026-10-29T02:00:00.000Z" }));
+    expect(await store.countSince("momoikura", "2026-10-29T00:00:00.000Z")).toBe(1);
+  });
+
   it("returns null for a run it never saw", async () => {
     expect(await new FileRunStore(dir).get("nope")).toBeNull();
   });
@@ -99,6 +107,17 @@ describe("DynamoRunStore", () => {
         expect.objectContaining({ pk: "FEED", sk: "2026-10-29T06:00:00.000Z#run-1" }),
       ])
     );
+  });
+
+  it("indexes a signed-in user's runs so the daily limit is one cheap query", async () => {
+    ddb.on(PutCommand).resolves({});
+    await store().start(record({ user: "momoikura" }));
+    const items = ddb.commandCalls(PutCommand).map((c) => c.args[0].input.Item);
+    expect(items).toEqual(expect.arrayContaining([expect.objectContaining({ pk: "USER#momoikura", sk: "2026-10-29T06:00:00.000Z#run-1" })]));
+
+    ddb.on(QueryCommand).resolves({ Count: 2 });
+    expect(await store().countSince("momoikura", "2026-10-29T00:00:00.000Z")).toBe(2);
+    expect(ddb.commandCalls(QueryCommand)[0].args[0].input).toMatchObject({ Select: "COUNT", KeyConditionExpression: "pk = :pk AND sk >= :since" });
   });
 
   it("stores events as a few large pages, not one write per event", async () => {

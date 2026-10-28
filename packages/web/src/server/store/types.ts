@@ -33,6 +33,8 @@ export interface RunStore {
   get(id: string): Promise<SavedRun | null>;
   /** Newest first. */
   list(limit: number): Promise<RunRecord[]>;
+  /** How many runs this user has started since `sinceIso`, for the daily limit. */
+  countSince(user: string, sinceIso: string): Promise<number>;
 }
 
 /**
