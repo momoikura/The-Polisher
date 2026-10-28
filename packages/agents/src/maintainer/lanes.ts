@@ -1,0 +1,224 @@
+/**
+ * Auto-Maintainer lane agents. CodePolish, DocPolish and WritePolish own an
+ * artifact each; UIPolish reviews CodePolish's work and gates it.
+ */
+
+import type {
+  AggregatedTestResults,
+  ArtifactVersion,
+  EvaluateResult,
+  EvaluatorAgent,
+  EvaluatorOutput,
+  RepairResult,
+  RepairerAgent,
+  Run,
+  TestCheck,
+  TestResult,
+  TesterAgent,
+} from "@polishloop/core";
+import { completeStructured, type ChatClient } from "../llm/chat-client.js";
+import { EvaluationSchema, RepairSchema, toEvaluatorOutput } from "../schemas/agent-output.js";
+import type { CheckSnapshot } from "../memory/experience.js";
+import { codeStaticChecks, docChecks, prChecks, uxChecks } from "./checks.js";
+import { isTestPath, parseFiles, serializeFiles, type FileMap, type PrBundle, type PrWorkspace } from "./bundle.js";
+import {
+  FilesRepairSchema,
+  buildLaneEvaluationMessages,
+  buildLaneRepairMessages,
+  type MaintainerLane,
+} from "./prompts.js";
+import { validationChecks, validationFailureChecks, type SandboxClient, type Validation } from "./sandbox.js";
+
+export type OwnerLane = Exclude<MaintainerLane, "ui">;
+export type LaneActivity = "evaluating" | "testing" | "validating" | "repairing" | "reviewing";
+
+export interface RepairInfo {
+  before: CheckSnapshot[];
+  scoreBefore: number;
+  strategies: string[];
+  model: string;
+}
+
+export interface UxReview {
+  score: number;
+  findings: Array<{ severity: string; description: string }>;
+}
+
+/** Validation results by serialized code patch; shared so other lanes can read the current one. */
+export class ValidationBoard {
+  private readonly results = new Map<string, Validation>();
+  record(code: FileMap, v: Validation): void {
+    this.results.set(serializeFiles(code), v);
+  }
+  forCode(code: FileMap): Validation | null {
+    return this.results.get(serializeFiles(code)) ?? null;
+  }
+}
+
+export interface MaintainerLaneOptions {
+  lane: OwnerLane;
+  client: ChatClient;
+  workspace: PrWorkspace;
+  board: ValidationBoard;
+  sandbox?: SandboxClient;
+  onActivity: (activity: LaneActivity) => void;
+  recall?: (failing: string[]) => string;
+  onRepaired?: (info: RepairInfo) => void;
+  /** CodePolish only: UIPolish's critic verdict and objective checks, for the dashboard. */
+  onUxReview?: (review: UxReview) => void;
+  onUxChecks?: (checks: TestCheck[]) => void;
+}
+
+const EVALUATION_TEMPERATURE = 0;
+const REPAIR_TEMPERATURE = 0.3;
+
+export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, TesterAgent {
+  /** The candidate being judged this round; test() also runs on the previous best (re-test), which must not be reported as new. */
+  private candidate: string | null = null;
+
+  constructor(private readonly o: MaintainerLaneOptions) {}
+
+  /** The lane's artifact as stored in the LoopController. */
+  static serialize(lane: OwnerLane, bundle: PrBundle): string {
+    return lane === "code" ? serializeFiles(bundle.code) : lane === "doc" ? serializeFiles(bundle.docs) : bundle.pr;
+  }
+
+  private bundleWith(content: string): PrBundle {
+    const { lane } = this.o;
+    return this.o.workspace.with(lane === "code" ? { code: parseFiles(content) } : lane === "doc" ? { docs: parseFiles(content) } : { pr: content });
+  }
+
+  private async validate(code: FileMap): Promise<Validation | null> {
+    const known = this.o.board.forCode(code);
+    if (known || !this.o.sandbox) return known;
+    const snap = this.o.workspace.snapshot;
+    this.o.onActivity("validating");
+    const v = await this.o.sandbox.validate({
+      repo: `${snap.owner}/${snap.repo}`,
+      sha: snap.sha,
+      changes: { ...code },
+      newTests: Object.keys(code).filter(isTestPath),
+    });
+    this.o.board.record(code, v);
+    return v;
+  }
+
+  async evaluate(_run: Run, _a: ArtifactVersion, content: string): Promise<EvaluateResult> {
+    this.candidate = content;
+    const bundle = this.bundleWith(content);
+    const snap = this.o.workspace.snapshot;
+    let validation: Validation | null = null;
+    try {
+      validation = this.o.lane === "code" ? await this.validate(bundle.code) : this.o.board.forCode(bundle.code);
+    } catch {
+      validation = null; // the tester reports it as "not verified"
+    }
+
+    this.o.onActivity("evaluating");
+    const own = completeStructured(this.o.client, buildLaneEvaluationMessages(this.o.lane, snap, bundle, validation), EvaluationSchema, {
+      temperature: EVALUATION_TEMPERATURE,
+    });
+    if (this.o.lane !== "code") {
+      const r = await own;
+      return { output: toEvaluatorOutput(r.data), model: r.model, promptTokens: r.promptTokens, completionTokens: r.completionTokens };
+    }
+
+    // CodePolish is critiqued by its own critic and by UIPolish; both must sign off.
+    const ux = completeStructured(this.o.client, buildLaneEvaluationMessages("ui", snap, bundle, validation), EvaluationSchema, {
+      temperature: EVALUATION_TEMPERATURE,
+    });
+    const [codeR, uxR] = await Promise.all([own, ux]);
+    const uxOut = toEvaluatorOutput(uxR.data);
+    this.o.onUxReview?.({ score: uxR.data.score, findings: uxOut.issues.slice(0, 4).map((i) => ({ severity: i.severity, description: i.description })) });
+    const codeOut = toEvaluatorOutput(codeR.data);
+    return {
+      output: {
+        scores: {
+          overall: Math.min(codeOut.scores.overall, uxOut.scores.overall),
+          // Both critics' own verdicts, so the dashboard can show each agent's score separately.
+          dimensions: { ...codeOut.scores.dimensions, code_review: codeOut.scores.overall, ux_review: uxOut.scores.overall },
+          rationale: codeOut.scores.rationale,
+        },
+        issues: [...codeOut.issues, ...uxOut.issues.map((i) => ({ ...i, description: `UIPolish: ${i.description}` }))],
+      },
+      model: codeR.model,
+      promptTokens: codeR.promptTokens + uxR.promptTokens,
+      completionTokens: codeR.completionTokens + uxR.completionTokens,
+    };
+  }
+
+  async test(_run: Run, _a: ArtifactVersion, content: string): Promise<TestResult> {
+    this.o.onActivity("testing");
+    const bundle = this.bundleWith(content);
+    const snap = this.o.workspace.snapshot;
+
+    if (this.o.lane === "doc") return { checks: docChecks(bundle.docs, bundle, snap) };
+    if (this.o.lane === "write") return { checks: prChecks(bundle.pr, bundle, snap, this.o.board.forCode(bundle.code)) };
+
+    const ux = uxChecks(bundle.code, snap);
+    if (content === this.candidate) this.o.onUxChecks?.(ux);
+    let sandboxChecks: TestCheck[];
+    if (!this.o.sandbox) {
+      sandboxChecks = validationFailureChecks("no sandbox configured");
+    } else {
+      try {
+        const v = await this.validate(bundle.code);
+        sandboxChecks = v ? validationChecks(v) : validationFailureChecks("no result");
+      } catch (err) {
+        sandboxChecks = validationFailureChecks(err instanceof Error ? err.message : String(err));
+      }
+    }
+    return { checks: [...codeStaticChecks(bundle.code, snap), ...ux, ...sandboxChecks] };
+  }
+
+  async repair(
+    _run: Run,
+    _a: ArtifactVersion,
+    content: string,
+    evaluation: EvaluatorOutput,
+    tests: AggregatedTestResults
+  ): Promise<RepairResult> {
+    this.o.onActivity("repairing");
+    const bundle = this.bundleWith(content);
+    const snap = this.o.workspace.snapshot;
+    const failing = tests.checks.filter((c) => !c.passed);
+    const lessons = this.o.recall?.(failing.map((c) => c.testType)) ?? "";
+    const messages = buildLaneRepairMessages(
+      this.o.lane,
+      snap,
+      bundle,
+      this.o.board.forCode(bundle.code),
+      evaluation.issues,
+      failing.map((c) => `${c.testType}: ${c.message}`),
+      lessons
+    );
+
+    let next: string;
+    let changes: string[];
+    let model: string;
+    let promptTokens: number;
+    let completionTokens: number;
+    if (this.o.lane === "write") {
+      const r = await completeStructured(this.o.client, messages, RepairSchema, { temperature: REPAIR_TEMPERATURE });
+      ({ model, promptTokens, completionTokens } = r);
+      next = r.data.candidateArtifact;
+      changes = r.data.changesMade;
+    } else {
+      const r = await completeStructured(this.o.client, messages, FilesRepairSchema, { temperature: REPAIR_TEMPERATURE });
+      ({ model, promptTokens, completionTokens } = r);
+      const current = parseFiles(content);
+      const merged: Record<string, string> = { ...current, ...r.data.files };
+      for (const p of r.data.removeFromPatch ?? []) delete merged[p];
+      next = serializeFiles(merged);
+      changes = r.data.changesMade;
+    }
+
+    this.o.onRepaired?.({
+      before: tests.checks.filter((c) => c.authority === "objective"),
+      scoreBefore: evaluation.scores.overall,
+      strategies: changes,
+      model,
+    });
+    return { content: next, changesMade: changes, model, promptTokens, completionTokens };
+  }
+}

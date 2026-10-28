@@ -1,0 +1,141 @@
+/**
+ * Runs a candidate patch for real (service: sandbox-service/modal_app.py, /validate).
+ * Results are cached per (repo, sha, changes), so re-tests before each gate are free.
+ */
+
+import { createHash } from "node:crypto";
+import { z } from "zod";
+import type { TestCheck } from "@polishloop/core";
+import { check } from "../slop/shared.js";
+
+export const ValidationSchema = z.object({
+  install: z.object({ ok: z.boolean(), logTail: z.string() }),
+  compile: z.object({ ok: z.boolean(), errors: z.array(z.string()) }),
+  lint: z.object({ issues: z.array(z.object({ file: z.string(), line: z.number(), code: z.string(), message: z.string() })) }),
+  tests: z.object({
+    ran: z.boolean(),
+    total: z.number(),
+    passed: z.number(),
+    failed: z.number(),
+    errors: z.number(),
+    skipped: z.number(),
+    failures: z.array(z.object({ test: z.string(), message: z.string() })),
+    outputTail: z.string(),
+  }),
+  failToPass: z
+    .object({ newTests: z.array(z.string()), failedOnBase: z.boolean(), passedAfter: z.boolean() })
+    .nullable(),
+  durationMs: z.number(),
+});
+export type Validation = z.infer<typeof ValidationSchema>;
+
+export interface ValidateRequest {
+  repo: string;
+  sha: string;
+  /** Full content per changed path (code + tests only; docs don't need running). */
+  changes: Record<string, string>;
+  /** Test files the PR adds or changes; checked for fail-to-pass. */
+  newTests: string[];
+}
+
+export interface SandboxClient {
+  validate(req: ValidateRequest): Promise<Validation>;
+}
+
+export interface ModalSandboxConfig {
+  url: string;
+  token: string;
+  timeoutMs?: number;
+  fetchFn?: typeof fetch;
+}
+
+const DEFAULT_TIMEOUT_MS = 6 * 60_000;
+const CACHE_SIZE = 40;
+
+export class ModalSandboxClient implements SandboxClient {
+  private readonly cache = new Map<string, Promise<Validation>>();
+  private readonly fetchFn: typeof fetch;
+
+  constructor(private readonly cfg: ModalSandboxConfig) {
+    if (!/^https:\/\//.test(cfg.url)) throw new Error("SANDBOX_URL must be an https:// URL.");
+    this.fetchFn = cfg.fetchFn ?? globalThis.fetch;
+  }
+
+  validate(req: ValidateRequest): Promise<Validation> {
+    const key = createHash("sha256").update(JSON.stringify([req.repo, req.sha, Object.entries(req.changes).sort(), [...req.newTests].sort()])).digest("hex");
+    const cached = this.cache.get(key);
+    if (cached) return cached;
+    const pending = this.post(req);
+    this.cache.set(key, pending);
+    pending.catch(() => this.cache.delete(key));
+    if (this.cache.size > CACHE_SIZE) this.cache.delete(this.cache.keys().next().value as string);
+    return pending;
+  }
+
+  private async post(req: ValidateRequest): Promise<Validation> {
+    const res = await this.fetchFn(this.cfg.url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${this.cfg.token}` },
+      body: JSON.stringify(req),
+      signal: AbortSignal.timeout(this.cfg.timeoutMs ?? DEFAULT_TIMEOUT_MS),
+    });
+    if (res.status === 401 || res.status === 403) throw new Error("Sandbox rejected SANDBOX_TOKEN.");
+    if (!res.ok) throw new Error(`Sandbox returned HTTP ${res.status}.`);
+    const parsed = ValidationSchema.safeParse(await res.json());
+    if (!parsed.success) throw new Error("Sandbox returned an unexpected response.");
+    return parsed.data;
+  }
+}
+
+// ─── Checks ───────────────────────────────────────────────────────────────
+
+export function validationChecks(v: Validation): TestCheck[] {
+  const tests = v.tests;
+  const testProblems = !v.install.ok
+    ? [`dependencies failed to install: ${v.install.logTail.split("\n").slice(-2).join(" ")}`]
+    : !tests.ran
+      ? ["pytest did not run"]
+      : tests.total === 0
+        ? ["no tests were collected"]
+        : [
+            ...tests.failures.slice(0, 5).map((f) => `${f.test}: ${f.message.slice(0, 160)}`),
+            ...(tests.failed + tests.errors > tests.failures.length ? [`${tests.failed + tests.errors} failing in total`] : []),
+          ];
+
+  const ftp = v.failToPass;
+  const ftpProblems = !ftp
+    ? ["no new or changed tests to prove the fix"]
+    : [
+        ...(ftp.failedOnBase ? [] : ["the new tests already pass on the original code, so they don't catch the bug"]),
+        ...(ftp.passedAfter ? [] : ["the new tests do not pass with the fix applied"]),
+      ];
+
+  return [
+    check("py_compile", v.compile.errors.slice(0, 5), "All changed files compile."),
+    check("py_lint", v.lint.issues.slice(0, 8).map((i) => `${i.file}:${i.line} ${i.code} ${i.message}`), "No lint errors in changed files."),
+    check("py_tests", testProblems, `All ${tests.total} tests pass.`),
+    check("fail_to_pass", ftpProblems, "New tests fail before the fix and pass after it."),
+  ];
+}
+
+/** A validation that could not run must never look like a pass. */
+export function validationFailureChecks(reason: string): TestCheck[] {
+  return (["py_compile", "py_lint", "py_tests", "fail_to_pass"] as const).map((testType) => ({
+    testType,
+    authority: "objective" as const,
+    passed: false,
+    problemCount: 1,
+    message: `Not verified: sandbox unavailable (${reason})`,
+  }));
+}
+
+export function summarizeValidation(v: Validation | null) {
+  if (!v) return null;
+  return {
+    testsPassed: v.tests.passed,
+    testsTotal: v.tests.total,
+    lintIssues: v.lint.issues.length,
+    compiles: v.compile.ok,
+    provesFix: Boolean(v.failToPass?.failedOnBase && v.failToPass?.passedAfter),
+  };
+}

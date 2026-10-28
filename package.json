@@ -1,0 +1,32 @@
+{
+  "name": "polishloop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Multi-agent AI system that iteratively evaluates, repairs, and tests generated artifacts until quality standards are met.",
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm -r --parallel dev",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "typecheck": "pnpm -r typecheck",
+    "db:migrate": "pnpm --filter @polishloop/core db:migrate",
+    "clean": "pnpm -r clean"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "eslint": "^10.13.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}

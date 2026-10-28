@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "polishloop-web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@polishloop/web", "dev"],
+      "port": 3000
+    },
+    {
+      "name": "polishloop-web-sim",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@polishloop/web", "dev:sim"],
+      "port": 3000
+    }
+  ]
+}
