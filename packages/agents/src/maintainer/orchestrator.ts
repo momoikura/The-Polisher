@@ -77,6 +77,10 @@ async function loadFromGitHub(
 ): Promise<{ snapshot: RepoSnapshot; sizes: Record<string, number> }> {
   const ref = parseIssueUrl(issueUrl);
   const [issue, repo] = await Promise.all([github.getIssue(ref), github.getRepo(ref.owner, ref.repo)]);
+  // The latest code may already contain the fix; working on it would spend money "fixing" fixed code.
+  if (issue.state !== "open") {
+    throw new Error(`Issue #${issue.number} is already closed, so its fix may already be in the code. Pick an open issue.`);
+  }
   const { files } = await github.listFiles(ref.owner, ref.repo, repo.headSha);
   if (!files.some((f) => f.path.endsWith(".py"))) throw new Error("This repository has no Python files; only Python + pytest repos are supported.");
   const kept = files.filter((f) => !IGNORED_DIRS.test(f.path));

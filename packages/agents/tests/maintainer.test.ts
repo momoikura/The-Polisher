@@ -434,3 +434,28 @@ describe("context files", () => {
     expect(prompt).not.toContain("(truncated)");
   });
 });
+
+describe("closed issues", () => {
+  it("refuses an issue that is already closed, before spending anything", async () => {
+    const fetchFn = (async (url: string) => {
+      const path = url.replace("https://api.github.com", "");
+      const bodies: Record<string, unknown> = {
+        "/repos/o/r/issues/7": { number: 7, title: "Bug", body: "", html_url: "https://github.com/o/r/issues/7", state: "closed" },
+        "/repos/o/r": { full_name: "o/r", default_branch: "main", private: false, permissions: { push: false } },
+        "/repos/o/r/branches/main": { commit: { sha: "abc1234" } },
+      };
+      return new Response(JSON.stringify(bodies[path] ?? {}), { status: bodies[path] ? 200 : 404 });
+    }) as unknown as typeof fetch;
+    let modelCalls = 0;
+    const client = { async complete() { modelCalls++; return { text: "{}", model: "x", promptTokens: 0, completionTokens: 0 }; } };
+
+    const result = await runMaintainer(
+      { kind: "github", issueUrl: "https://github.com/o/r/issues/7", github: new GitHubClient({ token: "t", fetchFn }) },
+      { client, onEvent: () => {} }
+    );
+
+    expect(result.status).toBe("failed");
+    expect(result.message).toMatch(/already closed/);
+    expect(modelCalls).toBe(0);
+  });
+});

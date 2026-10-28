@@ -193,3 +193,21 @@ drafts (runs 2c, 2d) and the repeated "doesn't compile" revisions in runs 2,
 2b and 2c. Run 2d was stopped. Fixed in the next commit: a loaded file is
 always shown in full (both limits now share one constant). Runs 2-2c on this
 issue were handicapped by this bug; runs 1 and 3 had no file over the limit.
+
+## Correction: issue #64 was fixed upstream mid-session (2026-10-28)
+
+`jamesconwaydev/sentry-v2#64` was closed at 11:23 UTC by commit `28118f5`
+(the human contributor's fix, PR #103). The app works on the repo's latest
+commit, so every run that started after that "fixed" code that already
+contained the fix:
+
+| Run | Started (UTC) | Valid? |
+|---|---|---|
+| 2 | 10:39 | yes (repo at `4083be2`; `cli.py` shown truncated, see above) |
+| 2b | 11:06 | yes (same) |
+| 2c | 11:25 | **no**: the fix was already merged, so its "2-line draft" had nothing to fix |
+| 2d, 2e | later | **no**: every candidate reproduced the merged fix, so each showed "+0 lines" |
+
+The parallel-candidates feature itself works; it was being tested on a solved
+issue. The app now refuses closed issues before spending anything. Future
+benchmark issues must be open and unclaimed, or pinned to a commit.
