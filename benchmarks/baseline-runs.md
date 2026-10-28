@@ -74,3 +74,34 @@ Why it didn't finish clean, and what it showed:
   test file.
 - One added line ("Rolling back... systemd is slow") looks unrelated to the
   issue; worth a scope check.
+
+## Run 2b: sentry-v2#64 again, with adaptive agents (2026-10-28)
+
+Same issue and repo commit as run 2, after the parser, scope, sandbox-filter
+and adaptation changes (`bd3502a`, `39e0c3c`).
+
+| Measure | First draft | After |
+|---|---|---|
+| Tests | 646/651 pass | 652/657 pass (5 skipped) |
+| New tests prove the fix | no | yes |
+| Lint issues | 0 | 0 |
+| CodePolish checks / critic | 3/4, 58 | **4/4**, 82 |
+| UIPolish checks / critic | 1/1, 68 | 1/1, 96 |
+| DocPolish checks / critic | 4/4, 78 | 4/4, 96 |
+| WritePolish checks / critic | 4/6, 36 | **6/6, 94** |
+| Files changed / lines added | 2 / 68 | 3 / 119 |
+
+- Status: not clean, but only CodePolish's critic score (82, bar 85) blocked
+  it; every objective check passes. Cost $1.787. Wall time 17 min 11 s.
+- vs run 2: CodePolish passed every check on its first revision (run 2 needed
+  four rounds to get down to one false alarm). WritePolish went from stalled to
+  approved: it rethought after a rejection, then narrowed to the one failing
+  check (`pr_files_listed`) and fixed it.
+
+What still went wrong:
+- CodePolish spent rounds 3-6 re-adding a CHANGELOG line. Out-of-scope files
+  are now discarded, so those revisions came back unchanged, scored the same
+  82, and were rejected as "no improvement". The adaptation brief said what it
+  tried but not that the edit was discarded, so it kept trying. Meanwhile the
+  critic's real requests (rename `_build`, reword "it holds no events", give
+  the fallback error a fix hint) went unaddressed.
