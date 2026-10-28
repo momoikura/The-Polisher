@@ -19,9 +19,9 @@ function stateLabel(view: MaintainerView): { text: string; tone: "solid" | "outl
   return { text: "Changes requested", tone: "outline" };
 }
 
-type Props = { view: MaintainerView; isSimulated: boolean; model: string; onNewRun: () => void };
+type Props = { view: MaintainerView; isSimulated: boolean; model: string; action?: { label: string; onClick: () => void } };
 
-export function PrHeader({ view, isSimulated, model, onNewRun }: Props) {
+export function PrHeader({ view, isSimulated, model, action }: Props) {
   const ctx = view.context;
   const state = stateLabel(view);
   const currentIndex = PHASES.findIndex((p) => p.id === view.phase);
@@ -35,9 +35,9 @@ export function PrHeader({ view, isSimulated, model, onNewRun }: Props) {
           {ctx ? ctx.issue.title : "Reading the issue…"}{" "}
           {ctx && <span className="pr-number">#{ctx.issue.number}</span>}
         </h1>
-        {view.result && (
-          <Button variant="secondary" size="sm" onClick={onNewRun}>
-            New issue
+        {view.result && action && (
+          <Button variant="secondary" size="sm" onClick={action.onClick}>
+            {action.label}
           </Button>
         )}
       </div>

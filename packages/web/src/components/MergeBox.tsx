@@ -11,10 +11,12 @@ type Props = {
   hasGitHubToken: boolean;
   pr: PrState;
   onOpenPr: () => void;
+  /** A saved run: no pull request can be opened from it. */
+  isReplay?: boolean;
 };
 
 /** GitHub-style merge box: per-agent checks, then the only action that writes to GitHub. */
-export function MergeBox({ view, isSimulated, hasGitHubToken, pr, onOpenPr }: Props) {
+export function MergeBox({ view, isSimulated, hasGitHubToken, pr, onOpenPr, isReplay = false }: Props) {
   const [isConfirming, setIsConfirming] = useState(false);
   const result = view.result;
   const repo = view.context?.repo ?? "the repository";
@@ -68,7 +70,10 @@ export function MergeBox({ view, isSimulated, hasGitHubToken, pr, onOpenPr }: Pr
         })}
       </ul>
 
-      {result?.canOpenPr && (
+      {isReplay && result && (
+        <p className="merge-row field-help">This is a saved run. To open a pull request, start a new run on the issue.</p>
+      )}
+      {!isReplay && result?.canOpenPr && (
         <div className="merge-row merge-actions">
           {pr.kind === "opened" ? (
             <p className="opened">

@@ -19,7 +19,8 @@ import {
   type MaintainerEvent,
   type MaintainerResult,
 } from "@thepolisher/agents";
-import { experienceStore } from "./experience-api.js";
+import { finishedRecord, saveQuietly, startedRecord } from "./history.js";
+import { VerifiedMemory, runStore, sharedMemory, type RunRecord } from "./store/index.js";
 import {
   activeProvider,
   githubClient,
@@ -93,18 +94,33 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
     const source = isSimulated()
       ? ({ kind: "snapshot", snapshot: DEMO_SNAPSHOT } as const)
       : ({ kind: "github", issueUrl: parsed.data.issueUrl, github: githubClient() } as const);
+    const provider = activeProvider();
+    // Shared memory only learns from this run if the sandbox verifies its result.
+    const memory = new VerifiedMemory(sharedMemory(provider));
+    const holder: { started: RunRecord | null } = { started: null };
     const session = registry.start(
-      (publish) =>
-        runMaintainer(source, {
+      async (publish) => {
+        const result = await runMaintainer(source, {
           client,
           sandbox: sandboxClientOrNull() ?? undefined,
           budgetUSD: parsed.data.budgetUSD,
-          experience: experienceStore(),
-          provider: activeProvider(),
+          experience: memory,
+          provider,
           onEvent: publish,
-        }),
+        });
+        const started = holder.started;
+        if (started) {
+          const finished = finishedRecord(started, { status: result.status, totalUSD: result.totalUSD, title: result.snapshot?.issue.title ?? "" });
+          await saveQuietly("save the finished run", () => runStore().finish(finished, session.events));
+        }
+        await saveQuietly("share this run's lessons", () => memory.commit(result.status));
+        return result;
+      },
       (message) => ({ type: "error", message, at: Date.now() })
     );
+    holder.started = startedRecord(session.id, parsed.data.issueUrl, providerStatus().model, null);
+    const started = holder.started;
+    void saveQuietly("record the run start", () => runStore().start(started));
     sendJson(res, 201, { id: session.id, isSimulated: isSimulated() });
     return true;
   }

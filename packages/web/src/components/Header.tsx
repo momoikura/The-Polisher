@@ -2,10 +2,11 @@ import type { MaintainerConfig } from "../maintainer/useMaintainer.js";
 import { modelLabel } from "../maintainer/model-label.js";
 import { Icon } from "./Icon.js";
 
-export type Page = "maintainer" | "memory";
+export type Page = "maintainer" | "runs" | "memory";
 
 const PAGES: Array<{ id: Page; label: string }> = [
   { id: "maintainer", label: "Pull requests" },
+  { id: "runs", label: "Runs" },
   { id: "memory", label: "Memory" },
 ];
 
@@ -55,7 +56,7 @@ export function Header({ config, repo, page, onNavigate }: Props) {
             aria-current={page === p.id ? "page" : undefined}
             onClick={() => onNavigate(p.id)}
           >
-            <Icon name={p.id === "maintainer" ? "codeBranch" : "history"} size={16} />
+            <Icon name={p.id === "maintainer" ? "codeBranch" : p.id === "runs" ? "clock" : "history"} size={16} />
             {p.label}
           </button>
         ))}
