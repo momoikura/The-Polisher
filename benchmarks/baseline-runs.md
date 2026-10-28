@@ -241,3 +241,36 @@ Problems found:
   an interactive CLI whose existing code already prints to talk to the user.
 - Memory recalled a sentry-v2 lesson ("validate policy test event shape")
   into this unrelated repo.
+
+## Run 4b: ExecuTrace#37 again, after the run-4 fixes (2026-10-28)
+
+Same issue and repo commit as run 4 (issue still open, no competing PR),
+with `1528982`.
+
+| Candidate | Proves the fix | Failing checks | Tests | Lines |
+|---|---|---|---|---|
+| **1 (single-prompt baseline, chosen)** | yes | 1 | 15/15 | +105 |
+| 2 | no | 3 | 9/9 | +123 |
+| 3 | yes | 1 | 16/16 | +180 |
+
+Candidates 1 and 3 tied on proof and checks; the smaller diff won.
+
+| Measure | First draft | After |
+|---|---|---|
+| Tests | 15/15 pass | 25/25 pass |
+| New tests prove the fix | yes | yes |
+| Lint issues | 2 | 0 |
+| CodePolish checks / critic | 4/4, 88 | 4/4, 92 |
+| UIPolish checks / critic | 1/1, 76 | 1/1, 87 |
+| DocPolish checks / critic | 4/4, 100 | 4/4, 100 |
+| WritePolish checks / critic | 4/6, 68 | 6/6, 93 |
+| Files changed / lines added | 5 / 105 | 6 / 324 |
+
+- Status: **clean** (all four agents approved). Cost $0.922. Wall time 8 min 13 s.
+- CodePolish fixed the lint issues in one revision (all checks, critic 93),
+  spent its one extra revision on a major reviewer finding (rejected: it broke
+  two checks), adapted, and the next revision passed everything again.
+- No CHANGELOG was created in this repo that has none.
+- Worth watching: the patch grew from 105 to 324 added lines (a new
+  `utils/paths.py` helper used by four modules, and 10 more tests). All of it
+  is tested, but a maintainer might prefer the smaller version.
