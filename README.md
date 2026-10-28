@@ -61,3 +61,7 @@ After every keep-or-reject decision, the agent records what it tried and the out
 pnpm test
 pnpm typecheck
 ```
+
+## License
+
+[MIT](LICENSE)
