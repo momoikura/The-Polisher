@@ -132,7 +132,7 @@ describe("recallLessons", () => {
 describe("FileExperienceStore", () => {
   let dir: string;
   beforeEach(async () => {
-    dir = await mkdtemp(path.join(tmpdir(), "polishloop-exp-"));
+    dir = await mkdtemp(path.join(tmpdir(), "thepolisher-exp-"));
   });
   afterEach(async () => {
     await rm(dir, { recursive: true, force: true });

@@ -8,7 +8,7 @@ import {
   wrapArtifact,
   type TaskContext,
 } from "./shared.js";
-import type { EvaluationIssue } from "@polishloop/core";
+import type { EvaluationIssue } from "@thepolisher/core";
 
 export const WRITING_PROMPT_VERSION = "writing-v1";
 

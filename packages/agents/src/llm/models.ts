@@ -6,7 +6,7 @@
  * and Tester can use cheaper ones.
  */
 
-import type { AgentRole } from "@polishloop/core";
+import type { AgentRole } from "@thepolisher/core";
 
 /** Default model for each agent role (can be overridden per-run). */
 export const DEFAULT_MODELS: Record<AgentRole, string> = {

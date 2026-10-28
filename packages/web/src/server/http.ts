@@ -12,7 +12,7 @@ import {
   resolveClaudeConfig,
   type ChatClient,
   type SandboxClient,
-} from "@polishloop/agents";
+} from "@thepolisher/agents";
 
 export function sendJson(res: ServerResponse, status: number, body: unknown): void {
   res.statusCode = status;
@@ -46,7 +46,7 @@ export function readJsonBody(req: IncomingMessage, maxBytes: number): Promise<un
 
 const MIN_STUDIO_TIMEOUT_MS = 120_000;
 
-export const isSimulated = () => process.env.POLISHLOOP_SIMULATE === "1";
+export const isSimulated = () => process.env.THEPOLISHER_SIMULATE === "1";
 
 export function metaClient(): MetaModelClient {
   const envTimeout = Number(process.env.MODEL_TIMEOUT_MS) || 0;
@@ -55,7 +55,7 @@ export function metaClient(): MetaModelClient {
 
 export type Provider = "simulated" | "anthropic" | "meta";
 
-/** POLISHLOOP_SIMULATE=1 wins; otherwise MODEL_PROVIDER picks Claude ("anthropic"/"claude") or Meta (default). */
+/** THEPOLISHER_SIMULATE=1 wins; otherwise MODEL_PROVIDER picks Claude ("anthropic"/"claude") or Meta (default). */
 export function activeProvider(): Provider {
   if (isSimulated()) return "simulated";
   const chosen = (process.env.MODEL_PROVIDER ?? "meta").trim().toLowerCase();
@@ -130,7 +130,7 @@ export function githubClient(): GitHubClient {
   return new GitHubClient({ token: process.env.GITHUB_TOKEN?.trim() || undefined });
 }
 
-/** Repo-level data folder; vite.config sets POLISHLOOP_ROOT. */
+/** Repo-level data folder; vite.config sets THEPOLISHER_ROOT. */
 export function dataDir(...parts: string[]): string {
-  return path.join(process.env.POLISHLOOP_ROOT ?? process.cwd(), "data", ...parts);
+  return path.join(process.env.THEPOLISHER_ROOT ?? process.cwd(), "data", ...parts);
 }

@@ -1,5 +1,5 @@
 {
-  "name": "polishloop",
+  "name": "thepolisher",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -11,7 +11,7 @@
     "test:watch": "vitest",
     "lint": "eslint .",
     "typecheck": "pnpm -r typecheck",
-    "db:migrate": "pnpm --filter @polishloop/core db:migrate",
+    "db:migrate": "pnpm --filter @thepolisher/core db:migrate",
     "clean": "pnpm -r clean"
   },
   "engines": {

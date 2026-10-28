@@ -1,4 +1,4 @@
-import type { LaneId } from "@polishloop/agents";
+import type { LaneId } from "@thepolisher/agents";
 import { LANE_IDS, reasonText, type MaintainerView } from "../maintainer/reducer.js";
 import { ACTIVE_STATES, LANE_META, STATE_LABEL, stateIcon } from "../maintainer/lanes.js";
 import { Icon } from "./Icon.js";

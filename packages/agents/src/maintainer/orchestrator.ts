@@ -7,7 +7,7 @@
  * budgets and experience memory are the same tested machinery throughout.
  */
 
-import { CostTracker, DEFAULT_RUN_CONFIG, LoopController, type ArtifactMode, type LoopEvent, type TestCheck } from "@polishloop/core";
+import { CostTracker, DEFAULT_RUN_CONFIG, LoopController, type ArtifactMode, type LoopEvent, type TestCheck } from "@thepolisher/core";
 import { completeStructured, StructuredOutputError, type ChatClient } from "../llm/chat-client.js";
 import { LaneArtifactStore, LaneRunStore } from "../loop/stores.js";
 import { buildExperience, formatLessons, recallLessons, type CheckSnapshot, type Experience, type ExperienceStore } from "../memory/experience.js";

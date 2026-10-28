@@ -1,5 +1,5 @@
 /**
- * PolishLoop Run — represents a single polishing job from start to finish.
+ * ThePolisher Run — represents a single polishing job from start to finish.
  *
  * A Run tracks the full lifecycle: mode, user prompt,
  * configuration overrides, cost/iteration accounting, and a pointer
@@ -8,7 +8,7 @@
 
 import { z } from "zod";
 
-/** The four artifact modes PolishLoop supports (writing, ui, code, presentation/reports). */
+/** The four artifact modes ThePolisher supports (writing, ui, code, presentation/reports). */
 export const ARTIFACT_MODES = [
   "writing",
   "ui",
@@ -22,7 +22,7 @@ export type ArtifactMode = (typeof ARTIFACT_MODES)[number];
 export const ArtifactModeSchema = z.enum(ARTIFACT_MODES);
 
 /**
- * Basic run lifecycle states specified for PolishLoop:
+ * Basic run lifecycle states specified for ThePolisher:
  * queued -> running -> completed | quality_target_not_reached | failed
  */
 export const BASIC_RUN_STATUSES = [

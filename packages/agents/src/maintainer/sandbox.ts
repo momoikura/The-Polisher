@@ -5,7 +5,7 @@
 
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import type { TestCheck } from "@polishloop/core";
+import type { TestCheck } from "@thepolisher/core";
 import { check } from "../slop/shared.js";
 
 export const ValidationSchema = z.object({

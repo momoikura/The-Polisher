@@ -4,7 +4,7 @@
  * (never reported as passing).
  */
 
-import type { RunConfig, TestCheck } from "@polishloop/core";
+import type { RunConfig, TestCheck } from "@thepolisher/core";
 
 const PLACEHOLDER_PATTERNS: RegExp[] = [
   /\bTODO\b/,

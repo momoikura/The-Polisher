@@ -1,8 +1,8 @@
 /**
- * @polishloop/core — public API barrel export.
+ * @thepolisher/core — public API barrel export.
  *
  * Re-exports all types, controller components, store, and utilities
- * so consumers can import from "@polishloop/core" directly.
+ * so consumers can import from "@thepolisher/core" directly.
  */
 
 export type {

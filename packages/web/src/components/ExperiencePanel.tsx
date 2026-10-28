@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { LaneMemorySummary } from "@polishloop/agents";
+import type { LaneMemorySummary } from "@thepolisher/agents";
 import { Button } from "./Button.js";
 import { LANE_META } from "../maintainer/lanes.js";
 import { Icon } from "./Icon.js";

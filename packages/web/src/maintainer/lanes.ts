@@ -1,4 +1,4 @@
-import type { LaneId, MaintainerLaneState } from "@polishloop/agents";
+import type { LaneId, MaintainerLaneState } from "@thepolisher/agents";
 import type { IconName } from "../components/Icon.js";
 
 export const LANE_META: Record<LaneId, { agent: string; job: string; icon: IconName }> = {

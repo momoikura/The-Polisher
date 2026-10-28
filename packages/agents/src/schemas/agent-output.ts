@@ -6,7 +6,7 @@
  */
 
 import { z } from "zod";
-import type { EvaluatorOutput, EvaluationIssue } from "@polishloop/core";
+import type { EvaluatorOutput, EvaluationIssue } from "@thepolisher/core";
 
 export const SeveritySchema = z.enum(["critical", "high", "medium", "low"]);
 export type Severity = z.infer<typeof SeveritySchema>;

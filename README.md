@@ -1,10 +1,10 @@
-# The Polisher
+# ThePolisher
 
 **GitHub issue in, tested pull request out, powered by Meta's Muse Spark.**
 
 Built for the Meta Global AI Developer Hackathon, *Push the Frontier* track (software).
 
-Paste a GitHub issue from a Python repository. The Polisher (PolishLoop inside the code) uses Muse Spark through the Meta Model API to write three candidate fixes at once. Each is tested in its own Modal sandbox, and the tests pick the one to polish: the one whose new tests prove the fix, then the fewest failing checks, then the smallest diff. Four agents then critique and revise it in parallel until the pull request is something a maintainer would merge. The first draft is kept as the single-prompt baseline so you can compare it with the result, side by side.
+Paste a GitHub issue from a Python repository. ThePolisher uses Muse Spark through the Meta Model API to write three candidate fixes at once. Each is tested in its own Modal sandbox, and the tests pick the one to polish: the one whose new tests prove the fix, then the fewest failing checks, then the smallest diff. Four agents then critique and revise it in parallel until the pull request is something a maintainer would merge. The first draft is kept as the single-prompt baseline so you can compare it with the result, side by side.
 
 | Agent | Owns | Must pass |
 |---|---|---|
@@ -39,7 +39,7 @@ pnpm build
 **Demo (no keys):** a built-in demo repo with scripted model and test results. The orchestrator, gate, checks and memory are real.
 
 ```bash
-pnpm --filter @polishloop/web dev:sim
+pnpm --filter @thepolisher/web dev:sim
 ```
 
 **Real runs:** copy `.env.example` to `.env` at the repo root and set:
@@ -49,7 +49,7 @@ pnpm --filter @polishloop/web dev:sim
 - optionally `GITHUB_TOKEN` (higher read limits; required for **Open PR**)
 
 ```bash
-pnpm --filter @polishloop/web dev
+pnpm --filter @thepolisher/web dev
 ```
 
 Open http://localhost:3000.

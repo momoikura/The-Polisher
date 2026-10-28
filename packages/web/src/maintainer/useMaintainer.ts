@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
-import type { MaintainerEvent } from "@polishloop/agents";
+import type { MaintainerEvent } from "@thepolisher/agents";
 import { initialView, maintainerReducer, type MaintainerView } from "./reducer.js";
 
 export interface MaintainerConfig {

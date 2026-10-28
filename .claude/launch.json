@@ -2,15 +2,15 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "polishloop-web",
+      "name": "thepolisher-web",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@polishloop/web", "dev"],
+      "runtimeArgs": ["--filter", "@thepolisher/web", "dev"],
       "port": 3000
     },
     {
-      "name": "polishloop-web-sim",
+      "name": "thepolisher-web-sim",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@polishloop/web", "dev:sim"],
+      "runtimeArgs": ["--filter", "@thepolisher/web", "dev:sim"],
       "port": 3000
     }
   ]

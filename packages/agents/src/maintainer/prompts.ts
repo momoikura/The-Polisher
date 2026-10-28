@@ -1,7 +1,7 @@
 /** Auto-Maintainer prompts. Bump the version whenever wording changes. */
 
 import { z } from "zod";
-import type { EvaluationIssue } from "@polishloop/core";
+import type { EvaluationIssue } from "@thepolisher/core";
 import type { ChatMessage } from "../llm/meta-client.js";
 import { EVALUATION_JSON_CONTRACT, REPAIR_JSON_CONTRACT, wrapArtifact } from "../prompts/shared.js";
 import { SLOP_PHRASES } from "../slop/shared.js";

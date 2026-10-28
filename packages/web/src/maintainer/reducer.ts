@@ -8,7 +8,7 @@ import type {
   MaintainerPhase,
   MaintainerStatus,
   SideMetrics,
-} from "@polishloop/agents";
+} from "@thepolisher/agents";
 
 export const LANE_IDS: LaneId[] = ["code", "security", "doc", "write"];
 

@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
 /**
- * PolishLoop CLI — entry point.
+ * ThePolisher CLI — entry point.
  *
  * Commands:
- *   polishloop run     - Start a new polishing run
- *   polishloop status  - Check run status
- *   polishloop history - List past runs
- *   polishloop export  - Export a run's best artifact
+ *   thepolisher run     - Start a new polishing run
+ *   thepolisher status  - Check run status
+ *   thepolisher history - List past runs
+ *   thepolisher export  - Export a run's best artifact
  *
  * Full command implementations will be added on Day 6.
  */
@@ -18,7 +18,7 @@ import chalk from "chalk";
 const program = new Command();
 
 program
-  .name("polishloop")
+  .name("thepolisher")
   .description(
     "Multi-agent AI system that iteratively polishes artifacts until they meet quality standards."
   )
@@ -38,7 +38,7 @@ program
   .option("--design-tokens <path>", "Path to design tokens JSON (UI mode)")
   .option("--max-sections <n>", "Maximum sections/slides (reports mode)")
   .action(async (options) => {
-    console.log(chalk.cyan("🔄 PolishLoop"), chalk.gray("v0.1.0"));
+    console.log(chalk.cyan("🔄 ThePolisher"), chalk.gray("v0.1.0"));
     console.log(
       chalk.yellow("⚠  Agent implementations not yet available (Day 3-4).")
     );

@@ -8,7 +8,7 @@
  * single most important failing check.
  */
 
-import type { RepairAttempt } from "@polishloop/core";
+import type { RepairAttempt } from "@thepolisher/core";
 
 export type AdaptMode = "normal" | "rethink" | "minimal";
 

@@ -1,5 +1,5 @@
 /**
- * LLM Provider abstraction — wraps the Vercel AI SDK for PolishLoop.
+ * LLM Provider abstraction — wraps the Vercel AI SDK for ThePolisher.
  *
  * Provides a unified interface for calling any supported LLM provider
  * with automatic token tracking for the cost system.

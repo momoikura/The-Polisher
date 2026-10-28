@@ -18,7 +18,7 @@ import {
   splitPr,
   type MaintainerEvent,
   type MaintainerResult,
-} from "@polishloop/agents";
+} from "@thepolisher/agents";
 import { experienceStore } from "./experience-api.js";
 import {
   activeProvider,
@@ -86,7 +86,7 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
     }
     const client = modelClientOrNull();
     if (!client) {
-      sendJson(res, 503, { error: `${providerStatus().setupHint} To try the scripted demo, run \`pnpm --filter @polishloop/web dev:sim\`.` });
+      sendJson(res, 503, { error: `${providerStatus().setupHint} To try the scripted demo, run \`pnpm --filter @thepolisher/web dev:sim\`.` });
       return true;
     }
 
@@ -168,10 +168,10 @@ async function openPullRequest(res: ServerResponse, id: string): Promise<void> {
       head,
       baseBranch: snapshot.defaultBranch,
       baseSha: snapshot.sha,
-      branch: `polishloop/issue-${snapshot.issue.number}-${id.slice(0, 8)}`,
+      branch: `thepolisher/issue-${snapshot.issue.number}-${id.slice(0, 8)}`,
       files,
       title,
-      body: `${body}\n\n---\n_AI-assisted: opened by [The Polisher](https://github.com/momoikura/The-Polisher) using ${providerStatus().model} after ${
+      body: `${body}\n\n---\n_AI-assisted: opened by [ThePolisher](https://github.com/momoikura/The-Polisher) using ${providerStatus().model} after ${
         status === "clean"
           ? "all four agents signed off and the sandbox confirmed the tests"
           : status === "verified"

@@ -3,7 +3,7 @@
  *
  * Creates all tables if they don't exist. Uses raw SQL CREATE TABLE
  * statements for reliability (Drizzle push can be flaky for SQLite).
- * Run with: pnpm --filter @polishloop/core db:migrate
+ * Run with: pnpm --filter @thepolisher/core db:migrate
  */
 
 import { mkdirSync } from "node:fs";
@@ -106,7 +106,7 @@ const MIGRATIONS: string[] = [
 ];
 
 export function runMigrations(dbPath?: string): void {
-  const path = dbPath ?? process.env.DATABASE_PATH ?? "./data/polishloop.db";
+  const path = dbPath ?? process.env.DATABASE_PATH ?? "./data/thepolisher.db";
 
   // Ensure the data directory exists
   mkdirSync(dirname(path), { recursive: true });

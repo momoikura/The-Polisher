@@ -1,5 +1,5 @@
 {
-  "name": "@polishloop/web",
+  "name": "@thepolisher/web",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -14,8 +14,8 @@
   "dependencies": {
     "@fontsource-variable/mona-sans": "^5.3.0",
     "@fontsource/monaspace-neon": "^5.3.0",
-    "@polishloop/agents": "workspace:*",
-    "@polishloop/core": "workspace:*",
+    "@thepolisher/agents": "workspace:*",
+    "@thepolisher/core": "workspace:*",
     "line-awesome": "^2.0.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

@@ -9,7 +9,7 @@
  */
 
 import { z } from "zod";
-import { computeLineDiff } from "@polishloop/core";
+import { computeLineDiff } from "@thepolisher/core";
 
 export type FileMap = Readonly<Record<string, string>>;
 

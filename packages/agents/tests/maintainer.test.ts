@@ -274,7 +274,7 @@ describe("GitHubClient.createPullRequest", () => {
         "/repos/o/r/git/blobs": { sha: "blob1" },
         "/repos/o/r/git/trees": { sha: "tree1" },
         "/repos/o/r/git/commits": { sha: "commit1" },
-        "/repos/o/r/git/refs": { ref: "refs/heads/polishloop/issue-7" },
+        "/repos/o/r/git/refs": { ref: "refs/heads/thepolisher/issue-7" },
         "/repos/o/r/pulls": { html_url: "https://github.com/o/r/pull/9", number: 9 },
       };
       return new Response(JSON.stringify(bodies[path]), { status: 201 });
@@ -286,7 +286,7 @@ describe("GitHubClient.createPullRequest", () => {
       repo: "r",
       baseBranch: "main",
       baseSha: "abc",
-      branch: "polishloop/issue-7",
+      branch: "thepolisher/issue-7",
       files: { "a.py": "print(1)\n" },
       title: "Fix",
       body: "Fixes #7",
@@ -313,7 +313,7 @@ describe("GitHubClient.createPullRequest", () => {
         "/repos/me/r/git/blobs": { sha: "blob1" },
         "/repos/me/r/git/trees": { sha: "tree1" },
         "/repos/me/r/git/commits": { sha: "commit1" },
-        "/repos/me/r/git/refs": { ref: "refs/heads/polishloop/issue-7" },
+        "/repos/me/r/git/refs": { ref: "refs/heads/thepolisher/issue-7" },
         "/repos/o/r/pulls": { html_url: "https://github.com/o/r/pull/9", number: 9 },
       };
       return new Response(JSON.stringify(bodies[path]), { status: 201 });
@@ -326,7 +326,7 @@ describe("GitHubClient.createPullRequest", () => {
       head: { owner: "me", repo: "r" },
       baseBranch: "main",
       baseSha: "abc",
-      branch: "polishloop/issue-7",
+      branch: "thepolisher/issue-7",
       files: { "a.py": "print(1)\n" },
       title: "Fix",
       body: "Fixes #7",
@@ -339,7 +339,7 @@ describe("GitHubClient.createPullRequest", () => {
       "POST /repos/me/r/git/refs",
       "POST /repos/o/r/pulls",
     ]);
-    expect(prBody.head).toBe("me:polishloop/issue-7");
+    expect(prBody.head).toBe("me:thepolisher/issue-7");
   });
 
   it("refuses without a token and rejects unsafe branch names", async () => {

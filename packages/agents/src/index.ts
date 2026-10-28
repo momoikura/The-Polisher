@@ -1,5 +1,5 @@
 /**
- * @polishloop/agents — public API.
+ * @thepolisher/agents — public API.
  *
  * Exports the LLM provider utilities and agent implementations.
  * Individual agent implementations will be added in Day 3-4.

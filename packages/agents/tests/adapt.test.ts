@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { RepairAttempt } from "@polishloop/core";
+import type { RepairAttempt } from "@thepolisher/core";
 import { adaptStrategy } from "../src/maintainer/adapt.js";
 
 const attempt = (overrides: Partial<RepairAttempt> = {}): RepairAttempt => ({

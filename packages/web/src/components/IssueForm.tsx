@@ -106,7 +106,7 @@ export function IssueForm({ config, isStarting, error, onStart }: Props) {
               <p className="flash flash-strong" role="note">
                 <Icon name="exclamation" size={16} />
                 <span>
-                  {config.setupHint} To try the demo without a key, run <code>pnpm --filter @polishloop/web dev:sim</code>.
+                  {config.setupHint} To try the demo without a key, run <code>pnpm --filter @thepolisher/web dev:sim</code>.
                 </span>
               </p>
             )}

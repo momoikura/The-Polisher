@@ -3,7 +3,7 @@
  * adds (the diff against the repo), so existing code is never blamed.
  */
 
-import { computeLineDiff, type TestCheck } from "@polishloop/core";
+import { computeLineDiff, type TestCheck } from "@thepolisher/core";
 import { check, emojiCheck, findEmoji, findSlopPhrases, slopPhraseCheck } from "../slop/shared.js";
 import { baseContent, isChangelogPath, isForbiddenPath, isTestPath, splitPr, type FileMap, type PrBundle, type RepoSnapshot } from "./bundle.js";
 import type { Validation } from "./sandbox.js";

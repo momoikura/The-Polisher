@@ -7,7 +7,7 @@
 import { promises as fs } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
-import { FileExperienceStore, summarizeExperience } from "@polishloop/agents";
+import { FileExperienceStore, summarizeExperience } from "@thepolisher/agents";
 import { activeProvider, dataDir, sendJson } from "./http.js";
 
 export const experienceStore = () => new FileExperienceStore(dataDir("experience"));

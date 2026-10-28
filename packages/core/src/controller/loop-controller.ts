@@ -1,5 +1,5 @@
 /**
- * Loop Controller — the deterministic orchestrator for a PolishLoop run.
+ * Loop Controller — the deterministic orchestrator for a ThePolisher run.
  *
  * This is NOT an LLM agent. It is pure control flow that dispatches
  * work to the agents in the correct order and enforces all limits.

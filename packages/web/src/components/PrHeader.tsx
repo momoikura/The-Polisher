@@ -50,7 +50,7 @@ export function PrHeader({ view, isSimulated, model, onNewRun }: Props) {
         <p className="pr-meta-text">
           {ctx ? (
             <>
-              The Polisher wants to fix{" "}
+              ThePolisher wants to fix{" "}
               <a href={ctx.issue.url} target="_blank" rel="noopener noreferrer" className="link">
                 {ctx.repo}#{ctx.issue.number}
               </a>{" "}

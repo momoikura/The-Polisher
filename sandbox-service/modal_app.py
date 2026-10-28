@@ -1,4 +1,4 @@
-"""PolishLoop sandbox: runs an agent's patch against a real GitHub repo on Modal.
+"""ThePolisher sandbox: runs an agent's patch against a real GitHub repo on Modal.
 
 POST /validate {repo: "owner/name", sha, changes: {path: content}, newTests: [path]}
 returns install/compile/lint/pytest results, a fail-to-pass check (do the
@@ -14,7 +14,7 @@ Safety model:
 Setup (once):
     pip install modal
     modal setup
-    modal secret create polishloop-sandbox SANDBOX_TOKEN=<long random string>
+    modal secret create thepolisher-sandbox SANDBOX_TOKEN=<long random string>
     modal deploy sandbox-service/modal_app.py
 Put the printed URL + "/validate" in .env as SANDBOX_URL and the token as SANDBOX_TOKEN.
 """
@@ -28,7 +28,7 @@ import xml.etree.ElementTree as ET
 
 import modal
 
-APP_NAME = "polishloop-sandbox"
+APP_NAME = "thepolisher-sandbox"
 REPO_DIR = "/repo"
 ALLOWED_DOMAINS = ["github.com", "codeload.github.com", "pypi.org", "files.pythonhosted.org"]
 INSTALL_TIMEOUT_S = 240
@@ -299,7 +299,7 @@ def validate_patch(repo: str, sha: str, changes: dict[str, str], new_tests: list
         sb.terminate()
 
 
-@app.function(image=web_image, secrets=[modal.Secret.from_name("polishloop-sandbox")], timeout=900, max_containers=4)
+@app.function(image=web_image, secrets=[modal.Secret.from_name("thepolisher-sandbox")], timeout=900, max_containers=4)
 @modal.asgi_app()
 def web():
     # Imported here so `modal deploy` works without FastAPI installed locally.
@@ -325,7 +325,7 @@ def web():
                     raise ValueError(f"{path} is too large")
             return changes
 
-    api = FastAPI(title="PolishLoop sandbox", docs_url=None, redoc_url=None, openapi_url=None)
+    api = FastAPI(title="ThePolisher sandbox", docs_url=None, redoc_url=None, openapi_url=None)
     auth_scheme = HTTPBearer()
 
     @api.post("/validate")

@@ -1,4 +1,4 @@
-import type { LaneId, SideMetrics } from "@polishloop/agents";
+import type { LaneId, SideMetrics } from "@thepolisher/agents";
 import { LANE_IDS } from "../maintainer/reducer.js";
 import { LANE_META } from "../maintainer/lanes.js";
 
@@ -31,7 +31,7 @@ export function Comparison({ before, after }: { before: SideMetrics; after: Side
   return (
     <section className="comparison" aria-labelledby="cmp-title">
       <h2 id="cmp-title" className="section-title">
-        One prompt vs. The Polisher
+        One prompt vs. ThePolisher
       </h2>
       <p className="muted">Same issue, same model. Every number comes from the checks and the sandbox, not from a model's opinion of itself, except the critic scores.</p>
       <div className="box table-wrap">
@@ -40,7 +40,7 @@ export function Comparison({ before, after }: { before: SideMetrics; after: Side
             <tr>
               <th scope="col">Measure</th>
               <th scope="col">First draft</th>
-              <th scope="col">After The Polisher</th>
+              <th scope="col">After ThePolisher</th>
             </tr>
           </thead>
           <tbody>

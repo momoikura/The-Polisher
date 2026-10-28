@@ -1,5 +1,5 @@
 /**
- * Meta Model API Client abstraction for PolishLoop.
+ * Meta Model API Client abstraction for ThePolisher.
  *
  * Provides a typed, secure client for Meta's Model API (e.g. Muse Spark models).
  *

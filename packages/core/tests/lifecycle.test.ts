@@ -1,5 +1,5 @@
 /**
- * Tests for PolishLoop Run Lifecycle Manager.
+ * Tests for ThePolisher Run Lifecycle Manager.
  *
  * Verifies:
  * 1. Initial run status is 'queued'

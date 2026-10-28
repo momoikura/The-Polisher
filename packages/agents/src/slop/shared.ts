@@ -1,6 +1,6 @@
 /** Deterministic AI-slop signals shared by every lane. */
 
-import type { TestCheck, TestType } from "@polishloop/core";
+import type { TestCheck, TestType } from "@thepolisher/core";
 
 /** Phrases that mark text as generic AI filler. Matched case-insensitively on word boundaries. */
 export const SLOP_PHRASES: string[] = [

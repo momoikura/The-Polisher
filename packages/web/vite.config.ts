@@ -6,9 +6,9 @@ import { handleApiRequest } from "./src/server/api.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
-function polishLoopApiPlugin(): Plugin {
+function thePolisherApiPlugin(): Plugin {
   return {
-    name: "polishloop-api-plugin",
+    name: "thepolisher-api-plugin",
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         if (req.url && req.url.startsWith("/api/")) {
@@ -35,11 +35,11 @@ export default defineConfig(({ mode }) => {
   for (const [key, value] of Object.entries(env)) {
     if (process.env[key] === undefined) process.env[key] = value;
   }
-  if (mode === "sim") process.env.POLISHLOOP_SIMULATE = "1";
-  process.env.POLISHLOOP_ROOT ??= repoRoot;
+  if (mode === "sim") process.env.THEPOLISHER_SIMULATE = "1";
+  process.env.THEPOLISHER_ROOT ??= repoRoot;
 
   return {
-    plugins: [react(), polishLoopApiPlugin()],
+    plugins: [react(), thePolisherApiPlugin()],
     server: {
       port: 3000,
       open: false,

@@ -1,5 +1,5 @@
 /**
- * Run Lifecycle Manager — manages state transitions for PolishLoop runs.
+ * Run Lifecycle Manager — manages state transitions for ThePolisher runs.
  *
  * Implements the lifecycle:
  * queued -> running -> completed | quality_target_not_reached | failed

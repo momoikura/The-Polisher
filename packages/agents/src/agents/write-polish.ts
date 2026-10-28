@@ -16,7 +16,7 @@ import type {
   Run,
   TestResult,
   TesterAgent,
-} from "@polishloop/core";
+} from "@thepolisher/core";
 import { completeStructured, type ChatClient } from "../llm/chat-client.js";
 import { EvaluationSchema, RepairSchema, toEvaluatorOutput } from "../schemas/agent-output.js";
 import {

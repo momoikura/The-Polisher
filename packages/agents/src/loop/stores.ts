@@ -7,7 +7,7 @@ import {
   type CreateRunInput,
   type Run,
   type RunStore,
-} from "@polishloop/core";
+} from "@thepolisher/core";
 
 export class LaneRunStore implements RunStore {
   private readonly lifecycle = new RunLifecycleManager();

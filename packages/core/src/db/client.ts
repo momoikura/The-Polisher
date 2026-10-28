@@ -20,7 +20,7 @@ let _db: DatabaseSync | null = null;
 export function getDb(dbPath?: string): DatabaseSync {
   if (_db) return _db;
 
-  const path = dbPath ?? process.env.DATABASE_PATH ?? "./data/polishloop.db";
+  const path = dbPath ?? process.env.DATABASE_PATH ?? "./data/thepolisher.db";
   if (path !== ":memory:") {
     mkdirSync(dirname(path), { recursive: true });
   }

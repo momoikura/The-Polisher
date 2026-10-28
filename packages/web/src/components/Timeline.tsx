@@ -41,7 +41,7 @@ export function Timeline({ items, isLive }: { items: FeedItem[]; isLive: boolean
             <Icon name={badgeFor(item)} size={14} />
           </span>
           <p className="tl-body">
-            <strong>{item.lane ? AGENT[item.lane] : "The Polisher"}</strong> <span className="tl-text">{item.text}</span>
+            <strong>{item.lane ? AGENT[item.lane] : "ThePolisher"}</strong> <span className="tl-text">{item.text}</span>
           </p>
           <time className="tl-time mono">{timeFormat.format(item.at)}</time>
         </li>

@@ -1,5 +1,5 @@
 /**
- * Database schema definitions and constants for PolishLoop.
+ * Database schema definitions and constants for ThePolisher.
  *
  * Maps directly to the database entities defined in the specification (§9).
  * All IDs are ULIDs. JSON columns store mode-specific flexible data.

@@ -9,7 +9,7 @@ import { textOf } from "../llm/meta-client.js";
 import { serializeFiles, type FileMap, type RepoSnapshot } from "./bundle.js";
 import type { SandboxClient, Validation } from "./sandbox.js";
 
-export const DEMO_ISSUE_URL = "https://github.com/polishloop-demo/tinyslug/issues/7";
+export const DEMO_ISSUE_URL = "https://github.com/thepolisher-demo/tinyslug/issues/7";
 
 const SRC = "tinyslug/__init__.py";
 const TESTS = "tests/test_slugify.py";
@@ -57,7 +57,7 @@ const CHANGELOG = `# Changelog
 `;
 
 export const DEMO_SNAPSHOT: RepoSnapshot = {
-  owner: "polishloop-demo",
+  owner: "thepolisher-demo",
   repo: "tinyslug",
   defaultBranch: "main",
   sha: "3f2c1a9",

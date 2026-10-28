@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { FileDiff } from "@polishloop/agents";
+import type { FileDiff } from "@thepolisher/agents";
 import type { Side } from "../maintainer/reducer.js";
 import { Icon } from "./Icon.js";
 
@@ -61,7 +61,7 @@ export function FilesChanged({ baseline, current, isFinal }: Props) {
           {(["final", "draft"] as const).map((v) => (
             <label key={v} className={`segment${version === v ? " is-active" : ""}`}>
               <input type="radio" name="version" checked={version === v} onChange={() => setVersion(v)} />
-              {v === "final" ? (isFinal ? "After The Polisher" : "Current best") : "First draft"}
+              {v === "final" ? (isFinal ? "After ThePolisher" : "Current best") : "First draft"}
             </label>
           ))}
         </div>
