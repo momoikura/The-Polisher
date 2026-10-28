@@ -130,7 +130,8 @@ def validate_patch(repo: str, sha: str, changes: dict[str, str], new_tests: list
 
         install_cmd = (
             "set -o pipefail; "
-            "if [ -f pyproject.toml ] || [ -f setup.py ]; then pip install -q -e . ; fi; "
+            # Test dependencies usually live in a [dev] or [test] extra; pip only warns about extras a project lacks.
+            "if [ -f pyproject.toml ] || [ -f setup.py ]; then pip install -q -e '.[dev,test,tests]' ; fi; "
             f"for r in {' '.join(REQUIREMENT_FILES)}; do [ -f \"$r\" ] && pip install -q -r \"$r\"; done; true"
         )
         icode, iout, ierr = run(sb, install_cmd, timeout=INSTALL_TIMEOUT_S)
