@@ -134,7 +134,8 @@ const MAX_ATTEMPTS = 2;
 export async function completeStructured<T>(
   client: ChatClient,
   messages: ChatMessage[],
-  schema: z.ZodType<T>,
+  // Input type left open so schemas with .default() infer T as their parsed output.
+  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
   options?: ChatOptions
 ): Promise<StructuredResult<T>> {
   let conversation = [...messages];

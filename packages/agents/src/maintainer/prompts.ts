@@ -28,9 +28,9 @@ export const PlanSchema = z.object({
 export const FilesRepairSchema = z.object({
   files: z.record(z.string(), z.string()),
   removeFromPatch: z.array(z.string()).default([]),
-  changesMade: z.array(z.string()),
-  addressedFindingIds: z.array(z.string()),
-  unresolvedIssues: z.array(z.string()),
+  changesMade: z.array(z.string()).default([]),
+  addressedFindingIds: z.array(z.string()).default([]),
+  unresolvedIssues: z.array(z.string()).default([]),
 });
 export type FilesRepair = z.infer<typeof FilesRepairSchema>;
 

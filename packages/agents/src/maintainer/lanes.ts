@@ -17,7 +17,7 @@ import type {
   TestResult,
   TesterAgent,
 } from "@polishloop/core";
-import { completeStructured, type ChatClient } from "../llm/chat-client.js";
+import { StructuredOutputError, completeStructured, type ChatClient } from "../llm/chat-client.js";
 import { EvaluationSchema, RepairSchema, toEvaluatorOutput } from "../schemas/agent-output.js";
 import type { CheckSnapshot } from "../memory/experience.js";
 import { adaptStrategy, type AdaptStrategy } from "./adapt.js";
@@ -213,23 +213,31 @@ export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, Teste
     let model: string;
     let promptTokens: number;
     let completionTokens: number;
-    if (this.o.lane === "write") {
-      const r = await completeStructured(this.o.client, messages, RepairSchema, { temperature });
-      ({ model, promptTokens, completionTokens } = r);
-      next = r.data.candidateArtifact;
-      changes = r.data.changesMade;
-    } else {
-      const r = await completeStructured(this.o.client, messages, FilesRepairSchema, { temperature });
-      ({ model, promptTokens, completionTokens } = r);
-      const current = parseFiles(content);
-      // A revision may only touch its own files; a stray CHANGELOG in CodePolish's patch would block the sandbox.
-      const fileLane = this.o.lane === "doc" ? "doc" : "code";
-      const existing = new Set(snap.tree);
-      const owned = ownedFiles(fileLane, r.data.files, existing);
-      const merged: Record<string, string> = { ...current, ...owned };
-      for (const p of r.data.removeFromPatch ?? []) delete merged[p];
-      next = serializeFiles(merged);
-      changes = [...r.data.changesMade, ...discardNotes(fileLane, r.data.files, existing)];
+    try {
+      if (this.o.lane === "write") {
+        const r = await completeStructured(this.o.client, messages, RepairSchema, { temperature });
+        ({ model, promptTokens, completionTokens } = r);
+        next = r.data.candidateArtifact;
+        changes = r.data.changesMade;
+      } else {
+        const r = await completeStructured(this.o.client, messages, FilesRepairSchema, { temperature });
+        ({ model, promptTokens, completionTokens } = r);
+        const current = parseFiles(content);
+        // A revision may only touch its own files; a stray CHANGELOG in CodePolish's patch would block the sandbox.
+        const fileLane = this.o.lane === "doc" ? "doc" : "code";
+        const existing = new Set(snap.tree);
+        const owned = ownedFiles(fileLane, r.data.files, existing);
+        const merged: Record<string, string> = { ...current, ...owned };
+        for (const p of r.data.removeFromPatch ?? []) delete merged[p];
+        next = serializeFiles(merged);
+        changes = [...r.data.changesMade, ...discardNotes(fileLane, r.data.files, existing)];
+      }
+    } catch (err) {
+      // One unusable reply is a failed attempt, not the end of the lane: hand back the current
+      // version so the gate rejects it and the next round adapts, with the tokens still charged.
+      if (!(err instanceof StructuredOutputError)) throw err;
+      const usage = err.usage ?? { model: "", promptTokens: 0, completionTokens: 0 };
+      return { content, changesMade: [`Reply was unusable (${err.message}); nothing was changed`], ...usage };
     }
 
     this.o.onRepaired?.({

@@ -101,6 +101,18 @@ describe("recallLessons", () => {
     expect(lessons.worked).toEqual([]);
   });
 
+  it("only recalls lessons from related issues when given the current issue", () => {
+    const sentry = exp({ briefKeywords: ["policy", "event", "shape", "cli"], strategies: ["Validate event shape"] });
+    const paths = exp({ briefKeywords: ["storage", "path", "workflows", "nested"], strategies: ["Strip a trailing workflows segment"] });
+    const lessons = recallLessons([sentry, paths], {
+      lane: "ui",
+      failing: ["slop_visual"],
+      provider: "meta",
+      brief: "cmd_record path becomes double-nested: storage path gets extra /workflows/",
+    });
+    expect(lessons.worked.map((l) => l.strategy)).toEqual(["Strip a trailing workflows segment"]);
+  });
+
   it("lets recent evidence outrank old evidence", () => {
     const now = Date.now();
     const old = exp({ createdAt: new Date(now - 120 * DAY).toISOString(), strategies: ["Old trick"] });

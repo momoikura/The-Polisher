@@ -183,8 +183,13 @@ export interface RecallQuery {
   lane: LaneId;
   failing: string[];
   provider: string;
+  /** The current issue. When given, only lessons from issues sharing a few keywords with it are recalled. */
+  brief?: string;
   now?: number;
 }
+
+/** How many issue keywords a past run must share to count as related. */
+const MIN_SHARED_KEYWORDS = 2;
 
 /**
  * Lessons for the checks failing right now, from the same lane. Only gate
@@ -194,8 +199,12 @@ export interface RecallQuery {
 export function recallLessons(all: Experience[], query: RecallQuery): RecalledLessons {
   const now = query.now ?? Date.now();
   const failing = new Set(query.failing);
+  // A fix for one repo's bug ("validate event shape") is noise in an unrelated issue.
+  const briefWords = query.brief === undefined ? null : new Set(keywords(query.brief));
+  const isRelated = (e: Experience) =>
+    !briefWords || e.briefKeywords.filter((w) => briefWords.has(w)).length >= MIN_SHARED_KEYWORDS;
   const relevant = all.filter(
-    (e) => e.lane === query.lane && e.provider === query.provider && e.targeted.some((t) => failing.has(t))
+    (e) => e.lane === query.lane && e.provider === query.provider && e.targeted.some((t) => failing.has(t)) && isRelated(e)
   );
 
   const byStrategy = new Map<string, { strategy: string; fixed: Set<string>; broke: Set<string>; kept: number; rejected: number; regressions: number; weight: number }>();

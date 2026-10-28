@@ -34,9 +34,9 @@ export type Evaluation = z.infer<typeof EvaluationSchema>;
 
 export const RepairSchema = z.object({
   candidateArtifact: z.string().min(1),
-  changesMade: z.array(z.string()),
-  addressedFindingIds: z.array(z.string()),
-  unresolvedIssues: z.array(z.string()),
+  changesMade: z.array(z.string()).default([]),
+  addressedFindingIds: z.array(z.string()).default([]),
+  unresolvedIssues: z.array(z.string()).default([]),
 });
 export type Repair = z.infer<typeof RepairSchema>;
 

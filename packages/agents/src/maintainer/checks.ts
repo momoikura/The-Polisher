@@ -53,8 +53,10 @@ export function codeStaticChecks(code: FileMap, snapshot: RepoSnapshot): TestChe
   for (const p of changed.filter((x) => !isTestPath(x))) {
     const added = addedLines(snapshot, p, code[p]).join("\n");
     // print(..., file=...) is deliberate output (a CLI's error message), not a leftover.
+    // A file that already prints (an interactive CLI) uses print() as its output, not as debugging.
+    const alreadyPrints = /^\s*print\(/m.test(baseContent(snapshot, p) ?? "");
     const isStrayPrint = (line: string) => /^\s*print\(/.test(line) && !/\bfile\s*=/.test(line);
-    if (added.split("\n").some(isStrayPrint)) leftovers.push(`${p}: print() left in library code`);
+    if (!alreadyPrints && added.split("\n").some(isStrayPrint)) leftovers.push(`${p}: print() left in library code`);
     if (/breakpoint\(\)|import pdb|pdb\.set_trace/.test(added)) leftovers.push(`${p}: debugger call`);
     if (/#\s*(TODO|FIXME|XXX)\b/.test(added)) leftovers.push(`${p}: TODO/FIXME comment`);
   }

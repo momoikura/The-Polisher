@@ -10,8 +10,10 @@ import { DEMO_SNAPSHOT, createSimulatedMaintainerClient, createSimulatedSandbox 
 import { GitHubClient, parseIssueUrl } from "../src/maintainer/github.js";
 import { codeStaticChecks, docChecks, prChecks, uxChecks } from "../src/maintainer/checks.js";
 import { ModalSandboxClient, validationChecks, type Validation } from "../src/maintainer/sandbox.js";
-import { diffFile, discardNotes, ownedFiles, splitPr } from "../src/maintainer/bundle.js";
-import { buildBaselineMessages } from "../src/maintainer/prompts.js";
+import { PrWorkspace, diffFile, discardNotes, ownedFiles, serializeFiles, splitPr } from "../src/maintainer/bundle.js";
+import { MaintainerLaneAgent, ValidationBoard } from "../src/maintainer/lanes.js";
+import { FilesRepairSchema, buildBaselineMessages } from "../src/maintainer/prompts.js";
+import { RepairSchema } from "../src/schemas/agent-output.js";
 import { MemoryExperienceStore } from "../src/memory/experience.js";
 import type { MaintainerEvent } from "../src/maintainer/events.js";
 
@@ -457,5 +459,41 @@ describe("closed issues", () => {
     expect(result.status).toBe("failed");
     expect(result.message).toMatch(/already closed/);
     expect(modelCalls).toBe(0);
+  });
+});
+
+describe("fixes from run 4", () => {
+  it("accepts a repair reply that has the files but no bookkeeping notes", () => {
+    const parsed = FilesRepairSchema.parse({ files: { "a.py": "x = 1\n" } });
+    expect(parsed).toMatchObject({ changesMade: [], addressedFindingIds: [], unresolvedIssues: [] });
+    expect(RepairSchema.parse({ candidateArtifact: "# Fix" }).changesMade).toEqual([]);
+  });
+
+  it("allows print() in a file that already prints to talk to its user", () => {
+    const printing = { ...DEMO_SNAPSHOT, files: { ...DEMO_SNAPSHOT.files, [SRC]: `${base[SRC]}\n\ndef show(x):\n    print(x)\n` } };
+    const src = printing.files[SRC].replace("    text = text", '    print("saving")\n    text = text');
+    expect(failing(codeStaticChecks({ [SRC]: src }, printing))).not.toContain("debug_leftovers");
+  });
+});
+
+describe("an unusable revision", () => {
+  it("counts as a rejected attempt instead of ending the agent's lane", async () => {
+    const garbage = { async complete() { return { text: "I could not do it.", model: "m", promptTokens: 7, completionTokens: 3 }; } };
+    const content = serializeFiles({ [SRC]: base[SRC] });
+    const agent = new MaintainerLaneAgent({
+      lane: "code",
+      client: garbage,
+      workspace: new PrWorkspace(DEMO_SNAPSHOT, { code: { [SRC]: base[SRC] }, docs: {}, pr: "# x" }),
+      board: new ValidationBoard(),
+      onActivity: () => {},
+    });
+    const evaluation = { scores: { overall: 5, dimensions: {}, rationale: "" }, issues: [] };
+    const tests = { checks: [], allObjectivesPassed: true } as never;
+
+    const result = await agent.repair({} as never, {} as never, content, evaluation, tests);
+
+    expect(result.content).toBe(content);
+    expect(result.changesMade?.[0]).toMatch(/unusable/i);
+    expect(result.promptTokens).toBe(14);
   });
 });

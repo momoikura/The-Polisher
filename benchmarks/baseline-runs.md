@@ -211,3 +211,33 @@ contained the fix:
 The parallel-candidates feature itself works; it was being tested on a solved
 issue. The app now refuses closed issues before spending anything. Future
 benchmark issues must be open and unclaimed, or pinned to a commit.
+
+## Run 4: th30d4y/ExecuTrace#37, first run with parallel candidates (2026-10-28)
+
+User-entered storage paths get an extra `/workflows/` appended. Issue open,
+no assignee, no comments, no PRs. Repo at `bc37635`, 9 existing tests, no
+CHANGELOG.
+
+Parallel candidates (3 drafts, each tested in its own sandbox):
+
+| Candidate | Proves the fix | Failing checks | Tests | Lines |
+|---|---|---|---|---|
+| 1 (the single-prompt baseline) | no | 6 | not run | +0 |
+| **2 (chosen)** | **yes** | 1 | 15/15 | +180 |
+| 3 | no | 3 | 9/9 | +109 |
+
+- The single prompt produced nothing usable; candidate 2 already proved the
+  fix, so CodePolish started from a working version (critic 91, one lint
+  issue: an unused variable in the new test).
+- DocPolish approved without creating a CHANGELOG; WritePolish approved.
+- Status: not clean. Cost $0.722. CodePolish's lane crashed: Muse Spark
+  returned a revision with the files but without `changesMade`,
+  `addressedFindingIds` and `unresolvedIssues`; the format check rejected it
+  twice and the lane stopped.
+
+Problems found:
+- Missing bookkeeping fields in a repair reply ended the whole lane.
+- `debug_leftovers` flagged `print()` in `cli.py` and `utils/interactive.py`,
+  an interactive CLI whose existing code already prints to talk to the user.
+- Memory recalled a sentry-v2 lesson ("validate policy test event shape")
+  into this unrelated repo.

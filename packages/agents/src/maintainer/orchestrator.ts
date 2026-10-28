@@ -401,7 +401,8 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
 
   function recall(lane: LaneId, failingChecks: string[]): string {
     if (!options.experience) return "";
-    const lessons = recallLessons(memory, { lane, failing: failingChecks, provider });
+    const brief = snapshot ? `${snapshot.issue.title}\n${snapshot.issue.body}` : undefined;
+    const lessons = recallLessons(memory, { lane, failing: failingChecks, provider, brief });
     if (lessons.worked.length || lessons.avoid.length) {
       emit({ type: "lessons", lane, round: rounds[lane], worked: lessons.worked.map((l) => l.strategy), avoid: lessons.avoid.map((l) => l.strategy) });
     }
