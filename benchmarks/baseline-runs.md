@@ -105,3 +105,37 @@ What still went wrong:
   tried but not that the edit was discarded, so it kept trying. Meanwhile the
   critic's real requests (rename `_build`, reword "it holds no events", give
   the fallback error a fix hint) went unaddressed.
+
+## Run 2c: sentry-v2#64, with discard feedback (2026-10-28)
+
+Same issue again after `210f998` (agents are told when edits to files they
+don't own are discarded).
+
+| Measure | First draft | After |
+|---|---|---|
+| Tests | not run (draft didn't compile) | 656/661 pass (5 skipped) |
+| New tests prove the fix | not run | yes |
+| Lint issues | not run | 0 |
+| CodePolish checks / critic | 2/4, 0 | **4/4**, 78 |
+| UIPolish checks / critic | 1/1, 12 | 1/1, 91 |
+| DocPolish checks / critic | 4/4, 8 | 4/4, 96 |
+| WritePolish checks / critic | 3/6, 12 | 6/6, 94 |
+| Files changed / lines added | 1 / 2 | 3 / 110 |
+
+- Status: not clean; only CodePolish's critic score (78, bar 85) blocked it.
+  Cost $2.415. Wall time 21 min 53 s.
+- The single prompt produced a 2-line patch that didn't compile. CodePolish
+  recovered: round 2 broke an existing test and was rejected; it adapted
+  ("rethink"), round 3 passed everything but two test checks, and round 4
+  passed every check with critic 78.
+- No rounds were wasted on CHANGELOG edits this time; round 4 went to the
+  critic's findings (renamed a vague helper, stripped `__init__` from errors).
+
+What still went wrong:
+- After round 5 broke the tests, the adaptation brief made CodePolish
+  overcorrect: round 6 changed nothing ("retained last-kept ... unchanged"),
+  which can never improve the score. "Don't repeat that" needs to come with
+  "but still make a safe change".
+- Remaining critic findings are real UX polish: the non-object error says
+  `int`/`str` instead of the JSON terms the user wrote, and the missing-field
+  wording is awkward.

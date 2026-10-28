@@ -43,7 +43,10 @@ export function adaptStrategy(history: readonly RepairAttempt[], failingChecks: 
   const wasted = rejected.some((a) => a.changesMade.some((c) => c.startsWith("Discarded ")))
     ? "\nEdits to files you don't own are thrown away before anyone sees them, so they can never improve your score. Spend this round on the open findings instead."
     : "";
-  const report = `Your previous revisions were rejected and thrown away; you are starting again from the last kept version.\n${rejected.map(describeAttempt).join("\n")}${pattern}${wasted}`;
+  // Without this, a cautious model answers a rejection by changing nothing, which can never be kept.
+  const keepGoing =
+    "\nStill make a real change this round: an unchanged revision is always rejected. Keep everything that already passes and change only what the open findings ask for.";
+  const report = `Your previous revisions were rejected and thrown away; you are starting again from the last kept version.\n${rejected.map(describeAttempt).join("\n")}${pattern}${wasted}${keepGoing}`;
 
   if (rejected.length < MINIMAL_AFTER) {
     return {

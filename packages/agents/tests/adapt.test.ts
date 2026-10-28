@@ -55,6 +55,12 @@ describe("adaptStrategy", () => {
     expect(s.brief).toMatch(/findings/i);
   });
 
+  it("still asks for a real change, because an unchanged revision is always rejected", () => {
+    for (const history of [[attempt()], [attempt(), attempt()]]) {
+      expect(adaptStrategy(history, ["py_tests"]).brief).toMatch(/unchanged revision is always rejected/i);
+    }
+  });
+
   it("only looks at the rejections since the last kept revision", () => {
     const history = [attempt({ changesMade: ["Old idea"] }), attempt({ accepted: true, reason: "improvement", regressions: [] }), attempt()];
     const s = adaptStrategy(history, ["py_tests"]);
