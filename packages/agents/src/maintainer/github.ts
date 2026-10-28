@@ -56,7 +56,17 @@ export class GitHubError extends Error {
 export interface GitHubClientOptions {
   token?: string;
   fetchFn?: typeof fetch;
+  /** Wait between checks while GitHub finishes creating a fork (injectable for tests). */
+  sleep?: (ms: number) => Promise<void>;
 }
+
+export interface RepoRef {
+  owner: string;
+  repo: string;
+}
+
+const FORK_READY_ATTEMPTS = 10;
+const FORK_READY_DELAY_MS = 3_000;
 
 export interface RepoInfo {
   fullName: string;
@@ -74,6 +84,8 @@ export interface FileEntry {
 export interface PullRequestInput {
   owner: string;
   repo: string;
+  /** Where the branch is pushed when it isn't the repo itself (a fork); the PR still targets owner/repo. */
+  head?: RepoRef;
   baseBranch: string;
   baseSha: string;
   branch: string;
@@ -155,13 +167,49 @@ export class GitHubClient {
     return Buffer.from(file.content, "base64").toString("utf8");
   }
 
-  /** Branch + commit + PR through the Git Data API. Requires push access. */
+  /**
+   * The token's fork of owner/repo (created if needed), with its default branch
+   * synced to the original so the commit a fix was built on exists in the fork.
+   */
+  async forkFor(owner: string, repo: string, defaultBranch: string): Promise<RepoRef> {
+    if (!this.opts.token) throw new GitHubError("Set GITHUB_TOKEN to open pull requests.");
+    const me = await this.request("/user", z.object({ login: z.string() }));
+    if (me.login.toLowerCase() === owner.toLowerCase()) {
+      throw new GitHubError(`${owner}/${repo} is your own repo, but GITHUB_TOKEN can't push to it. Give the token repo access.`);
+    }
+    const fork = await this.request(`/repos/${owner}/${repo}/forks`, z.object({ name: z.string(), owner: z.object({ login: z.string() }) }), {
+      method: "POST",
+      body: JSON.stringify({ default_branch_only: true }),
+    });
+    const ref = { owner: fork.owner.login, repo: fork.name };
+    const sleep = this.opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+
+    // Forking is asynchronous: until GitHub finishes, the fork answers 404/409.
+    for (let attempt = 1; ; attempt++) {
+      try {
+        await this.request(`/repos/${ref.owner}/${ref.repo}/merge-upstream`, z.object({}).passthrough(), {
+          method: "POST",
+          body: JSON.stringify({ branch: defaultBranch }),
+        });
+        return ref;
+      } catch (err) {
+        const pending = err instanceof GitHubError && (err.status === 404 || err.status === 409);
+        if (!pending || attempt >= FORK_READY_ATTEMPTS) {
+          throw new GitHubError(`Couldn't sync your fork ${ref.owner}/${ref.repo} with ${owner}/${repo}. Sync it on GitHub and try again.`);
+        }
+        await sleep(FORK_READY_DELAY_MS);
+      }
+    }
+  }
+
+  /** Branch + commit + PR through the Git Data API. Requires push access to the head repo. */
   async createPullRequest(input: PullRequestInput): Promise<{ url: string; number: number }> {
     if (!this.opts.token) throw new GitHubError("Set GITHUB_TOKEN to open pull requests.");
     if (!/^[A-Za-z0-9._/-]{1,100}$/.test(input.branch) || input.branch.includes("..")) {
       throw new GitHubError("Invalid branch name.");
     }
-    const base = `/repos/${input.owner}/${input.repo}`;
+    const headRepo = input.head ?? { owner: input.owner, repo: input.repo };
+    const base = `/repos/${headRepo.owner}/${headRepo.repo}`;
     const sha = z.object({ sha: z.string() });
 
     const entries = await Promise.all(
@@ -186,9 +234,10 @@ export class GitHubClient {
       method: "POST",
       body: JSON.stringify({ ref: `refs/heads/${input.branch}`, sha: commit.sha }),
     });
-    const pr = await this.request(`${base}/pulls`, z.object({ html_url: z.string(), number: z.number() }), {
+    const head = input.head ? `${input.head.owner}:${input.branch}` : input.branch;
+    const pr = await this.request(`/repos/${input.owner}/${input.repo}/pulls`, z.object({ html_url: z.string(), number: z.number() }), {
       method: "POST",
-      body: JSON.stringify({ title: input.title, body: input.body, head: input.branch, base: input.baseBranch }),
+      body: JSON.stringify({ title: input.title, body: input.body, head, base: input.baseBranch }),
     });
     return { url: pr.html_url, number: pr.number };
   }

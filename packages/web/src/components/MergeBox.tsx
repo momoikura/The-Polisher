@@ -76,8 +76,9 @@ export function MergeBox({ view, isSimulated, hasGitHubToken, pr, onOpenPr }: Pr
           ) : isConfirming ? (
             <div className="confirm">
               <p>
-                This creates a branch and opens a real pull request on <strong>{repo}</strong>
-                {!isClean && ", even though not every reviewer approved"}.
+                This opens a real pull request on <strong>{repo}</strong>
+                {!isClean && ", even though not every reviewer approved"}. If your GitHub token can't push there, it
+                first forks {repo} to your account and pushes the branch to the fork.
               </p>
               <div className="confirm-actions">
                 <Button variant="secondary" size="sm" onClick={() => setIsConfirming(false)}>
@@ -96,7 +97,7 @@ export function MergeBox({ view, isSimulated, hasGitHubToken, pr, onOpenPr }: Pr
               {isSimulated && <span className="field-help">The demo repo isn't on GitHub, so this is turned off.</span>}
               {!isSimulated && !hasGitHubToken && (
                 <span className="field-help">
-                  Set <code>GITHUB_TOKEN</code> with write access to {repo} to turn this on.
+                  Set <code>GITHUB_TOKEN</code> in .env to turn this on.
                 </span>
               )}
             </>

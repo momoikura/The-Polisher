@@ -56,6 +56,12 @@ export const isDocPath = (p: string) => /\.(md|rst|txt)$/i.test(p) && !/requirem
 const FORBIDDEN = [/^\.github\//, /^\.git\//, /(^|\/)\.env/, /\.(pem|key|p12)$/i, /(^|\/)(setup\.cfg|pyproject\.toml|setup\.py|tox\.ini|noxfile\.py)$/];
 export const isForbiddenPath = (p: string) => p.startsWith("/") || p.includes("..") || FORBIDDEN.some((re) => re.test(p));
 
+/** The files an agent may change: Python for CodePolish, docs for DocPolish, never config or CI. */
+export function ownedFiles<T>(lane: "code" | "doc", files: Record<string, T>): Record<string, T> {
+  const owns = (p: string) => !isForbiddenPath(p) && (lane === "code" ? /\.pyi?$/.test(p) : isDocPath(p));
+  return Object.fromEntries(Object.entries(files).filter(([p]) => owns(p)));
+}
+
 /** Workspace of the current best artifacts, shared by all lanes. */
 export class PrWorkspace {
   private bundle: PrBundle;

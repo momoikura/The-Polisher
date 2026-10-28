@@ -156,10 +156,8 @@ async function openPullRequest(res: ServerResponse, id: string): Promise<void> {
 
   try {
     const repo = await github.getRepo(snapshot.owner, snapshot.repo);
-    if (!repo.canPush) {
-      sendJson(res, 403, { error: `GITHUB_TOKEN can't push to ${repo.fullName}. Fork it, or use a repo you maintain.` });
-      return;
-    }
+    // Without push access, contribute the way outside contributors do: branch on your fork, PR to the original.
+    const head = repo.canPush ? undefined : await github.forkFor(snapshot.owner, snapshot.repo, repo.defaultBranch);
     const files = Object.fromEntries(
       diffBundle(snapshot, final).map((d) => [d.path, final.code[d.path] ?? final.docs[d.path]] as const)
     );
@@ -167,12 +165,13 @@ async function openPullRequest(res: ServerResponse, id: string): Promise<void> {
     const opened = await github.createPullRequest({
       owner: snapshot.owner,
       repo: snapshot.repo,
+      head,
       baseBranch: snapshot.defaultBranch,
       baseSha: snapshot.sha,
       branch: `polishloop/issue-${snapshot.issue.number}-${id.slice(0, 8)}`,
       files,
       title,
-      body: `${body}\n\n---\n_Opened by PolishLoop after ${status === "clean" ? "all four agents signed off" : "the run stopped before every agent signed off"}._`,
+      body: `${body}\n\n---\n_AI-assisted: opened by [The Polisher](https://github.com/momoikura/The-Polisher) using ${providerStatus().model} after ${status === "clean" ? "all four agents signed off and the sandbox confirmed the tests" : "the run stopped before every agent signed off"}. A person reviewed it and chose to open it._`,
     });
     session.meta.prUrl = opened.url;
     sendJson(res, 201, { url: opened.url });

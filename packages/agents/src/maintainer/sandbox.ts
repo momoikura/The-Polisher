@@ -65,7 +65,8 @@ export class ModalSandboxClient implements SandboxClient {
     const key = createHash("sha256").update(JSON.stringify([req.repo, req.sha, Object.entries(req.changes).sort(), [...req.newTests].sort()])).digest("hex");
     const cached = this.cache.get(key);
     if (cached) return cached;
-    const pending = this.post(req);
+    // The sandbox only runs Python; docs in the patch don't affect tests and would be refused.
+    const pending = this.post({ ...req, changes: Object.fromEntries(Object.entries(req.changes).filter(([p]) => /\.py$/.test(p))) });
     this.cache.set(key, pending);
     pending.catch(() => this.cache.delete(key));
     if (this.cache.size > CACHE_SIZE) this.cache.delete(this.cache.keys().next().value as string);

@@ -9,8 +9,8 @@ import { runMaintainer } from "../src/maintainer/orchestrator.js";
 import { DEMO_SNAPSHOT, createSimulatedMaintainerClient, createSimulatedSandbox } from "../src/maintainer/simulated.js";
 import { GitHubClient, parseIssueUrl } from "../src/maintainer/github.js";
 import { codeStaticChecks, docChecks, prChecks, uxChecks } from "../src/maintainer/checks.js";
-import { validationChecks, type Validation } from "../src/maintainer/sandbox.js";
-import { diffFile, splitPr } from "../src/maintainer/bundle.js";
+import { ModalSandboxClient, validationChecks, type Validation } from "../src/maintainer/sandbox.js";
+import { diffFile, ownedFiles, splitPr } from "../src/maintainer/bundle.js";
 import { MemoryExperienceStore } from "../src/memory/experience.js";
 import type { MaintainerEvent } from "../src/maintainer/events.js";
 
@@ -59,6 +59,12 @@ describe("code checks", () => {
     const checks = codeStaticChecks({ [SRC]: src, [TESTS]: tests }, DEMO_SNAPSHOT);
     expect(checks.find((c) => c.testType === "debug_leftovers")!.message).toMatch(/__init__\.py/);
     expect(checks.find((c) => c.testType === "debug_leftovers")!.message).not.toMatch(/test_slugify/);
+  });
+
+  it("allow deliberate output such as print(..., file=sys.stderr) in a CLI", () => {
+    const src = base[SRC].replace("    text = text", '    print("cannot use events.json", file=sys.stderr)\n    text = text');
+    const checks = codeStaticChecks({ [SRC]: src }, DEMO_SNAPSHOT);
+    expect(failing(checks)).not.toContain("debug_leftovers");
   });
 
   it("refuse config, workflow and non-Python files", () => {
@@ -232,9 +238,124 @@ describe("GitHubClient.createPullRequest", () => {
     ]);
   });
 
+  it("commits to the fork and opens the PR on the original repo when given a head repo", async () => {
+    const calls: string[] = [];
+    let prBody: Record<string, unknown> = {};
+    const fetchFn = (async (url: string, init: RequestInit) => {
+      const path = url.replace("https://api.github.com", "");
+      calls.push(`${init.method ?? "GET"} ${path}`);
+      if (path === "/repos/o/r/pulls") prBody = JSON.parse(String(init.body));
+      const bodies: Record<string, unknown> = {
+        "/repos/me/r/git/blobs": { sha: "blob1" },
+        "/repos/me/r/git/trees": { sha: "tree1" },
+        "/repos/me/r/git/commits": { sha: "commit1" },
+        "/repos/me/r/git/refs": { ref: "refs/heads/polishloop/issue-7" },
+        "/repos/o/r/pulls": { html_url: "https://github.com/o/r/pull/9", number: 9 },
+      };
+      return new Response(JSON.stringify(bodies[path]), { status: 201 });
+    }) as unknown as typeof fetch;
+
+    const gh = new GitHubClient({ token: "t", fetchFn });
+    await gh.createPullRequest({
+      owner: "o",
+      repo: "r",
+      head: { owner: "me", repo: "r" },
+      baseBranch: "main",
+      baseSha: "abc",
+      branch: "polishloop/issue-7",
+      files: { "a.py": "print(1)\n" },
+      title: "Fix",
+      body: "Fixes #7",
+    });
+
+    expect(calls).toEqual([
+      "POST /repos/me/r/git/blobs",
+      "POST /repos/me/r/git/trees",
+      "POST /repos/me/r/git/commits",
+      "POST /repos/me/r/git/refs",
+      "POST /repos/o/r/pulls",
+    ]);
+    expect(prBody.head).toBe("me:polishloop/issue-7");
+  });
+
   it("refuses without a token and rejects unsafe branch names", async () => {
     const input = { owner: "o", repo: "r", baseBranch: "main", baseSha: "a", branch: "x", files: {}, title: "t", body: "b" };
     await expect(new GitHubClient().createPullRequest(input)).rejects.toThrow(/GITHUB_TOKEN/);
     await expect(new GitHubClient({ token: "t" }).createPullRequest({ ...input, branch: "../evil" })).rejects.toThrow(/branch/);
+  });
+});
+
+describe("GitHubClient.forkFor", () => {
+  function github(responses: Record<string, Array<{ status: number; body: unknown }>>) {
+    const calls: string[] = [];
+    const fetchFn = (async (url: string, init: RequestInit) => {
+      const key = `${init.method ?? "GET"} ${url.replace("https://api.github.com", "")}`;
+      calls.push(key);
+      const queue = responses[key] ?? [{ status: 500, body: {} }];
+      const next = queue.length > 1 ? queue.shift()! : queue[0];
+      return new Response(JSON.stringify(next.body), { status: next.status });
+    }) as unknown as typeof fetch;
+    return { calls, gh: new GitHubClient({ token: "t", fetchFn, sleep: async () => {} }) };
+  }
+
+  it("forks to the token's account and syncs the fork's default branch", async () => {
+    const { calls, gh } = github({
+      "GET /user": [{ status: 200, body: { login: "me" } }],
+      "POST /repos/o/r/forks": [{ status: 202, body: { name: "r", owner: { login: "me" } } }],
+      "POST /repos/me/r/merge-upstream": [{ status: 200, body: { message: "up to date" } }],
+    });
+
+    const fork = await gh.forkFor("o", "r", "main");
+
+    expect(fork).toEqual({ owner: "me", repo: "r" });
+    expect(calls).toEqual(["GET /user", "POST /repos/o/r/forks", "POST /repos/me/r/merge-upstream"]);
+  });
+
+  it("waits for a new fork to become ready before syncing", async () => {
+    const { calls, gh } = github({
+      "GET /user": [{ status: 200, body: { login: "me" } }],
+      "POST /repos/o/r/forks": [{ status: 202, body: { name: "r", owner: { login: "me" } } }],
+      "POST /repos/me/r/merge-upstream": [
+        { status: 404, body: {} },
+        { status: 409, body: {} },
+        { status: 200, body: { message: "ok" } },
+      ],
+    });
+
+    await gh.forkFor("o", "r", "main");
+
+    expect(calls.filter((c) => c.endsWith("merge-upstream"))).toHaveLength(3);
+  });
+
+  it("refuses to fork your own repo", async () => {
+    const { gh } = github({ "GET /user": [{ status: 200, body: { login: "o" } }] });
+    await expect(gh.forkFor("o", "r", "main")).rejects.toThrow(/your own/);
+  });
+});
+
+describe("ownedFiles", () => {
+  it("keeps only the files an agent may change", () => {
+    const files = { "src/a.py": "x", "CHANGELOG.md": "y", "README.md": "z", ".github/workflows/ci.yml": "w" };
+    expect(Object.keys(ownedFiles("code", files))).toEqual(["src/a.py"]);
+    expect(Object.keys(ownedFiles("doc", files))).toEqual(["CHANGELOG.md", "README.md"]);
+  });
+});
+
+describe("ModalSandboxClient", () => {
+  it("sends only Python files to the sandbox", async () => {
+    let sent: { changes: Record<string, string> } = { changes: {} };
+    const fetchFn = (async (_url: string, init: RequestInit) => {
+      sent = JSON.parse(String(init.body));
+      const ok = { ok: true };
+      return new Response(
+        JSON.stringify({ install: { ...ok, logTail: "" }, compile: { ...ok, errors: [] }, lint: { issues: [] }, tests: { ran: false, total: 0, passed: 0, failed: 0, errors: 0, skipped: 0, failures: [], outputTail: "" }, failToPass: null, durationMs: 1 }),
+        { status: 200 }
+      );
+    }) as unknown as typeof fetch;
+    const sandbox = new ModalSandboxClient({ url: "https://sandbox.test/validate", token: "t", fetchFn });
+
+    await sandbox.validate({ repo: "o/r", sha: "abc1234", changes: { "src/a.py": "x = 1\n", "CHANGELOG.md": "notes" }, newTests: [] });
+
+    expect(Object.keys(sent.changes)).toEqual(["src/a.py"]);
   });
 });

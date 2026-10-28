@@ -15,8 +15,8 @@ import { LANES, type LaneId } from "../lanes.js";
 import {
   PrWorkspace,
   diffBundle,
-  isDocPath,
   isForbiddenPath,
+  ownedFiles,
   parseFiles,
   type PrBundle,
   type RepoSnapshot,
@@ -107,9 +107,7 @@ function selectFiles(snapshot: RepoSnapshot, sizes: Record<string, number>, want
 
 /** Keep only what each lane may own; anything else the baseline produced is dropped. */
 function sanitizeBaseline(raw: { code: Record<string, string>; docs: Record<string, string>; pr: string }): PrBundle {
-  const code = Object.fromEntries(Object.entries(raw.code).filter(([p]) => /\.pyi?$/.test(p) && !isForbiddenPath(p)));
-  const docs = Object.fromEntries(Object.entries(raw.docs).filter(([p]) => isDocPath(p) && !isForbiddenPath(p)));
-  return { code, docs, pr: raw.pr };
+  return { code: ownedFiles("code", raw.code), docs: ownedFiles("doc", raw.docs), pr: raw.pr };
 }
 
 // ─── Metrics ──────────────────────────────────────────────────────────────
