@@ -10,7 +10,7 @@ import { DEMO_SNAPSHOT, createSimulatedMaintainerClient, createSimulatedSandbox 
 import { GitHubClient, parseIssueUrl } from "../src/maintainer/github.js";
 import { codeStaticChecks, docChecks, prChecks, uxChecks } from "../src/maintainer/checks.js";
 import { ModalSandboxClient, validationChecks, type Validation } from "../src/maintainer/sandbox.js";
-import { diffFile, ownedFiles, splitPr } from "../src/maintainer/bundle.js";
+import { diffFile, discardNotes, ownedFiles, splitPr } from "../src/maintainer/bundle.js";
 import { MemoryExperienceStore } from "../src/memory/experience.js";
 import type { MaintainerEvent } from "../src/maintainer/events.js";
 
@@ -338,6 +338,14 @@ describe("ownedFiles", () => {
     const files = { "src/a.py": "x", "CHANGELOG.md": "y", "README.md": "z", ".github/workflows/ci.yml": "w" };
     expect(Object.keys(ownedFiles("code", files))).toEqual(["src/a.py"]);
     expect(Object.keys(ownedFiles("doc", files))).toEqual(["CHANGELOG.md", "README.md"]);
+  });
+});
+
+describe("discardNotes", () => {
+  it("says which files a revision touched that weren't the agent's to change", () => {
+    const notes = discardNotes("code", { "src/a.py": "x", "CHANGELOG.md": "y" });
+    expect(notes).toEqual(["Discarded CHANGELOG.md: CodePolish may only change Python files (docs belong to DocPolish)"]);
+    expect(discardNotes("code", { "src/a.py": "x" })).toEqual([]);
   });
 });
 

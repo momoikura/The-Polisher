@@ -40,7 +40,10 @@ export function adaptStrategy(history: readonly RepairAttempt[], failingChecks: 
     .reduce((acc, s) => new Set([...acc].filter((c) => s.has(c))));
   const pattern =
     rejected.length > 1 && shared.size ? `\nEvery rejected attempt broke ${[...shared].join(", ")}: whatever they had in common caused it.` : "";
-  const report = `Your previous revisions were rejected and thrown away; you are starting again from the last kept version.\n${rejected.map(describeAttempt).join("\n")}${pattern}`;
+  const wasted = rejected.some((a) => a.changesMade.some((c) => c.startsWith("Discarded ")))
+    ? "\nEdits to files you don't own are thrown away before anyone sees them, so they can never improve your score. Spend this round on the open findings instead."
+    : "";
+  const report = `Your previous revisions were rejected and thrown away; you are starting again from the last kept version.\n${rejected.map(describeAttempt).join("\n")}${pattern}${wasted}`;
 
   if (rejected.length < MINIMAL_AFTER) {
     return {

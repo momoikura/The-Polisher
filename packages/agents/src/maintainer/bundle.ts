@@ -62,6 +62,18 @@ export function ownedFiles<T>(lane: "code" | "doc", files: Record<string, T>): R
   return Object.fromEntries(Object.entries(files).filter(([p]) => owns(p)));
 }
 
+/** One note per file a revision touched but may not change, so the agent learns its edit was thrown away. */
+export function discardNotes(lane: "code" | "doc", files: Record<string, unknown>): string[] {
+  const owned = ownedFiles(lane, files);
+  const rule =
+    lane === "code"
+      ? "CodePolish may only change Python files (docs belong to DocPolish)"
+      : "DocPolish may only change README/CHANGELOG-style docs";
+  return Object.keys(files)
+    .filter((p) => !(p in owned))
+    .map((p) => `Discarded ${p}: ${rule}`);
+}
+
 /** Workspace of the current best artifacts, shared by all lanes. */
 export class PrWorkspace {
   private bundle: PrBundle;

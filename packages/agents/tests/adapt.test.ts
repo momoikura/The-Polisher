@@ -46,6 +46,15 @@ describe("adaptStrategy", () => {
     expect(s.brief).toMatch(/every rejected attempt broke py_tests/i);
   });
 
+  it("warns when a rejected revision was spent on files that were thrown away", () => {
+    const s = adaptStrategy(
+      [attempt({ reason: "no_improvement", regressions: [], changesMade: ["Discarded CHANGELOG.md: CodePolish may only change Python files"] })],
+      []
+    );
+    expect(s.brief).toMatch(/thrown away/i);
+    expect(s.brief).toMatch(/findings/i);
+  });
+
   it("only looks at the rejections since the last kept revision", () => {
     const history = [attempt({ changesMade: ["Old idea"] }), attempt({ accepted: true, reason: "improvement", regressions: [] }), attempt()];
     const s = adaptStrategy(history, ["py_tests"]);

@@ -9,7 +9,7 @@ import { COPY_RULEBOOK } from "../design/knowledge.js";
 import { diffFile, splitPr, type FileMap, type PrBundle, type RepoSnapshot, baseContent } from "./bundle.js";
 import type { Validation } from "./sandbox.js";
 
-export const MAINTAINER_PROMPT_VERSION = "maintainer-v1";
+export const MAINTAINER_PROMPT_VERSION = "maintainer-v2";
 
 const MAX_TREE_PATHS = 1500;
 const MAX_FILE_CHARS = 20_000;
@@ -108,7 +108,7 @@ const ROLES: Record<MaintainerLane, { name: string; job: string; focus: string; 
     name: "CodePolish",
     job: "the fix and its pytest tests",
     focus: "wrong or partial fixes, edge cases the issue implies, tests that would pass without the fix, weakened or deleted tests, needless rewrites of unrelated code, broken imports, missing input validation, style that clashes with the repo",
-    rules: `Make the smallest change that fully fixes the issue, in the repo's existing style. Add pytest tests that FAIL on the original code and PASS with the fix; never delete, skip or weaken existing tests. Only Python files; no dependency or config changes. Return only files you change, with their FULL new contents. Act on UIPolish's review of user-facing behaviour.`,
+    rules: `Make the smallest change that fully fixes the issue, in the repo's existing style. Add pytest tests that FAIL on the original code and PASS with the fix; never delete, skip or weaken existing tests. Only Python files: CHANGELOG, README and other docs belong to DocPolish, and any edit you make to them is discarded. No dependency or config changes. Return only files you change, with their FULL new contents. Act on UIPolish's review of user-facing behaviour.`,
   },
   ui: {
     name: "UIPolish",

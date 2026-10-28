@@ -22,7 +22,7 @@ import { EvaluationSchema, RepairSchema, toEvaluatorOutput } from "../schemas/ag
 import type { CheckSnapshot } from "../memory/experience.js";
 import { adaptStrategy, type AdaptStrategy } from "./adapt.js";
 import { codeStaticChecks, docChecks, prChecks, uxChecks } from "./checks.js";
-import { isTestPath, ownedFiles, parseFiles, serializeFiles, type FileMap, type PrBundle, type PrWorkspace } from "./bundle.js";
+import { discardNotes, isTestPath, ownedFiles, parseFiles, serializeFiles, type FileMap, type PrBundle, type PrWorkspace } from "./bundle.js";
 import {
   FilesRepairSchema,
   buildLaneEvaluationMessages,
@@ -223,11 +223,12 @@ export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, Teste
       ({ model, promptTokens, completionTokens } = r);
       const current = parseFiles(content);
       // A revision may only touch its own files; a stray CHANGELOG in CodePolish's patch would block the sandbox.
-      const owned = ownedFiles(this.o.lane === "doc" ? "doc" : "code", r.data.files);
+      const fileLane = this.o.lane === "doc" ? "doc" : "code";
+      const owned = ownedFiles(fileLane, r.data.files);
       const merged: Record<string, string> = { ...current, ...owned };
       for (const p of r.data.removeFromPatch ?? []) delete merged[p];
       next = serializeFiles(merged);
-      changes = r.data.changesMade;
+      changes = [...r.data.changesMade, ...discardNotes(fileLane, r.data.files)];
     }
 
     this.o.onRepaired?.({
