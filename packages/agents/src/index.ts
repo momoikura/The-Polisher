@@ -116,6 +116,7 @@ export type {
   LaneState as MaintainerLaneState,
   LaneSummary as MaintainerLaneSummary,
   SideMetrics,
+  CandidateSummary,
 } from "./maintainer/events.js";
 export {
   DEMO_ISSUE_URL,

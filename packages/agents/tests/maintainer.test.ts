@@ -406,3 +406,19 @@ describe("docs only touch files the repo already has", () => {
     expect(failing(checks)).toContain("docs_updated");
   });
 });
+
+describe("parallel candidate fixes", () => {
+  it("drafts several fixes, tests each in the sandbox and polishes the chosen one", async () => {
+    const { events } = await demoRun();
+    const cands = events.find((e) => e.type === "candidates");
+    expect(cands?.type === "candidates" && cands.candidates).toHaveLength(3);
+    if (cands?.type !== "candidates") throw new Error("no candidates event");
+    expect(cands.candidates.filter((c) => c.chosen)).toHaveLength(1);
+    expect(cands.candidates.every((c) => c.testsTotal !== null)).toBe(true);
+  });
+
+  it("drafts a single fix when there's no sandbox to choose with", async () => {
+    const { events } = await demoRun({ sandbox: false });
+    expect(events.some((e) => e.type === "candidates")).toBe(false);
+  });
+});

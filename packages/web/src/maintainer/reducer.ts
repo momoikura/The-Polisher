@@ -1,4 +1,5 @@
 import type {
+  CandidateSummary,
   FileDiff,
   LaneId,
   MaintainerEvent,
@@ -107,6 +108,16 @@ function updateLane(view: MaintainerView, lane: LaneId, patch: (l: LaneView) => 
   return { ...view, lanes: { ...view.lanes, [lane]: { ...view.lanes[lane], ...patch(view.lanes[lane]) } } };
 }
 
+function candidateText(c: CandidateSummary): string {
+  const parts = [
+    c.provesFix ? "proves the fix" : "doesn't prove the fix",
+    c.objectiveFailing === 0 ? "all checks pass" : `${c.objectiveFailing} failing check${c.objectiveFailing === 1 ? "" : "s"}`,
+    c.testsTotal === null ? "tests not run" : `${c.testsPassed}/${c.testsTotal} tests pass`,
+    `+${c.linesAdded} lines`,
+  ];
+  return `Candidate ${c.index + 1}${c.chosen ? " (chosen)" : ""}: ${parts.join(", ")}`;
+}
+
 function pushFeed(view: MaintainerView, event: MaintainerEvent, item: Omit<FeedItem, "id" | "at">): MaintainerView {
   const last = view.feed[view.feed.length - 1];
   const feed = [...view.feed, { id: (last?.id ?? 0) + 1, at: event.at, ...item }];
@@ -177,6 +188,15 @@ export function maintainerReducer(view: MaintainerView, event: MaintainerEvent):
     case "review":
       return pushFeed(view, event, { lane: event.from, tone: "warn", text: `→ ${AGENT[event.to]}: ${event.findings.join("; ")}` });
 
+    case "candidates": {
+      const chosen = event.candidates.find((c) => c.chosen);
+      const head = pushFeed(view, event, {
+        lane: null,
+        tone: "neutral",
+        text: `Tested ${event.candidates.length} candidate fixes in parallel; the tests picked candidate ${(chosen?.index ?? 0) + 1}`,
+      });
+      return event.candidates.reduce((v, c) => pushFeed(v, event, { lane: null, tone: c.chosen ? "good" : "neutral", text: candidateText(c) }), head);
+    }
     case "adapt":
       return pushFeed(view, event, { lane: event.lane, tone: "warn", text: `Changes approach: ${event.label}` });
     case "lessons": {

@@ -35,6 +35,21 @@ describe("maintainerReducer", () => {
     expect(view.feed.some((f) => f.lane === "ui" && f.text.startsWith("→ CodePolish"))).toBe(true);
   });
 
+  it("lists each candidate fix and marks the one the tests chose", () => {
+    const view = maintainerReducer(initialView(), {
+      type: "candidates",
+      candidates: [
+        { index: 0, provesFix: false, objectiveFailing: 4, linesAdded: 2, testsPassed: null, testsTotal: null, chosen: false },
+        { index: 1, provesFix: true, objectiveFailing: 0, linesAdded: 68, testsPassed: 652, testsTotal: 657, chosen: true },
+      ],
+      at: 0,
+    });
+    const texts = view.feed.map((f) => f.text);
+    expect(texts[0]).toBe("Tested 2 candidate fixes in parallel; the tests picked candidate 2");
+    expect(texts[1]).toBe("Candidate 1: doesn't prove the fix, 4 failing checks, tests not run, +2 lines");
+    expect(texts[2]).toBe("Candidate 2 (chosen): proves the fix, all checks pass, 652/657 tests pass, +68 lines");
+  });
+
   it("shows an agent changing approach in the feed", () => {
     const view = maintainerReducer(initialView(), {
       type: "adapt",

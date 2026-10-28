@@ -16,17 +16,19 @@ import {
   PrWorkspace,
   diffBundle,
   isForbiddenPath,
+  isTestPath,
   ownedFiles,
   parseFiles,
   type PrBundle,
   type RepoSnapshot,
 } from "./bundle.js";
+import { chooseCandidate } from "./candidates.js";
 import { codeStaticChecks, docChecks, prChecks, uxChecks } from "./checks.js";
-import type { LaneSummary, MaintainerEvent, MaintainerEventInput, MaintainerStatus, SideMetrics } from "./events.js";
+import type { CandidateSummary, LaneSummary, MaintainerEvent, MaintainerEventInput, MaintainerStatus, SideMetrics } from "./events.js";
 import { GitHubClient, parseIssueUrl } from "./github.js";
 import { MaintainerLaneAgent, ValidationBoard, type OwnerLane, type RepairInfo, type UxReview } from "./lanes.js";
 import { BaselineSchema, MAINTAINER_PROMPT_VERSION, PlanSchema, buildBaselineMessages, buildPlanMessages } from "./prompts.js";
-import { summarizeValidation, validationChecks, type SandboxClient, type Validation } from "./sandbox.js";
+import { summarizeValidation, validationChecks, validationFailureChecks, type SandboxClient, type Validation } from "./sandbox.js";
 
 export type MaintainerSource =
   | { kind: "github"; issueUrl: string; github: GitHubClient }
@@ -38,6 +40,8 @@ export interface MaintainerOptions {
   sandbox?: SandboxClient;
   budgetUSD?: number;
   maxRoundsPerLane?: number;
+  /** Independent first drafts to test in parallel when a sandbox can choose between them (default 3). */
+  candidates?: number;
   experience?: ExperienceStore;
   provider?: string;
 }
@@ -52,7 +56,7 @@ export interface MaintainerResult {
   totalUSD: number;
 }
 
-const DEFAULTS = { budgetUSD: 3, maxRoundsPerLane: 6 };
+const DEFAULTS = { budgetUSD: 3, maxRoundsPerLane: 6, candidates: 3 };
 const LANE_MODES: Record<OwnerLane, ArtifactMode> = { code: "code", doc: "reports", write: "writing" };
 const OWNER_LANES: OwnerLane[] = ["code", "doc", "write"];
 /** Share of the post-baseline budget each owning lane may spend. */
@@ -245,12 +249,20 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     const snap = snapshot;
     emit({ type: "context", repo: `${snap.owner}/${snap.repo}`, sha: snap.sha, issue: { number: snap.issue.number, title: snap.issue.title, url: snap.issue.url }, files: Object.keys(snap.files), approach: plan.data.approach });
 
-    // ── 3. Single-prompt baseline (kept for the before/after comparison) ──
+    // ── 3. First drafts. The first is the single-prompt baseline kept for the comparison;
+    //       with a sandbox, several are drafted in parallel and the tests pick which to polish.
     emit({ type: "phase", phase: "baseline" });
-    const raw = await setupCall(options.client, buildBaselineMessages(snap), BaselineSchema, { temperature: 0.7 });
-    chargeSetup(raw, "baseline");
-    baseline = sanitizeBaseline(raw.data, snap.tree);
-    workspace = new PrWorkspace(snap, baseline);
+    const count = options.sandbox ? Math.max(1, cfg.candidates) : 1;
+    const drafts = await Promise.allSettled(
+      Array.from({ length: count }, () => setupCall(options.client, buildBaselineMessages(snap), BaselineSchema, { temperature: 0.7 }))
+    );
+    const written = drafts.flatMap((d) => (d.status === "fulfilled" ? [d.value] : []));
+    if (written.length === 0) throw (drafts[0] as PromiseRejectedResult).reason;
+    for (const r of written) chargeSetup(r, "baseline");
+    const bundles = written.map((r) => sanitizeBaseline(r.data, snap.tree));
+    baseline = bundles[0];
+    const start = bundles.length > 1 && options.sandbox ? await pickCandidate(bundles, snap, options.sandbox) : baseline;
+    workspace = new PrWorkspace(snap, start);
     const ws = workspace;
     emit({ type: "baseline", diffs: diffBundle(snap, baseline), pr: baseline.pr, metrics: metricsFor(snap, baseline, null, firstScore) });
 
@@ -296,6 +308,40 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
   }
 
   // ── helpers ──────────────────────────────────────────────────────────────
+
+  /** Test every draft in the sandbox at once and keep the one the tests rank best. */
+  async function pickCandidate(bundles: PrBundle[], snap: RepoSnapshot, sandbox: SandboxClient): Promise<PrBundle> {
+    const scored = await Promise.all(
+      bundles.map(async (b, index): Promise<CandidateSummary> => {
+        let v: Validation | null = null;
+        try {
+          v = await sandbox.validate({
+            repo: `${snap.owner}/${snap.repo}`,
+            sha: snap.sha,
+            changes: { ...b.code },
+            newTests: Object.keys(b.code).filter(isTestPath),
+          });
+          board.record(b.code, v);
+        } catch {
+          v = null;
+        }
+        const checks = [...codeStaticChecks(b.code, snap), ...(v ? validationChecks(v) : validationFailureChecks("sandbox unavailable"))];
+        const s = summarizeValidation(v);
+        return {
+          index,
+          provesFix: s?.provesFix ?? false,
+          objectiveFailing: checks.filter((c) => !c.passed).length,
+          linesAdded: diffBundle(snap, { ...b, docs: {} }).reduce((n, d) => n + d.added, 0),
+          testsPassed: s?.testsPassed ?? null,
+          testsTotal: s?.testsTotal ?? null,
+          chosen: false,
+        };
+      })
+    );
+    const chosen = chooseCandidate(scored);
+    emit({ type: "candidates", candidates: scored.map((c) => ({ ...c, chosen: c.index === chosen })) });
+    return bundles[chosen];
+  }
 
   function failing(lane: OwnerLane, snap: RepoSnapshot, ws: PrWorkspace): string[] {
     const b = ws.get();

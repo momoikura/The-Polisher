@@ -24,6 +24,16 @@ export interface SideMetrics {
   linesAdded: number;
 }
 
+export interface CandidateSummary {
+  index: number;
+  provesFix: boolean;
+  objectiveFailing: number;
+  linesAdded: number;
+  testsPassed: number | null;
+  testsTotal: number | null;
+  chosen: boolean;
+}
+
 export interface LaneSummary {
   clean: boolean;
   status: string;
@@ -54,6 +64,8 @@ export type MaintainerEvent = At &
     | { type: "lane_changes"; lane: LaneId; round: number; changes: string[] }
     | { type: "review"; from: LaneId; to: LaneId; findings: string[] }
     | { type: "lessons"; lane: LaneId; round: number; worked: string[]; avoid: string[] }
+    /** Parallel first drafts, tested in the sandbox; the chosen one is what the agents polish. */
+    | { type: "candidates"; candidates: CandidateSummary[] }
     /** The agent changed approach after its revisions were rejected. */
     | { type: "adapt"; lane: LaneId; round: number; mode: "normal" | "rethink" | "minimal"; label: string }
     | { type: "learned"; lane: LaneId; round: number; accepted: boolean; fixed: string[]; broke: string[]; strategies: string[] }

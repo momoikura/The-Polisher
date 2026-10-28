@@ -12,6 +12,7 @@ function badgeFor(item: FeedItem): IconName {
   if (item.text.startsWith("→")) return "comment";
   if (item.text.startsWith("Recalled") || item.text.startsWith("Remembered")) return "history";
   if (item.text.startsWith("Changes approach")) return "sync";
+  if (item.text.startsWith("Candidate") || item.text.startsWith("Tested ")) return item.tone === "good" ? "check" : "flask";
   return item.lane ? LANE_META[item.lane].icon : "sync";
 }
 
