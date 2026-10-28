@@ -48,6 +48,9 @@ const COST_PER_MILLION_TOKENS: Record<string, { input: number; output: number }>
   "claude-sonnet-5": { input: 2.0, output: 10.0 },
   "claude-haiku-5-5": { input: 0.1, output: 0.5 },
   "claude-haiku-4-5": { input: 1.0, output: 5.0 },
+  // Meta Model API (dev.meta.ai/models/muse-spark, 2026-10). Cached input ($0.15) isn't tracked separately.
+  "muse-spark-1.3": { input: 1.25, output: 4.25 },
+  "muse-spark-1.3-contributor": { input: 0.1, output: 0.2 },
   // Scripted demo client: no real spend.
   simulated: { input: 0, output: 0 },
   // Google

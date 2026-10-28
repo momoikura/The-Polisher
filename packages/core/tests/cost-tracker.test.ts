@@ -45,6 +45,15 @@ describe("CostTracker", () => {
     expect(cost).toBeCloseTo(0.0125, 4);
   });
 
+  it("prices Muse Spark at Meta's published rate", () => {
+    const tracker = new CostTracker({ ...DEFAULT_RUN_CONFIG, maxCostUSD: 10 });
+
+    // $1.25/1M input, $4.25/1M output: (1000 * 1.25 + 500 * 4.25) / 1_000_000 = 0.003375
+    const cost = tracker.recordCall("generator", "muse-spark-1.3", 1000, 500);
+
+    expect(cost).toBeCloseTo(0.003375, 6);
+  });
+
   it("accumulates costs across multiple calls", () => {
     const tracker = new CostTracker({ ...DEFAULT_RUN_CONFIG, maxCostUSD: 10 });
 
