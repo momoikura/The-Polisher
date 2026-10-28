@@ -9,6 +9,7 @@ import type {
   EvaluateResult,
   EvaluatorAgent,
   EvaluatorOutput,
+  RepairAttempt,
   RepairResult,
   RepairerAgent,
   Run,
@@ -19,6 +20,7 @@ import type {
 import { completeStructured, type ChatClient } from "../llm/chat-client.js";
 import { EvaluationSchema, RepairSchema, toEvaluatorOutput } from "../schemas/agent-output.js";
 import type { CheckSnapshot } from "../memory/experience.js";
+import { adaptStrategy, type AdaptStrategy } from "./adapt.js";
 import { codeStaticChecks, docChecks, prChecks, uxChecks } from "./checks.js";
 import { isTestPath, ownedFiles, parseFiles, serializeFiles, type FileMap, type PrBundle, type PrWorkspace } from "./bundle.js";
 import {
@@ -64,6 +66,8 @@ export interface MaintainerLaneOptions {
   onActivity: (activity: LaneActivity) => void;
   recall?: (failing: string[]) => string;
   onRepaired?: (info: RepairInfo) => void;
+  /** Called when rejections make the agent change approach. */
+  onAdapt?: (strategy: AdaptStrategy) => void;
   /** CodePolish only: UIPolish's critic verdict and objective checks, for the dashboard. */
   onUxReview?: (review: UxReview) => void;
   onUxChecks?: (checks: TestCheck[]) => void;
@@ -71,6 +75,8 @@ export interface MaintainerLaneOptions {
 
 const EVALUATION_TEMPERATURE = 0;
 const REPAIR_TEMPERATURE = 0.3;
+/** A narrowed, smallest-edit repair should vary less. */
+const MINIMAL_REPAIR_TEMPERATURE = 0.1;
 
 export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, TesterAgent {
   /** The candidate being judged this round; test() also runs on the previous best (re-test), which must not be reported as new. */
@@ -161,8 +167,10 @@ export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, Teste
     if (!this.o.sandbox) {
       sandboxChecks = validationFailureChecks("no sandbox configured");
     } else {
+      // A sandbox hiccup is not the agent's fault: retry once before it counts against the code.
+      const attempt = () => this.validate(bundle.code);
       try {
-        const v = await this.validate(bundle.code);
+        const v = await attempt().catch(attempt);
         sandboxChecks = v ? validationChecks(v) : validationFailureChecks("no result");
       } catch (err) {
         sandboxChecks = validationFailureChecks(err instanceof Error ? err.message : String(err));
@@ -176,13 +184,20 @@ export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, Teste
     _a: ArtifactVersion,
     content: string,
     evaluation: EvaluatorOutput,
-    tests: AggregatedTestResults
+    tests: AggregatedTestResults,
+    history: readonly RepairAttempt[] = []
   ): Promise<RepairResult> {
     this.o.onActivity("repairing");
     const bundle = this.bundleWith(content);
     const snap = this.o.workspace.snapshot;
-    const failing = tests.checks.filter((c) => !c.passed);
+    // Objective checks (tests, compile) come before opinion checks: they decide what "the top failing check" is.
+    const failing = tests.checks
+      .filter((c) => !c.passed)
+      .sort((a, b) => Number(b.authority === "objective") - Number(a.authority === "objective"));
     const lessons = this.o.recall?.(failing.map((c) => c.testType)) ?? "";
+    const strategy = adaptStrategy(history, failing.map((c) => c.testType));
+    if (strategy.label) this.o.onAdapt?.(strategy);
+    const temperature = strategy.mode === "minimal" ? MINIMAL_REPAIR_TEMPERATURE : REPAIR_TEMPERATURE;
     const messages = buildLaneRepairMessages(
       this.o.lane,
       snap,
@@ -190,7 +205,7 @@ export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, Teste
       this.o.board.forCode(bundle.code),
       evaluation.issues,
       failing.map((c) => `${c.testType}: ${c.message}`),
-      lessons
+      [strategy.brief, lessons].filter(Boolean).join("\n\n")
     );
 
     let next: string;
@@ -199,12 +214,12 @@ export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, Teste
     let promptTokens: number;
     let completionTokens: number;
     if (this.o.lane === "write") {
-      const r = await completeStructured(this.o.client, messages, RepairSchema, { temperature: REPAIR_TEMPERATURE });
+      const r = await completeStructured(this.o.client, messages, RepairSchema, { temperature });
       ({ model, promptTokens, completionTokens } = r);
       next = r.data.candidateArtifact;
       changes = r.data.changesMade;
     } else {
-      const r = await completeStructured(this.o.client, messages, FilesRepairSchema, { temperature: REPAIR_TEMPERATURE });
+      const r = await completeStructured(this.o.client, messages, FilesRepairSchema, { temperature });
       ({ model, promptTokens, completionTokens } = r);
       const current = parseFiles(content);
       // A revision may only touch its own files; a stray CHANGELOG in CodePolish's patch would block the sandbox.

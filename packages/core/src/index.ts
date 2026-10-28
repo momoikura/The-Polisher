@@ -77,6 +77,7 @@ export {
   type ControllerConfig,
   type GeneratorAgent,
   type EvaluatorAgent,
+  type RepairAttempt,
   type RepairerAgent,
   type TesterAgent,
   type GenerateResult,

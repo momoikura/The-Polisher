@@ -79,6 +79,8 @@ export const RunConfigSchema = z.object({
   maxConsecutiveRejections: z.number().int().min(1).default(2),
   /** Minimum score progress epsilon to count as meaningful progress (default: 0.05). */
   progressEpsilon: z.number().min(0).default(0.05),
+  /** Spend one more revision on a reviewer's major finding even after the target is met (default: false). */
+  reviseOnMajorFindings: z.boolean().default(false),
   /** Stop as soon as acceptance criteria are met. */
   earlyStopOnAcceptance: z.boolean().default(true),
   /** Quality thresholds that must be satisfied. */
@@ -127,6 +129,7 @@ export const DEFAULT_RUN_CONFIG: RunConfig = {
   maxCostUSD: 2.0,
   maxConsecutiveRejections: 2,
   progressEpsilon: 0.05,
+  reviseOnMajorFindings: false,
   earlyStopOnAcceptance: true,
   qualityThresholds: {
     minScore: 8.0,

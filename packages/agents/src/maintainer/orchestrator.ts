@@ -348,6 +348,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
       sandbox: options.sandbox,
       onActivity: (state) => emit({ type: "lane_state", lane, state, round: rounds[lane] }),
       recall: (f) => recall(lane, f),
+      onAdapt: (s) => emit({ type: "adapt", lane, round: rounds[lane], mode: s.mode, label: s.label ?? "" }),
       onRepaired: (info) => {
         pending = { info, scoreAfter: null, after: null };
       },
@@ -409,8 +410,11 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
       config: {
         maxIterations: cfg.maxRoundsPerLane,
         maxCostUSD: Math.max(budgetUSD, 0.0001),
-        maxConsecutiveRejections: 3,
+        // Room for the narrowed, smallest-edit strategy (after 2 rejections) to get two tries.
+        maxConsecutiveRejections: 4,
         progressEpsilon: 0.1,
+        // UIPolish's findings land in CodePolish's evaluation; a major one earns a revision.
+        reviseOnMajorFindings: lane === "code",
         earlyStopOnAcceptance: true,
         qualityThresholds: { minScore: 8.5, requireAllTestsPass: true, maxCriticalDefects: 0 },
       },

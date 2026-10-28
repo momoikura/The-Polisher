@@ -4,6 +4,7 @@ import {
   type ArtifactStore,
   type EvaluatorAgent,
   type LoopEvent,
+  type RepairAttempt,
   type RepairerAgent,
   type RunStore,
   type TesterAgent,
@@ -81,19 +82,18 @@ class MemoryArtifactStore implements ArtifactStore {
 
 function parse(content: string) {
   const fields = Object.fromEntries(content.split("|").map((p) => p.split(":")));
-  return { score: Number(fields.score), fail: Number(fields.fail ?? 0), crit: Number(fields.crit ?? 0) };
+  return { score: Number(fields.score), fail: Number(fields.fail ?? 0), crit: Number(fields.crit ?? 0), maj: Number(fields.maj ?? 0) };
 }
 
 const evaluator: EvaluatorAgent = {
   async evaluate(_run, _artifact, content) {
-    const { score, crit } = parse(content);
+    const { score, crit, maj } = parse(content);
     const output: EvaluatorOutput = {
       scores: { overall: score, dimensions: {}, rationale: "" },
-      issues: Array.from({ length: crit }, () => ({
-        category: "x",
-        severity: "critical" as const,
-        description: "critical problem",
-      })),
+      issues: [
+        ...Array.from({ length: crit }, () => ({ category: "x", severity: "critical" as const, description: "critical problem" })),
+        ...Array.from({ length: maj }, () => ({ category: "x", severity: "major" as const, description: "major problem" })),
+      ],
     };
     return { output, model: "mock", promptTokens: 10, completionTokens: 10 };
   },
@@ -113,16 +113,19 @@ const tester: TesterAgent = {
   },
 };
 
-function scriptedRepairer(outputs: string[]): RepairerAgent & { sources: string[] } {
+function scriptedRepairer(outputs: string[]): RepairerAgent & { sources: string[]; histories: RepairAttempt[][] } {
   const sources: string[] = [];
+  const histories: RepairAttempt[][] = [];
   let i = 0;
   return {
     sources,
-    async repair(_run, _artifact, content) {
+    histories,
+    async repair(_run, _artifact, content, _evaluation, _tests, history = []) {
       sources.push(content);
+      histories.push([...history]);
       const next = outputs[Math.min(i, outputs.length - 1)];
       i++;
-      return { content: next, model: "mock", promptTokens: 10, completionTokens: 10 };
+      return { content: next, changesMade: [`attempt ${i}`], model: "mock", promptTokens: 10, completionTokens: 10 };
     },
   };
 }
@@ -262,6 +265,36 @@ describe("LoopController", () => {
     expect(result.status).toBe("failed");
     // $4 for the failed call (1M input tokens at Opus 5.5 rates) plus the cheap mock evaluation before it.
     expect(result.totalCostUSD).toBeCloseTo(4, 2);
+  });
+
+  it("tells the repairer what its previous attempts did and why they were rejected", async () => {
+    const { controller, repairer } = setup(["score:3|fail:3", "score:9|fail:0"]);
+    await controller.execute(run("score:5|fail:1"));
+
+    expect(repairer.histories[0]).toEqual([]);
+    const [last] = repairer.histories[1];
+    expect(last.accepted).toBe(false);
+    expect(last.reason).toBe("regression_detected");
+    expect(last.regressions.length).toBeGreaterThan(0);
+    expect(last.changesMade).toEqual(["attempt 1"]);
+  });
+
+  it("revises once for a major finding even when the target is met, then accepts", async () => {
+    const { controller, repairer } = setup(["score:9.5|fail:0"]);
+    const result = await controller.execute(run("score:9|fail:0|maj:1", { reviseOnMajorFindings: true }));
+
+    expect(repairer.sources).toHaveLength(1);
+    expect(result.status).toBe("accepted");
+    expect(result.bestVersionId).toBe("v1");
+  });
+
+  it("keeps the approved version if the revision for a major finding is worse", async () => {
+    const { controller, repairer } = setup(["score:9|fail:1"]);
+    const result = await controller.execute(run("score:9|fail:0|maj:1", { reviseOnMajorFindings: true }));
+
+    expect(repairer.sources).toHaveLength(1);
+    expect(result.status).toBe("accepted");
+    expect(result.bestVersionId).toBe("v0");
   });
 
   it("fails cleanly when an agent times out", async () => {

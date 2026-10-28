@@ -50,6 +50,8 @@ export type MaintainerEvent = At &
     | { type: "lane_changes"; lane: LaneId; round: number; changes: string[] }
     | { type: "review"; from: LaneId; to: LaneId; findings: string[] }
     | { type: "lessons"; lane: LaneId; round: number; worked: string[]; avoid: string[] }
+    /** The agent changed approach after its revisions were rejected. */
+    | { type: "adapt"; lane: LaneId; round: number; mode: "normal" | "rethink" | "minimal"; label: string }
     | { type: "learned"; lane: LaneId; round: number; accepted: boolean; fixed: string[]; broke: string[]; strategies: string[] }
     | { type: "cost"; totalUSD: number; budgetUSD: number }
     | { type: "error"; lane?: LaneId; message: string }

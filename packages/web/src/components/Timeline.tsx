@@ -11,6 +11,7 @@ function badgeFor(item: FeedItem): IconName {
   if (item.tone === "bad") return "times";
   if (item.text.startsWith("→")) return "comment";
   if (item.text.startsWith("Recalled") || item.text.startsWith("Remembered")) return "history";
+  if (item.text.startsWith("Changes approach")) return "sync";
   return item.lane ? LANE_META[item.lane].icon : "sync";
 }
 

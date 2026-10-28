@@ -35,6 +35,18 @@ describe("maintainerReducer", () => {
     expect(view.feed.some((f) => f.lane === "ui" && f.text.startsWith("→ CodePolish"))).toBe(true);
   });
 
+  it("shows an agent changing approach in the feed", () => {
+    const view = maintainerReducer(initialView(), {
+      type: "adapt",
+      lane: "code",
+      round: 4,
+      mode: "minimal",
+      label: "narrows to the smallest fix for py tests",
+      at: 0,
+    });
+    expect(view.feed.at(-1)).toMatchObject({ lane: "code", text: "Changes approach: narrows to the smallest fix for py tests" });
+  });
+
   it("is deterministic and never mutates the previous view", async () => {
     const events = await recordRun();
     expect(events.reduce(maintainerReducer, initialView())).toEqual(events.reduce(maintainerReducer, initialView()));

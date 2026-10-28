@@ -15,7 +15,7 @@
 import type { Run, RunStatus, RunConfig, CreateRunInput, ArtifactMode } from "../types/run.js";
 import type { ArtifactVersion, ContentType } from "../types/artifact.js";
 import type { EvaluatorOutput } from "../types/evaluation.js";
-import type { AggregatedTestResults, TestCheck } from "../types/test.js";
+import type { AggregatedTestResults, TestCheck, TestType } from "../types/test.js";
 import { aggregateTestResults } from "../types/test.js";
 import { CostTracker } from "./cost-tracker.js";
 import { IterationLimiter } from "./iteration-limiter.js";
@@ -31,13 +31,26 @@ export interface EvaluatorAgent {
   evaluate(run: Run, artifact: ArtifactVersion, content: string): Promise<EvaluateResult>;
 }
 
+/** What an earlier repair tried and what the gate decided, so the next repair can adapt. */
+export interface RepairAttempt {
+  round: number;
+  accepted: boolean;
+  reason: GateDecision["reason"];
+  explanation: string;
+  /** Checks the attempt broke (empty when it was kept). */
+  regressions: TestType[];
+  changesMade: string[];
+}
+
 export interface RepairerAgent {
   repair(
     run: Run,
     artifact: ArtifactVersion,
     content: string,
     evaluation: EvaluatorOutput,
-    testResults: AggregatedTestResults
+    testResults: AggregatedTestResults,
+    /** Earlier repairs in this run, oldest first. */
+    history?: readonly RepairAttempt[]
   ): Promise<RepairResult>;
 }
 
@@ -177,7 +190,15 @@ interface RunContext {
   config: RunConfig;
   cost: CostTracker;
   limiter: IterationLimiter;
+  /** Every repair so far and the gate's verdict on it. */
+  attempts: RepairAttempt[];
+  /** changesMade of the repair awaiting its verdict. */
+  pendingChanges: string[] | null;
+  /** Whether the one extra revision for a major finding has been spent. */
+  revisedForMajor: boolean;
 }
+
+const majorCount = (best: BestState) => best.evaluation.issues.filter((i) => i.severity === "major").length;
 
 export class LoopController {
   private readonly deps: ControllerConfig;
@@ -195,6 +216,9 @@ export class LoopController {
       config: run.config,
       cost: new CostTracker(run.config),
       limiter: new IterationLimiter(run.config),
+      attempts: [],
+      pendingChanges: null,
+      revisedForMajor: false,
     };
 
     this.deps.runStore.updateRun(run.id, { status: "running" });
@@ -218,7 +242,10 @@ export class LoopController {
         // Checked even after a rejection: with retestBestBeforeGate, the best version can start
         // meeting the target because the world around it changed.
         if (ctx.config.earlyStopOnAcceptance && meetsQualityTarget(best, ctx.config)) {
-          return this.terminate(ctx,"accepted", "Quality target met.", best.version);
+          // A reviewer's major finding earns one revision; if that doesn't help, the approved version stands.
+          const shouldReviseOnce = ctx.config.reviseOnMajorFindings && !ctx.revisedForMajor && majorCount(best) > 0;
+          if (!shouldReviseOnce) return this.terminate(ctx, "accepted", "Quality target met.", best.version);
+          ctx.revisedForMajor = true;
         }
 
         this.persistProgress(ctx, best);
@@ -296,6 +323,17 @@ export class LoopController {
     });
     this.emit({ type: "gate_decision", decision, versionId: candidate.id });
     limiter.recordIteration();
+    if (ctx.pendingChanges) {
+      ctx.attempts.push({
+        round: limiter.getCurrentIteration(),
+        accepted: decision.accepted,
+        reason: decision.reason,
+        explanation: decision.explanation,
+        regressions: decision.regressions,
+        changesMade: ctx.pendingChanges,
+      });
+      ctx.pendingChanges = null;
+    }
 
     if (decision.accepted) {
       this.deps.artifactStore.markAsBest(run.id, candidate.id);
@@ -314,8 +352,9 @@ export class LoopController {
     this.emit({ type: "repair_started", iteration: limiter.getCurrentIteration() });
 
     const content = this.deps.artifactStore.getContent(best.version);
-    const repair = await this.deps.repairer.repair(run, best.version, content, best.evaluation, best.tests);
+    const repair = await this.deps.repairer.repair(run, best.version, content, best.evaluation, best.tests, [...ctx.attempts]);
     cost.recordCall("repairer", repair.model, repair.promptTokens, repair.completionTokens);
+    ctx.pendingChanges = repair.changesMade ?? [];
 
     const version = this.deps.artifactStore.saveVersion(
       run.id,

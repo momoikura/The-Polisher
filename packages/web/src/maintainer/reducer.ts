@@ -177,6 +177,8 @@ export function maintainerReducer(view: MaintainerView, event: MaintainerEvent):
     case "review":
       return pushFeed(view, event, { lane: event.from, tone: "warn", text: `→ ${AGENT[event.to]}: ${event.findings.join("; ")}` });
 
+    case "adapt":
+      return pushFeed(view, event, { lane: event.lane, tone: "warn", text: `Changes approach: ${event.label}` });
     case "lessons": {
       const next = updateLane(view, event.lane, () => ({ recalled: event.worked }));
       const parts = [
