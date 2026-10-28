@@ -307,3 +307,34 @@ ranked accordingly). Verified live on ExecuTrace with two tests that both
 fail-then-pass: one reproducing the bug (`get_storage("yaml")` doesn't raise)
 was accepted; one importing a new constant was rejected with the exact
 `ImportError` line. Earlier runs were scored under the old rule.
+
+## Run 4c: ExecuTrace#37 under the "fails for the right reason" rule (2026-10-29)
+
+Same issue and repo commit as runs 4 and 4b (still open; the one open PR in the
+repo is an unrelated website change), with `2a4731d` + SecurityPolish.
+
+| Candidate | Proves the fix | Failing checks | Tests | Lines |
+|---|---|---|---|---|
+| 1 (single-prompt baseline) | yes | 1 | 14/14 | +179 |
+| 2 | yes | 1 | 16/16 | +145 |
+| **3 (chosen)** | yes | 1 | 14/14 | +111 |
+
+All three candidates' tests reproduce the bug through existing code, so they
+still count as proof under the stricter rule.
+
+| Measure | First draft | After |
+|---|---|---|
+| Tests | 14/14 pass | 15/15 pass |
+| New tests prove the fix | yes | yes |
+| Lint issues | 1 | 0 |
+| CodePolish checks / critic | 4/4, 88 | 4/4, 91 |
+| SecurityPolish checks / critic | 1/1, 96 | 1/1, 92 |
+| DocPolish checks / critic | 4/4, 95 | 4/4, 95 |
+| WritePolish checks / critic | 3/6, 78 | 6/6, 97 |
+| Files changed / lines added | 6 / 188 | 6 / 164 |
+
+- Status: **clean**. Cost $0.872. Wall time 7 min 51 s.
+- CodePolish: round 3 fixed the lint but the critic fell to 48 (kept: checks
+  come first); round 4 won the score back but reintroduced the lint (rejected,
+  adapted); round 5 had both (all checks, critic 91).
+- Unlike run 4b (105 -> 324 lines), the patch got smaller (188 -> 164).
