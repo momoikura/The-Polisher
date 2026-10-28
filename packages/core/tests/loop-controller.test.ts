@@ -242,6 +242,28 @@ describe("LoopController", () => {
     expect(result.bestVersionId).toBe("v0");
   });
 
+  it("counts the tokens of a call that failed, so the budget still sees them", async () => {
+    const failing: RepairerAgent = {
+      async repair() {
+        throw Object.assign(new Error("Structured output invalid after 2 attempts"), {
+          usage: { model: "claude-opus-5-5", promptTokens: 1_000_000, completionTokens: 0 },
+        });
+      },
+    };
+    const controller = new LoopController({
+      evaluator,
+      tester,
+      repairer: failing,
+      runStore: new MemoryRunStore(),
+      artifactStore: new MemoryArtifactStore(),
+    });
+    const result = await controller.execute(run("score:5|fail:1"));
+
+    expect(result.status).toBe("failed");
+    // $4 for the failed call (1M input tokens at Opus 5.5 rates) plus the cheap mock evaluation before it.
+    expect(result.totalCostUSD).toBeCloseTo(4, 2);
+  });
+
   it("fails cleanly when an agent times out", async () => {
     const timingOut: RepairerAgent = {
       async repair() {

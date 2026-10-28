@@ -31,6 +31,15 @@ describe("extractJson", () => {
     expect(extractJson(JSON.stringify(value))).toEqual(value);
   });
 
+  it("takes the JSON object even when the model adds text after it", () => {
+    const value = { files: { "cli.py": "def f():\n    return {}\n" } };
+    expect(extractJson(`${JSON.stringify(value)} Let me know if you need more.`)).toEqual(value);
+  });
+
+  it("skips braces in prose before the JSON object", () => {
+    expect(extractJson('I changed {a few} things:\n{"score": 61}')).toEqual({ score: 61 });
+  });
+
   it("throws when the reply contains no JSON object", () => {
     expect(() => extractJson("I cannot help with that.")).toThrow(StructuredOutputError);
   });
@@ -50,6 +59,20 @@ describe("completeStructured", () => {
     expect(result.data.score).toBe(90);
     expect(client.calls).toBe(2);
     expect(result.promptTokens).toBe(10);
+  });
+
+  it("uses the first JSON object that matches the schema when a reply holds several", async () => {
+    const client = scripted(['{"note": "draft"} then the answer {"score": 77}']);
+    const result = await completeStructured(client, [{ role: "user", content: "x" }], Schema);
+    expect(result.data.score).toBe(77);
+    expect(client.calls).toBe(1);
+  });
+
+  it("reports the tokens spent when every reply is malformed", async () => {
+    const client = scripted(["not json", '{"score": "high"}']);
+    const error = await completeStructured(client, [{ role: "user", content: "x" }], Schema).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(StructuredOutputError);
+    expect((error as StructuredOutputError).usage).toEqual({ model: "fake", promptTokens: 10, completionTokens: 14 });
   });
 
   it("throws instead of defaulting when every reply is malformed", async () => {

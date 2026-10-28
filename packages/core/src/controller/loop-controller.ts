@@ -232,6 +232,8 @@ export class LoopController {
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
+      const usage = usageOf(error);
+      if (usage) ctx.cost.recordCall("failed_call", usage.model, usage.promptTokens, usage.completionTokens);
       this.emit({ type: "run_error", error: errorMessage });
       return this.terminate(ctx,"failed", errorMessage, best?.version ?? null);
     }
@@ -385,4 +387,14 @@ export class LoopController {
       // Event handler errors must never crash the loop.
     }
   }
+}
+
+/** Agents attach `usage` to errors from calls that spent tokens but returned nothing usable. */
+function usageOf(error: unknown): { model: string; promptTokens: number; completionTokens: number } | null {
+  const usage = (error as { usage?: unknown } | null)?.usage as
+    | { model?: unknown; promptTokens?: unknown; completionTokens?: unknown }
+    | undefined;
+  if (!usage || typeof usage.model !== "string") return null;
+  if (typeof usage.promptTokens !== "number" || typeof usage.completionTokens !== "number") return null;
+  return { model: usage.model, promptTokens: usage.promptTokens, completionTokens: usage.completionTokens };
 }

@@ -8,7 +8,7 @@
  */
 
 import { CostTracker, DEFAULT_RUN_CONFIG, LoopController, type ArtifactMode, type LoopEvent, type TestCheck } from "@polishloop/core";
-import { completeStructured, type ChatClient } from "../llm/chat-client.js";
+import { completeStructured, StructuredOutputError, type ChatClient } from "../llm/chat-client.js";
 import { LaneArtifactStore, LaneRunStore } from "../loop/stores.js";
 import { buildExperience, formatLessons, recallLessons, type CheckSnapshot, type Experience, type ExperienceStore } from "../memory/experience.js";
 import { LANES, type LaneId } from "../lanes.js";
@@ -162,6 +162,15 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     setupCost += tracker.recordCall(role, r.model, r.promptTokens, r.completionTokens);
     emitCost();
   };
+  /** A setup call (plan, first draft) that is charged even when its reply is unusable. */
+  const setupCall: typeof completeStructured = async (client, messages, schema, opts) => {
+    try {
+      return await completeStructured(client, messages, schema, opts);
+    } catch (err) {
+      if (err instanceof StructuredOutputError && err.usage) chargeSetup(err.usage, "failed_call");
+      throw err;
+    }
+  };
 
   const rounds: Record<LaneId, number> = { write: 0, ui: 0, code: 0, doc: 0 };
   const lastStatus: Record<OwnerLane, string> = { code: "waiting", doc: "waiting", write: "waiting" };
@@ -199,7 +208,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
 
     // ── 2. Plan which files to read ────────────────────────────────────────
     emit({ type: "phase", phase: "planning" });
-    const plan = await completeStructured(options.client, buildPlanMessages(snap0), PlanSchema, { temperature: 0 });
+    const plan = await setupCall(options.client, buildPlanMessages(snap0), PlanSchema, { temperature: 0 });
     chargeSetup(plan, "planner");
     if (source.kind === "github") {
       const chosen = selectFiles(snap0, sizes, plan.data.files);
@@ -211,7 +220,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
 
     // ── 3. Single-prompt baseline (kept for the before/after comparison) ──
     emit({ type: "phase", phase: "baseline" });
-    const raw = await completeStructured(options.client, buildBaselineMessages(snap), BaselineSchema, { temperature: 0.7 });
+    const raw = await setupCall(options.client, buildBaselineMessages(snap), BaselineSchema, { temperature: 0.7 });
     chargeSetup(raw, "baseline");
     baseline = sanitizeBaseline(raw.data);
     workspace = new PrWorkspace(snap, baseline);
