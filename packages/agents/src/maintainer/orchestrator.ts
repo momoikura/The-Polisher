@@ -15,6 +15,7 @@ import { LANES, type LaneId } from "../lanes.js";
 import {
   PrWorkspace,
   diffBundle,
+  ensureFilesListed,
   isForbiddenPath,
   isTestPath,
   ownedFiles,
@@ -498,7 +499,11 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     const run = await controller.execute({
       mode: LANE_MODES[lane],
       prompt: snap.issue.title,
-      initialContent: MaintainerLaneAgent.serialize(lane, ws.get()),
+      // WritePolish starts from a description that already names every changed file.
+      initialContent:
+        lane === "write"
+          ? ensureFilesListed(ws.get().pr, diffBundle(snap, ws.get()).map((d) => d.path))
+          : MaintainerLaneAgent.serialize(lane, ws.get()),
       config: {
         maxIterations: cfg.maxRoundsPerLane,
         maxCostUSD: Math.max(budgetUSD, 0.0001),

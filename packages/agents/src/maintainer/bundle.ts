@@ -80,6 +80,20 @@ export function discardNotes(lane: "code" | "doc", files: Record<string, unknown
     .map((p) => `Discarded ${p}: ${rule(p)}`);
 }
 
+/** Whether a PR description names a file, by its path or its file name. */
+export const mentionsFile = (body: string, path: string) => body.includes(path) || body.includes(path.split("/").pop()!);
+
+/**
+ * The PR description with any changed file it doesn't mention appended under "Files changed".
+ * The list comes straight from the diff, so it is always accurate and the model's rounds go to
+ * the parts that need judgement.
+ */
+export function ensureFilesListed(pr: string, changedPaths: readonly string[]): string {
+  const missing = changedPaths.filter((p) => !mentionsFile(pr, p));
+  if (missing.length === 0) return pr;
+  return `${pr.trimEnd()}\n\n## Files changed\n${missing.map((p) => `- \`${p}\``).join("\n")}\n`;
+}
+
 /** Changelog-style files, which every user-visible fix should get an entry in. */
 export const isChangelogPath = (p: string) => /(^|\/)(CHANGELOG|CHANGES|HISTORY|NEWS)(\.[a-z]+)?$/i.test(p);
 

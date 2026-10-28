@@ -338,3 +338,67 @@ still count as proof under the stricter rule.
   come first); round 4 won the score back but reintroduced the lint (rejected,
   adapted); round 5 had both (all checks, critic 91).
 - Unlike run 4b (105 -> 324 lines), the patch got smaller (188 -> 164).
+
+## Run 6: python-jsonschema/jsonschema#1589 (2026-10-29)
+
+`ValidationError.json_path` renders a property name ending in a newline with
+dot notation, because Python's `$` matches before a final newline. jsonschema
+has ~5,000 stars. Issue open, no comments, no linked PR. Repo at `c497561`;
+the full suite (8,530 tests, 703 skipped by design) runs in the sandbox.
+
+| Candidate | Proves the fix | Failing checks | Tests | Lines |
+|---|---|---|---|---|
+| **1 (single-prompt baseline, chosen)** | yes | 0 | 7827/8530 | +4 |
+| 2 | yes | 0 | 7827/8530 | +4 |
+| 3 | yes | 0 | 7827/8530 | +5 |
+
+| Measure | First draft | After |
+|---|---|---|
+| Tests | 7827/8530 pass (703 skipped) | 7827/8530 pass |
+| New tests prove the fix | yes | yes |
+| CodePolish checks / critic | 4/4, 98 | 4/4, 98 |
+| SecurityPolish checks / critic | 1/1, 100 | 1/1, 100 |
+| DocPolish checks / critic | 3/4, 95 | 4/4, 96 |
+| WritePolish checks / critic | 3/6, 78 | 6/6, 93 |
+
+- Status: **clean**. Cost $0.596. Wall time 4 min 11 s.
+- The fix is the one a maintainer would write: `.match(elem)` -> `.fullmatch(elem)`
+  in `jsonschema/exceptions.py`, plus a test using the suite's existing
+  `validate_json_path_rendering` helper and an entry in the existing
+  `CHANGELOG.rst`.
+
+## Run 7: Textualize/rich#4238 (2026-10-29)
+
+`Traceback.extract` loops forever when `__cause__` and `__context__` form a
+cycle. rich has ~57,700 stars. Issue open; two comments (one person said they
+would take it), no linked PR. Repo at `9d8f9a3`; 8 of rich's own tests already
+fail on the original code (Pygments render tests) and are reported as
+pre-existing, not counted against the patch.
+
+| Candidate | Proves the fix | Failing checks | Tests | Lines |
+|---|---|---|---|---|
+| 1 (single-prompt baseline) | no | 5 | 0/2 (suite didn't run) | +2 |
+| **2 (chosen)** | yes | 1 | 950/983 | +94 |
+| 3 | yes | 1 | 952/985 | +115 |
+
+| Measure | First draft (single prompt) | After |
+|---|---|---|
+| Tests | 0/2 (suite didn't run) | 957/990 (25 skipped, 8 pre-existing) |
+| New tests prove the fix | no | yes |
+| Lint issues | 30 | 0 |
+| CodePolish checks / critic | 3/4, 80* | 4/4, 93 |
+| SecurityPolish checks / critic | 1/1, 96* | 1/1, 96 |
+| DocPolish checks / critic | 3/4, 72 | 4/4, 95 |
+| WritePolish checks / critic | 3/6, 78 | 5/6, 68 |
+| Files changed / lines added | 2 / 2 | 3 / 234 |
+
+\* first review of the chosen candidate.
+
+- Status: not clean. Cost $1.321. Wall time 15 min 3 s.
+- The single prompt produced a 2-line patch the suite couldn't even run; the
+  tests chose candidate 2, which proved the fix. CodePolish then passed every
+  check in one revision (critic 80 -> 93); SecurityPolish approved (96).
+- Only WritePolish blocked: across 12 rounds, each revision that listed the
+  changed files was rejected for breaking another check, so the kept PR never
+  named `rich/traceback.py` or `CHANGELOG.md` (same stall as run 2). Fixed
+  after this run: missing file names are now appended from the diff.

@@ -5,7 +5,7 @@
 
 import { computeLineDiff, type TestCheck } from "@thepolisher/core";
 import { check, emojiCheck, findEmoji, findSlopPhrases, slopPhraseCheck } from "../slop/shared.js";
-import { baseContent, isChangelogPath, isForbiddenPath, isTestPath, splitPr, type FileMap, type PrBundle, type RepoSnapshot } from "./bundle.js";
+import { baseContent, isChangelogPath, isForbiddenPath, isTestPath, mentionsFile, splitPr, type FileMap, type PrBundle, type RepoSnapshot } from "./bundle.js";
 import type { Validation } from "./sandbox.js";
 
 const MAX_ADDED_LINES = 600;
@@ -149,7 +149,7 @@ export function prChecks(pr: string, bundle: PrBundle, snapshot: RepoSnapshot, v
   const changedPaths = Object.entries({ ...bundle.code, ...bundle.docs })
     .filter(([p, c]) => c !== baseContent(snapshot, p))
     .map(([p]) => p);
-  const unlisted = changedPaths.filter((p) => !body.includes(p) && !body.includes(p.split("/").pop()!));
+  const unlisted = changedPaths.filter((p) => !mentionsFile(body, p));
 
   const honesty: string[] = [];
   const allPass = Boolean(validation && validation.tests.ran && validation.tests.total > 0 && validation.tests.failed + validation.tests.errors === 0);

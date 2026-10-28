@@ -22,7 +22,7 @@ import { EvaluationSchema, RepairSchema, toEvaluatorOutput } from "../schemas/ag
 import type { CheckSnapshot } from "../memory/experience.js";
 import { adaptStrategy, type AdaptStrategy } from "./adapt.js";
 import { codeStaticChecks, docChecks, prChecks, uxChecks } from "./checks.js";
-import { discardNotes, isTestPath, ownedFiles, parseFiles, serializeFiles, type FileMap, type PrBundle, type PrWorkspace } from "./bundle.js";
+import { diffBundle, discardNotes, ensureFilesListed, isTestPath, ownedFiles, parseFiles, serializeFiles, type FileMap, type PrBundle, type PrWorkspace } from "./bundle.js";
 import {
   FilesRepairSchema,
   buildLaneEvaluationMessages,
@@ -216,7 +216,8 @@ export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, Teste
       if (this.o.lane === "write") {
         const r = await completeStructured(this.o.client, messages, RepairSchema, { temperature });
         ({ model, promptTokens, completionTokens } = r);
-        next = r.data.candidateArtifact;
+        // File names come from the diff, not the model, so a missing one never costs a round.
+        next = ensureFilesListed(r.data.candidateArtifact, diffBundle(snap, bundle).map((d) => d.path));
         changes = r.data.changesMade;
       } else {
         const r = await completeStructured(this.o.client, messages, FilesRepairSchema, { temperature });

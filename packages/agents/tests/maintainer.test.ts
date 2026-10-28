@@ -10,7 +10,7 @@ import { DEMO_SNAPSHOT, createSimulatedMaintainerClient, createSimulatedSandbox 
 import { GitHubClient, parseIssueUrl } from "../src/maintainer/github.js";
 import { codeStaticChecks, docChecks, prChecks, uxChecks } from "../src/maintainer/checks.js";
 import { ModalSandboxClient, summarizeValidation, validationChecks, validationFailureChecks, type Validation } from "../src/maintainer/sandbox.js";
-import { PrWorkspace, diffFile, discardNotes, ownedFiles, serializeFiles, splitPr } from "../src/maintainer/bundle.js";
+import { PrWorkspace, diffFile, discardNotes, ensureFilesListed, ownedFiles, serializeFiles, splitPr } from "../src/maintainer/bundle.js";
 import { MaintainerLaneAgent, ValidationBoard } from "../src/maintainer/lanes.js";
 import { FilesRepairSchema, buildBaselineMessages } from "../src/maintainer/prompts.js";
 import { RepairSchema } from "../src/schemas/agent-output.js";
@@ -581,5 +581,20 @@ describe("an unusable revision", () => {
     expect(result.content).toBe(content);
     expect(result.changesMade?.[0]).toMatch(/unusable/i);
     expect(result.promptTokens).toBe(14);
+  });
+});
+
+describe("ensureFilesListed", () => {
+  it("adds any changed file the PR description doesn't mention, so the list is always accurate", () => {
+    const pr = "# Fix cycle\n\n## Summary\nFixes #4238\n\n## Changes\n- Track seen exceptions.\n\n## Testing\n- Added a test.";
+    const out = ensureFilesListed(pr, ["rich/traceback.py", "tests/test_traceback_cycle.py", "CHANGELOG.md"]);
+    expect(out).toContain("## Files changed");
+    for (const p of ["rich/traceback.py", "tests/test_traceback_cycle.py", "CHANGELOG.md"]) expect(out).toContain(`\`${p}\``);
+    expect(out.startsWith(pr)).toBe(true);
+  });
+
+  it("leaves a description that already names every file untouched", () => {
+    const pr = "# Fix\n\nChanged `a.py` and tests/test_a.py.";
+    expect(ensureFilesListed(pr, ["a.py", "tests/test_a.py"])).toBe(pr);
   });
 });
