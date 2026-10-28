@@ -11,6 +11,7 @@ import { GitHubClient, parseIssueUrl } from "../src/maintainer/github.js";
 import { codeStaticChecks, docChecks, prChecks, uxChecks } from "../src/maintainer/checks.js";
 import { ModalSandboxClient, validationChecks, type Validation } from "../src/maintainer/sandbox.js";
 import { diffFile, discardNotes, ownedFiles, splitPr } from "../src/maintainer/bundle.js";
+import { buildBaselineMessages } from "../src/maintainer/prompts.js";
 import { MemoryExperienceStore } from "../src/memory/experience.js";
 import type { MaintainerEvent } from "../src/maintainer/events.js";
 
@@ -420,5 +421,16 @@ describe("parallel candidate fixes", () => {
   it("drafts a single fix when there's no sandbox to choose with", async () => {
     const { events } = await demoRun({ sandbox: false });
     expect(events.some((e) => e.type === "candidates")).toBe(false);
+  });
+});
+
+describe("context files", () => {
+  it("shows a loaded file in full, because agents must return its complete new contents", () => {
+    const big = `${"x = 1\n".repeat(4_000)}def tail():\n    return "end"\n`;
+    const snap = { ...DEMO_SNAPSHOT, files: { ...DEMO_SNAPSHOT.files, "src/big.py": big } };
+    const prompt = buildBaselineMessages(snap).map((m) => String(m.content)).join("\n");
+    expect(big.length).toBeGreaterThan(20_000);
+    expect(prompt).toContain('return "end"');
+    expect(prompt).not.toContain("(truncated)");
   });
 });

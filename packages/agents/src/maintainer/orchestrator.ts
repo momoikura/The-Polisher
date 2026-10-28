@@ -27,7 +27,7 @@ import { codeStaticChecks, docChecks, prChecks, uxChecks } from "./checks.js";
 import type { CandidateSummary, LaneSummary, MaintainerEvent, MaintainerEventInput, MaintainerStatus, SideMetrics } from "./events.js";
 import { GitHubClient, parseIssueUrl } from "./github.js";
 import { MaintainerLaneAgent, ValidationBoard, type OwnerLane, type RepairInfo, type UxReview } from "./lanes.js";
-import { BaselineSchema, MAINTAINER_PROMPT_VERSION, PlanSchema, buildBaselineMessages, buildPlanMessages } from "./prompts.js";
+import { BaselineSchema, MAINTAINER_PROMPT_VERSION, MAX_FILE_CHARS, PlanSchema, buildBaselineMessages, buildPlanMessages } from "./prompts.js";
 import { summarizeValidation, validationChecks, validationFailureChecks, type SandboxClient, type Validation } from "./sandbox.js";
 
 export type MaintainerSource =
@@ -62,7 +62,8 @@ const OWNER_LANES: OwnerLane[] = ["code", "doc", "write"];
 /** Share of the post-baseline budget each owning lane may spend. */
 const BUDGET_SHARE: Record<OwnerLane, number> = { code: 0.6, doc: 0.2, write: 0.2 };
 const CLEAN_SCORE = 85;
-const MAX_FILE_BYTES = 40_000;
+// A file of at most MAX_FILE_CHARS bytes has at most that many characters, so it always fits in the prompt in full.
+const MAX_FILE_BYTES = MAX_FILE_CHARS;
 const MAX_CONTEXT_BYTES = 150_000;
 const CONTEXT_EXT = /\.(py|pyi|md|rst|txt|toml|cfg)$/i;
 

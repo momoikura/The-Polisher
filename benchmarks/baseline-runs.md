@@ -181,3 +181,15 @@ Still open:
   seen in run 1). It should only update docs that exist.
 - UIPolish noted the write-failure message names the path and reason but not
   how to fix it; as a minor finding it didn't trigger a revision.
+
+## Root cause found: files over 20,000 characters were shown cut short (2026-10-28)
+
+Run 2d (parallel candidates on sentry-v2#64) produced three empty candidates.
+Investigating showed that files up to 40 KB were loaded as context but each
+was cut at 20,000 characters in the prompt. `src/sentry_v2/cli.py` is 20,720
+bytes, so in every sentry-v2 run Muse Spark saw a truncated `cli.py` while
+being asked for its full new contents. That explains the empty or tiny first
+drafts (runs 2c, 2d) and the repeated "doesn't compile" revisions in runs 2,
+2b and 2c. Run 2d was stopped. Fixed in the next commit: a loaded file is
+always shown in full (both limits now share one constant). Runs 2-2c on this
+issue were handicapped by this bug; runs 1 and 3 had no file over the limit.
