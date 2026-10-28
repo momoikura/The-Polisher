@@ -148,3 +148,36 @@ prove the fix in the sandbox, but a critic wants more polish), **not clean**,
 or **failed**. Under this rule runs 2b and 2c would have been reported as
 verified: in both, CodePolish passed every check and only its critic score
 (82, 78) was under the 85 bar. The critic bar itself is unchanged.
+
+## Run 3: veerjain-1/agent-guard-eval#3 (2026-10-28)
+
+Report generation crashes with uncaught filesystem errors when an output file
+can't be written. Repo at `2a43bb8`, 61 existing tests. Run with every change
+up to `c7cd7b6`.
+
+| Measure | First draft | After |
+|---|---|---|
+| Tests | 76/76 pass | 76/76 pass |
+| New tests prove the fix | yes | yes |
+| Lint issues | 0 | 0 |
+| CodePolish checks / critic | 4/4, 96 | 4/4, 96 |
+| UIPolish checks / critic | 1/1, 92 | 1/1, 92 |
+| DocPolish checks / critic | 4/4, 78 | 4/4, 94 |
+| WritePolish checks / critic | 4/6, 72 | 6/6, 96 |
+| Files changed / lines added | 3 / 232 | 4 / 239 |
+
+- Status: **clean** (all four agents approved). Cost $0.551. Wall time 4 min 47 s.
+- The single prompt already wrote a correct, proven fix (15 new tests), so the
+  code was kept unchanged. The agents improved the docs and the PR.
+- WritePolish's first draft said "Sandbox did not run"; the honesty check
+  caught it and the final PR reports the real results (76/76 pass, new tests
+  fail before and pass after, 0 lint issues).
+- DocPolish adapted twice (rethink, then smallest fix) and fixed a README
+  reference to an `--output` flag that doesn't exist.
+- A human contributor has an open PR on this issue; no PR was opened.
+
+Still open:
+- DocPolish again created a new `CHANGELOG.md` in a repo that had none (also
+  seen in run 1). It should only update docs that exist.
+- UIPolish noted the write-failure message names the path and reason but not
+  how to fix it; as a minor finding it didn't trigger a revision.
