@@ -9,7 +9,7 @@ import { COPY_RULEBOOK } from "../design/knowledge.js";
 import { diffFile, splitPr, type FileMap, type PrBundle, type RepoSnapshot, baseContent } from "./bundle.js";
 import type { Validation } from "./sandbox.js";
 
-export const MAINTAINER_PROMPT_VERSION = "maintainer-v2";
+export const MAINTAINER_PROMPT_VERSION = "maintainer-v3";
 
 const MAX_TREE_PATHS = 1500;
 const MAX_FILE_CHARS = 20_000;
@@ -119,8 +119,8 @@ const ROLES: Record<MaintainerLane, { name: string; job: string; focus: string; 
   doc: {
     name: "DocPolish",
     job: "README / docs / CHANGELOG updates for this change",
-    focus: "docs that don't match the code, functions or files that don't exist, hype, missing CHANGELOG entry, examples that would not run",
-    rules: `Update docs to match the code exactly: a CHANGELOG entry (follow its existing format; create "## Unreleased" if needed) and README changes only if behaviour users rely on changed. Only mention functions and files that exist. Return only files you change, with FULL contents. ${NO_SLOP}`,
+    focus: "docs that don't match the code, functions or files that don't exist, hype, a missing entry in a CHANGELOG the repo already has, new doc files the repo never had, examples that would not run",
+    rules: `Update docs to match the code exactly: if the repo already has a CHANGELOG, add an entry (follow its existing format; create "## Unreleased" if needed); change the README only if behaviour users rely on changed. Only edit doc files that already exist in the repo: never create a CHANGELOG or any new doc file, it will be discarded. Only mention functions and files that exist. Return only files you change, with FULL contents. ${NO_SLOP}`,
   },
   write: {
     name: "WritePolish",

@@ -384,3 +384,25 @@ describe("verdict", () => {
     expect(verdict({ approved: ["ui", "doc", "write"], objectivelyPassing: false, budgetHit: true }).status).toBe("not_clean");
   });
 });
+
+describe("docs only touch files the repo already has", () => {
+  const noChangelog = { ...DEMO_SNAPSHOT, tree: DEMO_SNAPSHOT.tree.filter((p) => p !== "CHANGELOG.md") };
+
+  it("drops a new CHANGELOG when the repo doesn't keep one", () => {
+    const files = { "README.md": "x", "CHANGELOG.md": "y" };
+    expect(Object.keys(ownedFiles("doc", files, new Set(noChangelog.tree)))).toEqual(["README.md"]);
+    expect(discardNotes("doc", files, new Set(noChangelog.tree))).toEqual([
+      "Discarded CHANGELOG.md: DocPolish may only edit docs that already exist in the repo",
+    ]);
+  });
+
+  it("doesn't demand a docs update when the repo has no changelog", () => {
+    const checks = docChecks({}, { code: {}, docs: {}, pr: "x" }, noChangelog);
+    expect(failing(checks)).not.toContain("docs_updated");
+  });
+
+  it("still expects a changelog entry when the repo keeps one", () => {
+    const checks = docChecks({}, { code: {}, docs: {}, pr: "x" }, DEMO_SNAPSHOT);
+    expect(failing(checks)).toContain("docs_updated");
+  });
+});

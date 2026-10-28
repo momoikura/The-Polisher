@@ -224,11 +224,12 @@ export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, Teste
       const current = parseFiles(content);
       // A revision may only touch its own files; a stray CHANGELOG in CodePolish's patch would block the sandbox.
       const fileLane = this.o.lane === "doc" ? "doc" : "code";
-      const owned = ownedFiles(fileLane, r.data.files);
+      const existing = new Set(snap.tree);
+      const owned = ownedFiles(fileLane, r.data.files, existing);
       const merged: Record<string, string> = { ...current, ...owned };
       for (const p of r.data.removeFromPatch ?? []) delete merged[p];
       next = serializeFiles(merged);
-      changes = [...r.data.changesMade, ...discardNotes(fileLane, r.data.files)];
+      changes = [...r.data.changesMade, ...discardNotes(fileLane, r.data.files, existing)];
     }
 
     this.o.onRepaired?.({

@@ -5,7 +5,7 @@
 
 import { computeLineDiff, type TestCheck } from "@polishloop/core";
 import { check, emojiCheck, findEmoji, findSlopPhrases, slopPhraseCheck } from "../slop/shared.js";
-import { baseContent, isForbiddenPath, isTestPath, splitPr, type FileMap, type PrBundle, type RepoSnapshot } from "./bundle.js";
+import { baseContent, isChangelogPath, isForbiddenPath, isTestPath, splitPr, type FileMap, type PrBundle, type RepoSnapshot } from "./bundle.js";
 import type { Validation } from "./sandbox.js";
 
 const MAX_ADDED_LINES = 600;
@@ -116,7 +116,12 @@ export function docChecks(docs: FileMap, bundle: PrBundle, snapshot: RepoSnapsho
   }
 
   return [
-    check("docs_updated", changed.length ? [] : ["no documentation was updated (README, docs or CHANGELOG)"], "Docs reflect the change."),
+    // Only a repo that keeps a changelog expects an entry; elsewhere a README change is optional.
+    check(
+      "docs_updated",
+      changed.length || !snapshot.tree.some(isChangelogPath) ? [] : ["no documentation was updated (the repo keeps a CHANGELOG)"],
+      "Docs reflect the change."
+    ),
     check("docs_accuracy", [...new Set(accuracy)].slice(0, 8), "Docs only mention functions and files that exist."),
     slopPhraseCheck(added),
     emojiCheck(added, "docs"),

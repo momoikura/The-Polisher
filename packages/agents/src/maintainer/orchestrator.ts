@@ -135,8 +135,8 @@ export function verdict(input: { approved: readonly LaneId[]; objectivelyPassing
   };
 }
 
-function sanitizeBaseline(raw: { code: Record<string, string>; docs: Record<string, string>; pr: string }): PrBundle {
-  return { code: ownedFiles("code", raw.code), docs: ownedFiles("doc", raw.docs), pr: raw.pr };
+function sanitizeBaseline(raw: { code: Record<string, string>; docs: Record<string, string>; pr: string }, tree: readonly string[]): PrBundle {
+  return { code: ownedFiles("code", raw.code), docs: ownedFiles("doc", raw.docs, new Set(tree)), pr: raw.pr };
 }
 
 // ─── Metrics ──────────────────────────────────────────────────────────────
@@ -249,7 +249,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     emit({ type: "phase", phase: "baseline" });
     const raw = await setupCall(options.client, buildBaselineMessages(snap), BaselineSchema, { temperature: 0.7 });
     chargeSetup(raw, "baseline");
-    baseline = sanitizeBaseline(raw.data);
+    baseline = sanitizeBaseline(raw.data, snap.tree);
     workspace = new PrWorkspace(snap, baseline);
     const ws = workspace;
     emit({ type: "baseline", diffs: diffBundle(snap, baseline), pr: baseline.pr, metrics: metricsFor(snap, baseline, null, firstScore) });

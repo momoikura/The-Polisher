@@ -56,23 +56,32 @@ export const isDocPath = (p: string) => /\.(md|rst|txt)$/i.test(p) && !/requirem
 const FORBIDDEN = [/^\.github\//, /^\.git\//, /(^|\/)\.env/, /\.(pem|key|p12)$/i, /(^|\/)(setup\.cfg|pyproject\.toml|setup\.py|tox\.ini|noxfile\.py)$/];
 export const isForbiddenPath = (p: string) => p.startsWith("/") || p.includes("..") || FORBIDDEN.some((re) => re.test(p));
 
-/** The files an agent may change: Python for CodePolish, docs for DocPolish, never config or CI. */
-export function ownedFiles<T>(lane: "code" | "doc", files: Record<string, T>): Record<string, T> {
-  const owns = (p: string) => !isForbiddenPath(p) && (lane === "code" ? /\.pyi?$/.test(p) : isDocPath(p));
+/**
+ * The files an agent may change: Python for CodePolish, docs for DocPolish, never config or CI.
+ * With `existing` (the repo's paths), DocPolish may only edit docs the repo already has.
+ */
+export function ownedFiles<T>(lane: "code" | "doc", files: Record<string, T>, existing?: ReadonlySet<string>): Record<string, T> {
+  const owns = (p: string) =>
+    !isForbiddenPath(p) && (lane === "code" ? /\.pyi?$/.test(p) : isDocPath(p) && (!existing || existing.has(p)));
   return Object.fromEntries(Object.entries(files).filter(([p]) => owns(p)));
 }
 
 /** One note per file a revision touched but may not change, so the agent learns its edit was thrown away. */
-export function discardNotes(lane: "code" | "doc", files: Record<string, unknown>): string[] {
-  const owned = ownedFiles(lane, files);
-  const rule =
+export function discardNotes(lane: "code" | "doc", files: Record<string, unknown>, existing?: ReadonlySet<string>): string[] {
+  const owned = ownedFiles(lane, files, existing);
+  const rule = (p: string) =>
     lane === "code"
       ? "CodePolish may only change Python files (docs belong to DocPolish)"
-      : "DocPolish may only change README/CHANGELOG-style docs";
+      : isDocPath(p)
+        ? "DocPolish may only edit docs that already exist in the repo"
+        : "DocPolish may only change README/CHANGELOG-style docs";
   return Object.keys(files)
     .filter((p) => !(p in owned))
-    .map((p) => `Discarded ${p}: ${rule}`);
+    .map((p) => `Discarded ${p}: ${rule(p)}`);
 }
+
+/** Changelog-style files, which every user-visible fix should get an entry in. */
+export const isChangelogPath = (p: string) => /(^|\/)(CHANGELOG|CHANGES|HISTORY|NEWS)(\.[a-z]+)?$/i.test(p);
 
 /** Workspace of the current best artifacts, shared by all lanes. */
 export class PrWorkspace {
