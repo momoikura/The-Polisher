@@ -31,7 +31,7 @@ export function Comparison({ before, after }: { before: SideMetrics; after: Side
   return (
     <section className="comparison" aria-labelledby="cmp-title">
       <h2 id="cmp-title" className="section-title">
-        One prompt vs. PolishLoop
+        One prompt vs. The Polisher
       </h2>
       <p className="muted">Same issue, same model. Every number comes from the checks and the sandbox, not from a model's opinion of itself, except the critic scores.</p>
       <div className="box table-wrap">
@@ -40,7 +40,7 @@ export function Comparison({ before, after }: { before: SideMetrics; after: Side
             <tr>
               <th scope="col">Measure</th>
               <th scope="col">First draft</th>
-              <th scope="col">After PolishLoop</th>
+              <th scope="col">After The Polisher</th>
             </tr>
           </thead>
           <tbody>

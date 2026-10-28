@@ -21,7 +21,7 @@ export function Header({ config, repo, page, onNavigate }: Props) {
           <span className="brand-mark" aria-hidden="true">
             <Icon name="sync" size={18} />
           </span>
-          <span className="brand-name">PolishLoop</span>
+          <span className="brand-name">The Polisher</span>
           {repo && (
             <span className="crumbs">
               <span className="crumb-sep" aria-hidden="true">
