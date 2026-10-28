@@ -9,6 +9,7 @@ import { IssueForm } from "./components/IssueForm.js";
 import { MergeBox } from "./components/MergeBox.js";
 import { PrHeader } from "./components/PrHeader.js";
 import { Timeline } from "./components/Timeline.js";
+import { modelLabel } from "./maintainer/model-label.js";
 import { useMaintainer } from "./maintainer/useMaintainer.js";
 
 type Tab = "conversation" | "files" | "comparison";
@@ -54,7 +55,7 @@ export default function App() {
           <IssueForm config={config} isStarting={isStarting} error={startError} onStart={(url, budget) => void start(url, budget)} />
         ) : (
           <div className="pr-page">
-            <PrHeader view={view} isSimulated={isSimulated} onNewRun={handleNewRun} />
+            <PrHeader view={view} isSimulated={isSimulated} model={modelLabel(config)} onNewRun={handleNewRun} />
 
             <nav className="underline-nav" aria-label="Pull request">
               {tabs

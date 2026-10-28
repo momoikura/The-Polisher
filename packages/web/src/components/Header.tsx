@@ -1,4 +1,5 @@
 import type { MaintainerConfig } from "../maintainer/useMaintainer.js";
+import { modelLabel } from "../maintainer/model-label.js";
 import { Icon } from "./Icon.js";
 
 export type Page = "maintainer" | "memory";
@@ -11,8 +12,7 @@ const PAGES: Array<{ id: Page; label: string }> = [
 type Props = { config: MaintainerConfig | null; repo: string | null; page: Page; onNavigate: (page: Page) => void };
 
 export function Header({ config, repo, page, onNavigate }: Props) {
-  const provider = config?.isSimulated ? "Demo" : config?.provider === "anthropic" ? "Claude" : config?.provider === "meta" ? "Meta" : "";
-  const modelText = !config ? "Checking…" : config.isConfigured ? (config.isSimulated ? "Demo mode" : `${provider} · ${config.model}`) : `${provider} key not set`;
+  const modelText = modelLabel(config);
 
   return (
     <header className="topbar">

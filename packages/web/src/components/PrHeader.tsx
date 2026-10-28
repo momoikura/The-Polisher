@@ -18,9 +18,9 @@ function stateLabel(view: MaintainerView): { text: string; tone: "solid" | "outl
   return { text: "Changes requested", tone: "outline" };
 }
 
-type Props = { view: MaintainerView; isSimulated: boolean; onNewRun: () => void };
+type Props = { view: MaintainerView; isSimulated: boolean; model: string; onNewRun: () => void };
 
-export function PrHeader({ view, isSimulated, onNewRun }: Props) {
+export function PrHeader({ view, isSimulated, model, onNewRun }: Props) {
   const ctx = view.context;
   const state = stateLabel(view);
   const currentIndex = PHASES.findIndex((p) => p.id === view.phase);
@@ -54,7 +54,7 @@ export function PrHeader({ view, isSimulated, onNewRun }: Props) {
                 {ctx.repo}#{ctx.issue.number}
               </a>{" "}
               on <span className="mono branch">{ctx.sha.slice(0, 7)}</span>
-              {isSimulated && <span className="label">Demo</span>}
+              {isSimulated ? <span className="label">Demo</span> : <span className="label">{model}</span>}
             </>
           ) : (
             "Starting…"

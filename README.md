@@ -1,6 +1,10 @@
-# PolishLoop: the Auto-Maintainer
+# The Polisher
 
-Paste a GitHub issue from a Python repository. PolishLoop writes a single-prompt first draft of the fix, then four agents critique and revise it in parallel until the pull request is something a maintainer would merge. The tests run for real in a Modal sandbox. The first draft is kept so you can compare it with the result, side by side.
+**GitHub issue in, tested pull request out, powered by Meta's Muse Spark.**
+
+Built for the Meta Global AI Developer Hackathon, *Push the Frontier* track (software).
+
+Paste a GitHub issue from a Python repository. The Polisher (PolishLoop inside the code) uses Muse Spark through the Meta Model API to write a single-prompt first draft of the fix, then four agents critique and revise it in parallel until the pull request is something a maintainer would merge. The tests run for real in a Modal sandbox. The first draft is kept so you can compare it with the result, side by side.
 
 | Agent | Owns | Must pass |
 |---|---|---|
@@ -10,6 +14,18 @@ Paste a GitHub issue from a Python repository. PolishLoop writes a single-prompt
 | WritePolish | PR title + description | clear title, Summary/Changes/Testing, `Fixes #N`, every changed file mentioned, **no testing claims the sandbox didn't confirm** |
 
 Each owning agent runs the keep-or-reject loop. A revision is kept only if it doesn't break a passing check or add problems, and the critic score only breaks ties. Agents read each other's latest work. A reconcile pass re-checks the docs and PR description against the final code.
+
+## Built during the hackathon
+
+Everything in this repository was written during the building period (Oct 27 to Nov 4, 2026). The first file was created on Oct 27, and there is no earlier codebase. Git history starts on Oct 28, when the repo was created; the commits after that show the rest of the work.
+
+- **Core loop** (`packages/core`): the keep-or-reject gate, re-testing the best version, cost cap and round limits.
+- **Four agents and orchestrator** (`packages/agents/src/maintainer`): GitHub issue reading, the single-prompt first draft, the four parallel agents, a reconcile pass, and the before/after comparison.
+- **Verifiable fixes** (`sandbox-service/`): a Modal sandbox runs pytest on every candidate, and new tests must fail on the original code and pass with the fix.
+- **Experience memory** (`packages/agents/src/memory`): agents record which revisions the gate kept and recall them in later runs.
+- **Web app** (`packages/web`): live run view, files changed, comparison, memory, and an explicit "Open pull request" button.
+
+Third-party code is limited to open-source packages listed in the `package.json` files, plus Line Awesome icons (MIT) and the Mona Sans and Monaspace fonts (OFL).
 
 ## Run it
 
@@ -28,7 +44,7 @@ pnpm --filter @polishloop/web dev:sim
 
 **Real runs:** copy `.env.example` to `.env` at the repo root and set:
 
-- a model: `MODEL_PROVIDER=anthropic` + `ANTHROPIC_API_KEY` (recommended while tuning), or `MODEL_PROVIDER=meta` + `MODEL_BASE_URL`, `MODEL_API_KEY`, `MODEL_ID`
+- a model: `MODEL_PROVIDER=meta` (default) + `MODEL_BASE_URL`, `MODEL_API_KEY`, and optionally `MODEL_ID` (defaults to `muse-spark-1.3`). Claude (`MODEL_PROVIDER=anthropic` + `ANTHROPIC_API_KEY`) is only for local comparison runs.
 - the sandbox: deploy `sandbox-service/modal_app.py` (steps in its header), then `SANDBOX_URL` + `SANDBOX_TOKEN`
 - optionally `GITHUB_TOKEN` (higher read limits; required for **Open PR**)
 
