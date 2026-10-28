@@ -294,3 +294,16 @@ of raising `ValueError`. Issue open, no comments. Run with `669aa1a`
 - SecurityPolish has not yet met a patch with a real security problem in a
   live run; the scan itself was verified separately by adding `shell=True`
   and `pickle.loads` to a real file (both reported, nothing else).
+
+## New rule: tests must fail for the right reason (2026-10-29)
+
+`fail_to_pass` used to accept any failure on the original code as proof. A
+test that only imports a function or module the fix adds also "fails before
+and passes after" without exercising the bug. The sandbox now classifies how
+each new test failed on the original code; if every failure is an
+`ImportError`/`ModuleNotFoundError`/`NameError`/missing attribute or a
+collection error, the fix is not counted as proven (and candidates are
+ranked accordingly). Verified live on ExecuTrace with two tests that both
+fail-then-pass: one reproducing the bug (`get_storage("yaml")` doesn't raise)
+was accepted; one importing a new constant was rejected with the exact
+`ImportError` line. Earlier runs were scored under the old rule.

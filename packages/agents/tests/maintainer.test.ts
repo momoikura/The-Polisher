@@ -9,7 +9,7 @@ import { runMaintainer, verdict } from "../src/maintainer/orchestrator.js";
 import { DEMO_SNAPSHOT, createSimulatedMaintainerClient, createSimulatedSandbox } from "../src/maintainer/simulated.js";
 import { GitHubClient, parseIssueUrl } from "../src/maintainer/github.js";
 import { codeStaticChecks, docChecks, prChecks, uxChecks } from "../src/maintainer/checks.js";
-import { ModalSandboxClient, validationChecks, validationFailureChecks, type Validation } from "../src/maintainer/sandbox.js";
+import { ModalSandboxClient, summarizeValidation, validationChecks, validationFailureChecks, type Validation } from "../src/maintainer/sandbox.js";
 import { PrWorkspace, diffFile, discardNotes, ownedFiles, serializeFiles, splitPr } from "../src/maintainer/bundle.js";
 import { MaintainerLaneAgent, ValidationBoard } from "../src/maintainer/lanes.js";
 import { FilesRepairSchema, buildBaselineMessages } from "../src/maintainer/prompts.js";
@@ -170,6 +170,31 @@ describe("sandbox checks", () => {
   it("never treat a scan that didn't run as a pass", () => {
     expect(scan(secure({ ran: false, newIssues: [] })).passed).toBe(false);
     expect(scan(secure(undefined)).passed).toBe(false);
+  });
+
+  const proving = (baseFailures: { reproduced: number; missingCode: number; example: string } | null | undefined): Validation => ({
+    ...secure({ ran: true, newIssues: [] }),
+    failToPass: { newTests: [TESTS], failedOnBase: true, passedAfter: true, baseFailures },
+  });
+  const ftp = (v: Validation) => validationChecks(v).find((c) => c.testType === "fail_to_pass")!;
+
+  it("don't count tests that fail on the original code only because they import code the fix adds", () => {
+    const v = proving({ reproduced: 0, missingCode: 2, example: "ModuleNotFoundError: No module named 'pkg.paths'" });
+    expect(ftp(v).passed).toBe(false);
+    expect(ftp(v).message).toMatch(/only because/);
+    expect(ftp(v).message).toContain("pkg.paths");
+    expect(summarizeValidation(v)?.provesFix).toBe(false);
+  });
+
+  it("count the fix as proven when at least one new test reproduces the bug", () => {
+    const v = proving({ reproduced: 1, missingCode: 1, example: "ImportError: cannot import name 'x'" });
+    expect(ftp(v).passed).toBe(true);
+    expect(summarizeValidation(v)?.provesFix).toBe(true);
+  });
+
+  it("keep working with sandbox results that don't classify failures", () => {
+    expect(ftp(proving(undefined)).passed).toBe(true);
+    expect(ftp(proving(null)).passed).toBe(true);
   });
 
   it("include the security scan when the sandbox is unavailable", () => {

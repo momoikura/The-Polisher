@@ -127,6 +127,33 @@ def module_of(path: str) -> str:
     return path[:-3].replace("/", ".")
 
 
+# A new test that fails on the original code only because it imports or calls something
+# the fix adds proves nothing about the bug.
+MISSING_CODE = re.compile(
+    r"\b(ImportError|ModuleNotFoundError|NameError)\b|cannot import name|module '[^']+' has no attribute|collection failure"
+)
+
+
+def classify_base_failures(xml_text: str) -> dict:
+    """How the new tests failed on the original code: reproducing the bug, or only missing new code."""
+    root = ET.fromstring(xml_text)
+    reproduced, missing, example = 0, 0, ""
+    for case in root.iter("testcase"):
+        bad = case.find("failure") if case.find("failure") is not None else case.find("error")
+        if bad is None:
+            continue
+        detail = f"{bad.get('message') or ''}\n{bad.text or ''}"
+        if MISSING_CODE.search(detail):
+            missing += 1
+            # The line that names what's missing, not pytest's generic "collection failure".
+            lines = [l.strip().removeprefix("E").strip() for l in detail.splitlines() if MISSING_CODE.search(l)]
+            specific = [l for l in lines if l != "collection failure"]
+            example = example or (specific or lines or [""])[-1][:200]
+        else:
+            reproduced += 1
+    return {"reproduced": reproduced, "missingCode": missing, "example": example}
+
+
 def parse_junit(xml_text: str, new_test_modules: list[str]) -> dict:
     root = ET.fromstring(xml_text)
     suites = [root] if root.tag == "testsuite" else list(root.iter("testsuite"))
@@ -189,14 +216,23 @@ def validate_patch(repo: str, sha: str, changes: dict[str, str], new_tests: list
             originals = {t: read_file(sb, t) for t in tests}
             for t in tests:
                 write_file(sb, t, changes[t])
-            bcode, _, _ = run(sb, f"python -m pytest -q -p no:cacheprovider {' '.join(shlex.quote(t) for t in tests)}", timeout=TEST_TIMEOUT_S)
+            bcode, _, _ = run(
+                sb,
+                f"python -m pytest -q -p no:cacheprovider --junitxml=/tmp/base.xml {' '.join(shlex.quote(t) for t in tests)}",
+                timeout=TEST_TIMEOUT_S,
+            )
             failed_on_base = bcode != 0
+            base_failures = None
+            try:
+                base_failures = classify_base_failures(sb.filesystem.read_text("/tmp/base.xml"))
+            except Exception:
+                pass
             for t, original in originals.items():
                 if original is None:
                     run(sb, f"rm -f {shlex.quote(t)}")
                 else:
                     write_file(sb, t, original)
-            fail_to_pass = {"newTests": tests, "failedOnBase": failed_on_base, "passedAfter": False}
+            fail_to_pass = {"newTests": tests, "failedOnBase": failed_on_base, "passedAfter": False, "baseFailures": base_failures}
 
         # Security, part 1: scan the source files the patch changes, as they are now.
         sources = [p for p in changes if p.endswith(".py") and not TEST_PATH.search(p)]

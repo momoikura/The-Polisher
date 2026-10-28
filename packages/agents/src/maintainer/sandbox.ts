@@ -23,7 +23,13 @@ export const ValidationSchema = z.object({
     outputTail: z.string(),
   }),
   failToPass: z
-    .object({ newTests: z.array(z.string()), failedOnBase: z.boolean(), passedAfter: z.boolean() })
+    .object({
+      newTests: z.array(z.string()),
+      failedOnBase: z.boolean(),
+      passedAfter: z.boolean(),
+      /** How the new tests failed on the original code: reproducing the bug, or only missing code the fix adds. */
+      baseFailures: z.object({ reproduced: z.number(), missingCode: z.number(), example: z.string() }).nullable().optional(),
+    })
     .nullable(),
   /** Bandit findings (medium/high) the patch introduced in the source files it changes. */
   security: z
@@ -117,6 +123,11 @@ export function validationChecks(v: Validation): TestCheck[] {
     ? ["no new or changed tests to prove the fix"]
     : [
         ...(ftp.failedOnBase ? [] : ["the new tests already pass on the original code, so they don't catch the bug"]),
+        ...(ftp.failedOnBase && failsOnlyForMissingCode(ftp)
+          ? [
+              `the new tests fail on the original code only because they import or call code the fix adds (${ftp.baseFailures?.example}); test the bug through behaviour that already exists`,
+            ]
+          : []),
         ...(ftp.passedAfter ? [] : ["the new tests do not pass with the fix applied"]),
       ];
 
@@ -127,6 +138,15 @@ export function validationChecks(v: Validation): TestCheck[] {
     check("fail_to_pass", ftpProblems, "New tests fail before the fix and pass after it."),
     check("security_scan", securityProblems(v.security), "The patch adds no medium or high security findings (bandit)."),
   ];
+}
+
+/**
+ * A test that fails on the original code only because it imports or calls something the fix
+ * adds proves nothing about the bug. Older sandbox results have no classification: trust them.
+ */
+function failsOnlyForMissingCode(ftp: NonNullable<Validation["failToPass"]>): boolean {
+  const f = ftp.baseFailures;
+  return Boolean(f && f.reproduced === 0 && f.missingCode > 0);
 }
 
 function securityProblems(security: Validation["security"]): string[] {
@@ -154,6 +174,6 @@ export function summarizeValidation(v: Validation | null) {
     testsTotal: v.tests.total,
     lintIssues: v.lint.issues.length,
     compiles: v.compile.ok,
-    provesFix: Boolean(v.failToPass?.failedOnBase && v.failToPass?.passedAfter),
+    provesFix: Boolean(v.failToPass?.failedOnBase && v.failToPass?.passedAfter && !failsOnlyForMissingCode(v.failToPass)),
   };
 }

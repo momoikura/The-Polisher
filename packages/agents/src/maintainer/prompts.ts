@@ -9,7 +9,7 @@ import { COPY_RULEBOOK } from "../design/knowledge.js";
 import { diffFile, splitPr, type FileMap, type PrBundle, type RepoSnapshot, baseContent } from "./bundle.js";
 import type { Validation } from "./sandbox.js";
 
-export const MAINTAINER_PROMPT_VERSION = "maintainer-v3";
+export const MAINTAINER_PROMPT_VERSION = "maintainer-v4";
 
 const MAX_TREE_PATHS = 1500;
 /** Largest file loaded as context. Agents return full file contents, so a loaded file is never shown cut short. */
@@ -95,7 +95,7 @@ export function buildBaselineMessages(s: RepoSnapshot): ChatMessage[] {
       role: "system",
       content: `BASELINE MODE. Produce a complete pull request that fixes the issue, in one pass. ${UNTRUSTED}
 Return full new contents for every file you change.
-- "code": source files and pytest test files (Python only)
+- "code": source files and pytest test files (Python only). Tests must reproduce the bug through code that already exists, so they fail on the original code for the right reason, not because they import something the fix adds.
 - "docs": README / CHANGELOG / docs changes
 - "pr": markdown starting with "# <title>"
 Respond with ONLY a JSON object: {"code": {"path": "content"}, "docs": {"path": "content"}, "pr": "..."}`,
@@ -113,7 +113,7 @@ const ROLES: Record<MaintainerLane, { name: string; job: string; focus: string; 
     name: "CodePolish",
     job: "the fix and its pytest tests",
     focus: "wrong or partial fixes, edge cases the issue implies, tests that would pass without the fix, weakened or deleted tests, needless rewrites of unrelated code, broken imports, missing input validation, error messages that don't say what went wrong and how to fix it, swallowed exceptions, style that clashes with the repo",
-    rules: `Make the smallest change that fully fixes the issue, in the repo's existing style. Add pytest tests that FAIL on the original code and PASS with the fix; never delete, skip or weaken existing tests. Only Python files: CHANGELOG, README and other docs belong to DocPolish, and any edit you make to them is discarded. No dependency or config changes. Return only files you change, with their FULL new contents. Error messages must say what went wrong and how to fix it. Act on SecurityPolish's review; its bandit scan must report no new findings.`,
+    rules: `Make the smallest change that fully fixes the issue, in the repo's existing style. Add pytest tests that FAIL on the original code and PASS with the fix. They must fail for the right reason: by exercising the buggy behaviour through code that already exists (an assertion fails or the expected error is missing), not by importing a function or module your fix adds. Never delete, skip or weaken existing tests. Only Python files: CHANGELOG, README and other docs belong to DocPolish, and any edit you make to them is discarded. No dependency or config changes. Return only files you change, with their FULL new contents. Error messages must say what went wrong and how to fix it. Act on SecurityPolish's review; its bandit scan must report no new findings.`,
   },
   security: {
     name: "SecurityPolish",
