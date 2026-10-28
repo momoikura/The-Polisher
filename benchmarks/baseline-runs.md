@@ -274,3 +274,23 @@ Candidates 1 and 3 tied on proof and checks; the smaller diff won.
 - Worth watching: the patch grew from 105 to 324 added lines (a new
   `utils/paths.py` helper used by four modules, and 10 more tests). All of it
   is tested, but a maintainer might prefer the smaller version.
+
+## Run 5: th30d4y/ExecuTrace#36, first run with SecurityPolish (2026-10-29)
+
+`get_storage` silently falls back to JSON for unknown format strings instead
+of raising `ValueError`. Issue open, no comments. Run with `669aa1a`
+(SecurityPolish + bandit scan in the sandbox).
+
+| Candidate | Proves the fix | Failing checks | Tests | Lines |
+|---|---|---|---|---|
+| 1 (single-prompt baseline) | yes | 0 | 21/21 | +35 |
+| **2 (chosen)** | yes | 0 | 19/19 | +31 |
+| 3 | yes | 0 | 21/21 | +42 |
+
+- Status: **clean** (all four agents approved, including SecurityPolish:
+  security review 98/100, bandit found nothing new). Cost $0.124.
+- An easy issue: every candidate was already correct and secure, so the
+  smallest diff was chosen and no revisions were needed.
+- SecurityPolish has not yet met a patch with a real security problem in a
+  live run; the scan itself was verified separately by adding `shell=True`
+  and `pickle.loads` to a real file (both reported, nothing else).
