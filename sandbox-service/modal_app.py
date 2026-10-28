@@ -1,8 +1,9 @@
 """PolishLoop sandbox: runs an agent's patch against a real GitHub repo on Modal.
 
 POST /validate {repo: "owner/name", sha, changes: {path: content}, newTests: [path]}
-returns install/compile/lint/pytest results plus a fail-to-pass check (do the
-new tests fail on the original code and pass with the patch?).
+returns install/compile/lint/pytest results, a fail-to-pass check (do the
+new tests fail on the original code and pass with the patch?) and a bandit
+security scan that reports only the findings the patch introduced.
 
 Safety model:
 - This web endpoint is trusted and holds the auth token. It never runs repo code.
@@ -45,7 +46,7 @@ web_image = modal.Image.debian_slim(python_version="3.12").pip_install("fastapi[
 sandbox_image = (
     modal.Image.debian_slim(python_version="3.12")
     .apt_install("curl", "git")
-    .pip_install("pip>=24", "setuptools", "wheel", "pytest==8.3.3", "ruff==0.6.9")
+    .pip_install("pip>=24", "setuptools", "wheel", "pytest==8.3.3", "ruff==0.6.9", "bandit==1.7.10")
 )
 
 SAFE_PATH = re.compile(r"^(?!/)(?!.*\.\.)[A-Za-z0-9_./-]+\.py$")
@@ -76,6 +77,50 @@ def read_file(sb: "modal.Sandbox", path: str) -> str | None:
         return sb.filesystem.read_text(f"{REPO_DIR}/{path}")
     except Exception:
         return None
+
+
+TEST_PATH = re.compile(r"(^|/)(tests?/|test_[^/]*\.py$|[^/]*_test\.py$|conftest\.py$)")
+# Only findings a reviewer must act on; LOW is mostly style (asserts, subprocess imports).
+SECURITY_SEVERITIES = {"MEDIUM", "HIGH"}
+
+
+def bandit_scan(sb: "modal.Sandbox", paths: list[str]) -> list[dict] | None:
+    """Bandit findings in the given files, or None if the scan itself failed."""
+    if not paths:
+        return []
+    # Bandit exits 1 when it finds something, so read the JSON whatever the exit code.
+    _, out, _ = run(sb, f"bandit -q -f json {' '.join(shlex.quote(p) for p in paths)}")
+    try:
+        results = json.loads(out or "{}").get("results", [])
+    except ValueError:
+        return None
+    return [
+        {
+            "file": r["filename"].replace(REPO_DIR + "/", "").removeprefix("./"),
+            "line": r["line_number"],
+            "testId": r["test_id"],
+            "severity": r["issue_severity"],
+            "confidence": r["issue_confidence"],
+            "text": r["issue_text"],
+        }
+        for r in results
+    ]
+
+
+def new_findings(before: list[dict], after: list[dict]) -> list[dict]:
+    """Findings the patch introduced: line numbers shift, so match on file, rule and message."""
+    remaining: dict[tuple, int] = {}
+    for f in before:
+        key = (f["file"], f["testId"], f["text"])
+        remaining[key] = remaining.get(key, 0) + 1
+    fresh = []
+    for f in after:
+        key = (f["file"], f["testId"], f["text"])
+        if remaining.get(key, 0) > 0:
+            remaining[key] -= 1
+        else:
+            fresh.append(f)
+    return fresh
 
 
 def module_of(path: str) -> str:
@@ -153,6 +198,10 @@ def validate_patch(repo: str, sha: str, changes: dict[str, str], new_tests: list
                     write_file(sb, t, original)
             fail_to_pass = {"newTests": tests, "failedOnBase": failed_on_base, "passedAfter": False}
 
+        # Security, part 1: scan the source files the patch changes, as they are now.
+        sources = [p for p in changes if p.endswith(".py") and not TEST_PATH.search(p)]
+        security_before = bandit_scan(sb, [p for p in sources if read_file(sb, p) is not None])
+
         # Apply the full patch.
         for path, content in changes.items():
             write_file(sb, path, content)
@@ -169,6 +218,14 @@ def validate_patch(repo: str, sha: str, changes: dict[str, str], new_tests: list
             ]
         except (ValueError, KeyError):
             lint = []
+
+        # Security, part 2: the same files after the patch; only new findings count against it.
+        security_after = bandit_scan(sb, sources)
+        if security_before is None or security_after is None:
+            security = {"ran": False, "newIssues": []}
+        else:
+            fresh = [f for f in new_findings(security_before, security_after) if f["severity"] in SECURITY_SEVERITIES]
+            security = {"ran": True, "newIssues": fresh[:20]}
 
         tcode, tout, terr = run(sb, f"python -m pytest -q -p no:cacheprovider --junitxml=/tmp/junit.xml", timeout=TEST_TIMEOUT_S)
         junit_text = None
@@ -199,6 +256,7 @@ def validate_patch(repo: str, sha: str, changes: dict[str, str], new_tests: list
             "lint": {"issues": lint[:30]},
             "tests": tests_result,
             "failToPass": fail_to_pass,
+            "security": security,
             "durationMs": int((time.time() - started) * 1000),
         }
     finally:

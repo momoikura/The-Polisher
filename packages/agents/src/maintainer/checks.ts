@@ -69,7 +69,7 @@ export function codeStaticChecks(code: FileMap, snapshot: RepoSnapshot): TestChe
   ];
 }
 
-// ─── UIPolish (UX review of the code change) ──────────────────────────────
+// ─── Error messages in the code change (CodePolish) ─────────────────────
 
 const GENERIC_MESSAGE = /raise\s+\w+\(\s*f?(["'])\s*(invalid( input| value| argument)?|error|bad input|failed|something went wrong|oops)[.!]?\s*\1\s*\)/i;
 

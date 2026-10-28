@@ -9,9 +9,9 @@ const BUDGETS = [1, 3, 5, 10];
 const ISSUE_URL = /^https:\/\/github\.com\/[^/\s]+\/[^/\s]+\/issues\/\d+/;
 
 const STEPS = [
-  "A single prompt writes a first draft of the fix, tests, docs and description.",
+  "Three first drafts are written at once and tested on Modal; the tests pick which one to polish.",
   "Four agents review and revise their part in parallel; every revision is checked before it is kept.",
-  "The tests run on Modal. New tests must fail on the original code and pass with the fix.",
+  "New tests must fail on the original code and pass with the fix, and a security scan must find nothing new.",
   "You compare the first draft with the result, then open the pull request yourself.",
 ];
 

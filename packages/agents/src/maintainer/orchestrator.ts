@@ -1,6 +1,6 @@
 /**
  * Auto-Maintainer: GitHub issue → context → single-prompt baseline PR →
- * CodePolish (reviewed by UIPolish), DocPolish and WritePolish in parallel →
+ * CodePolish (reviewed by SecurityPolish), DocPolish and WritePolish in parallel →
  * reconcile → before/after comparison → PR ready to open.
  *
  * Each owning lane is a LoopController, so the gate, regression rejection,
@@ -26,7 +26,7 @@ import { chooseCandidate } from "./candidates.js";
 import { codeStaticChecks, docChecks, prChecks, uxChecks } from "./checks.js";
 import type { CandidateSummary, LaneSummary, MaintainerEvent, MaintainerEventInput, MaintainerStatus, SideMetrics } from "./events.js";
 import { GitHubClient, parseIssueUrl } from "./github.js";
-import { MaintainerLaneAgent, ValidationBoard, type OwnerLane, type RepairInfo, type UxReview } from "./lanes.js";
+import { MaintainerLaneAgent, ValidationBoard, type OwnerLane, type RepairInfo, type SecurityReview } from "./lanes.js";
 import { BaselineSchema, MAINTAINER_PROMPT_VERSION, MAX_FILE_CHARS, PlanSchema, buildBaselineMessages, buildPlanMessages } from "./prompts.js";
 import { summarizeValidation, validationChecks, validationFailureChecks, type SandboxClient, type Validation } from "./sandbox.js";
 
@@ -115,7 +115,7 @@ function selectFiles(snapshot: RepoSnapshot, sizes: Record<string, number>, want
 }
 
 /** Keep only what each lane may own; anything else the baseline produced is dropped. */
-const AGENT_NAMES: Record<LaneId, string> = { code: "CodePolish", ui: "UIPolish", doc: "DocPolish", write: "WritePolish" };
+const AGENT_NAMES: Record<LaneId, string> = { code: "CodePolish", security: "SecurityPolish", doc: "DocPolish", write: "WritePolish" };
 
 /**
  * The run's outcome. "verified" is reported separately from "clean" so a fix the
@@ -162,7 +162,7 @@ function metricsFor(snapshot: RepoSnapshot, bundle: PrBundle, validation: Valida
     lintIssues: v?.lintIssues ?? null,
     checks: {
       code: tally(codeStaticChecks(bundle.code, snapshot)),
-      ui: tally(uxChecks(bundle.code, snapshot)),
+      security: tally(securityChecks(validation)),
       doc: tally(docChecks(bundle.docs, bundle, snapshot)),
       write: tally(prChecks(bundle.pr, bundle, snapshot, validation)),
     },
@@ -170,6 +170,11 @@ function metricsFor(snapshot: RepoSnapshot, bundle: PrBundle, validation: Valida
     files: diffs.length,
     linesAdded: diffs.reduce((n, d) => n + d.added, 0),
   };
+}
+
+/** The sandbox's security scan for a patch, or nothing if it hasn't been run. */
+function securityChecks(validation: Validation | null): TestCheck[] {
+  return validation ? validationChecks(validation).filter((c) => c.testType === "security_scan") : [];
 }
 
 // ─── Orchestrator ─────────────────────────────────────────────────────────
@@ -208,11 +213,11 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     }
   };
 
-  const rounds: Record<LaneId, number> = { write: 0, ui: 0, code: 0, doc: 0 };
+  const rounds: Record<LaneId, number> = { write: 0, security: 0, code: 0, doc: 0 };
   const lastStatus: Record<OwnerLane, string> = { code: "waiting", doc: "waiting", write: "waiting" };
-  const firstScore: Record<LaneId, number | null> = { write: null, ui: null, code: null, doc: null };
-  const bestScore: Record<LaneId, number | null> = { write: null, ui: null, code: null, doc: null };
-  const roundScore: Record<LaneId, Map<number, number>> = { write: new Map(), ui: new Map(), code: new Map(), doc: new Map() };
+  const firstScore: Record<LaneId, number | null> = { write: null, security: null, code: null, doc: null };
+  const bestScore: Record<LaneId, number | null> = { write: null, security: null, code: null, doc: null };
+  const roundScore: Record<LaneId, Map<number, number>> = { write: new Map(), security: new Map(), code: new Map(), doc: new Map() };
 
   let memory: Experience[] = [];
   if (options.experience) {
@@ -361,7 +366,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
 
   function summarize(snap: RepoSnapshot, ws: PrWorkspace): Record<LaneId, LaneSummary> {
     const b = ws.get();
-    const cost = (l: LaneId) => (l === "ui" ? 0 : laneCost[l].done + laneCost[l].current);
+    const cost = (l: LaneId) => (l === "security" ? 0 : laneCost[l].done + laneCost[l].current);
     const entry = (lane: LaneId, clean: boolean, status: string, remaining: string[]): [LaneId, LaneSummary] => {
       emit({ type: "lane_state", lane, state: clean ? "clean" : status === "failed" ? "failed" : "not_clean", round: rounds[lane] });
       return [lane, { clean, status, rounds: rounds[lane], costUSD: cost(lane), remaining }];
@@ -371,13 +376,16 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
       const clean = lastStatus[lane] === "accepted" && f.length === 0;
       return entry(lane, clean, lastStatus[lane], lastStatus[lane] === "accepted" ? f : [`stopped: ${lastStatus[lane]}`, ...f]);
     };
-    const uxFailing = uxChecks(b.code, snap).filter((c) => !c.passed).map((c) => c.message);
-    const uxScore = bestScore.ui;
-    const uxClean = uxFailing.length === 0 && uxScore !== null && uxScore >= CLEAN_SCORE;
-    const uxRemaining = [...uxFailing, ...(uxScore === null || uxScore < CLEAN_SCORE ? [`UX review score ${uxScore ?? "—"}/100`] : [])];
+    const secFailing = securityChecks(board.forCode(b.code)).filter((c) => !c.passed).map((c) => c.message);
+    const secScore = bestScore.security;
+    const secClean = board.forCode(b.code) !== null && secFailing.length === 0 && secScore !== null && secScore >= CLEAN_SCORE;
+    const secRemaining = [
+      ...(board.forCode(b.code) ? secFailing : ["security scan: the final code was never run in the sandbox"]),
+      ...(secScore === null || secScore < CLEAN_SCORE ? [`Security review score ${secScore ?? "—"}/100`] : []),
+    ];
     return Object.fromEntries([
       owner("code"),
-      entry("ui", uxClean, uxClean ? "accepted" : "not_clean", uxRemaining),
+      entry("security", secClean, secClean ? "accepted" : "not_clean", secRemaining),
       owner("doc"),
       owner("write"),
     ]) as Record<LaneId, LaneSummary>;
@@ -436,17 +444,17 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
       onRepaired: (info) => {
         pending = { info, scoreAfter: null, after: null };
       },
-      onUxReview: (review: UxReview) => {
-        rounds.ui = rounds.code + 1;
-        roundScore.ui.set(rounds.ui, review.score);
-        if (firstScore.ui === null) firstScore.ui = review.score;
-        emit({ type: "lane_state", lane: "ui", state: "reviewing", round: rounds.ui });
-        emit({ type: "lane_evaluation", lane: "ui", round: rounds.ui, score: review.score, findings: review.findings });
-        if (review.findings.length) emit({ type: "review", from: "ui", to: "code", findings: review.findings.map((f) => f.description) });
+      onSecurityReview: (review: SecurityReview) => {
+        rounds.security = rounds.code + 1;
+        roundScore.security.set(rounds.security, review.score);
+        if (firstScore.security === null) firstScore.security = review.score;
+        emit({ type: "lane_state", lane: "security", state: "reviewing", round: rounds.security });
+        emit({ type: "lane_evaluation", lane: "security", round: rounds.security, score: review.score, findings: review.findings });
+        if (review.findings.length) emit({ type: "review", from: "security", to: "code", findings: review.findings.map((f) => f.description) });
       },
-      onUxChecks: (checks) => {
+      onSecurityChecks: (checks) => {
         const t = tally(checks);
-        emit({ type: "lane_checks", lane: "ui", round: rounds.ui, passed: t.passed, failed: t.total - t.passed, failing: checks.filter((c) => !c.passed).map((c) => ({ check: c.testType, message: c.message })) });
+        emit({ type: "lane_checks", lane: "security", round: rounds.security, passed: t.passed, failed: t.total - t.passed, failing: checks.filter((c) => !c.passed).map((c) => ({ check: c.testType, message: c.message })) });
       },
     });
     const controller = new LoopController({
@@ -497,7 +505,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
         // Room for the narrowed, smallest-edit strategy (after 2 rejections) to get two tries.
         maxConsecutiveRejections: 4,
         progressEpsilon: 0.1,
-        // UIPolish's findings land in CodePolish's evaluation; a major one earns a revision.
+        // SecurityPolish's findings land in CodePolish's evaluation; a major one earns a revision.
         reviseOnMajorFindings: lane === "code",
         earlyStopOnAcceptance: true,
         qualityThresholds: { minScore: 8.5, requireAllTestsPass: true, maxCriticalDefects: 0 },
@@ -512,7 +520,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     switch (event.type) {
       case "evaluation_complete": {
         rounds[lane] += 1;
-        // CodePolish's card shows its own critic; UIPolish's verdict is reported on its own card.
+        // CodePolish's card shows its own critic; SecurityPolish's verdict is reported on its own card.
         const own = event.evaluation.scores.dimensions.code_review ?? event.evaluation.scores.overall;
         const score = Math.round(own * 10);
         roundScore[lane].set(rounds[lane], score);
@@ -522,7 +530,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
           lane,
           round: rounds[lane],
           score,
-          findings: event.evaluation.issues.filter((i) => !i.description.startsWith("UIPolish:")).slice(0, 4).map((i) => ({ severity: i.severity, description: i.description })),
+          findings: event.evaluation.issues.filter((i) => !i.description.startsWith("SecurityPolish:")).slice(0, 4).map((i) => ({ severity: i.severity, description: i.description })),
         });
         return;
       }
@@ -533,13 +541,13 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
           round: rounds[lane],
           passed: event.results.objectivePassed,
           failed: event.results.objectiveFailed,
-          failing: event.results.checks.filter((c) => !c.passed && c.testType !== "ux_messages").map((c) => ({ check: c.testType, message: c.message })),
+          failing: event.results.checks.filter((c) => !c.passed).map((c) => ({ check: c.testType, message: c.message })),
         });
         return;
       case "gate_decision":
         if (event.decision.accepted) {
           bestScore[lane] = roundScore[lane].get(rounds[lane]) ?? bestScore[lane];
-          if (lane === "code") bestScore.ui = roundScore.ui.get(rounds.ui) ?? bestScore.ui;
+          if (lane === "code") bestScore.security = roundScore.security.get(rounds.security) ?? bestScore.security;
         }
         emit({ type: "lane_decision", lane, round: rounds[lane], accepted: event.decision.accepted, reason: event.decision.reason, explanation: event.decision.explanation });
         return;

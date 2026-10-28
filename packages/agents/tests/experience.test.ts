@@ -16,7 +16,7 @@ function exp(overrides: Partial<Experience> = {}): Experience {
   return {
     id: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
-    lane: "ui",
+    lane: "security",
     model: "m",
     promptVersion: "v",
     provider: "meta",
@@ -38,7 +38,7 @@ function exp(overrides: Partial<Experience> = {}): Experience {
 describe("buildExperience", () => {
   it("records which checks a repair fixed and which it broke", () => {
     const e = buildExperience({
-      lane: "ui",
+      lane: "security",
       model: "m",
       promptVersion: "v",
       provider: "meta",
@@ -65,13 +65,13 @@ describe("buildExperience", () => {
 
 describe("recallLessons", () => {
   it("returns a kept strategy that fixed a check failing now", () => {
-    const lessons = recallLessons([exp()], { lane: "ui", failing: ["slop_visual"], provider: "meta" });
+    const lessons = recallLessons([exp()], { lane: "security", failing: ["slop_visual"], provider: "meta" });
     expect(lessons.worked.map((l) => l.strategy)).toEqual([exp().strategies[0]]);
   });
 
   it("never labels a rejected repair as a success, even if it fixed the check", () => {
     const lessons = recallLessons([exp({ accepted: false }), exp({ accepted: false })], {
-      lane: "ui",
+      lane: "security",
       failing: ["slop_visual"],
       provider: "meta",
     });
@@ -81,7 +81,7 @@ describe("recallLessons", () => {
 
   it("puts strategies that broke a passing check on the avoid list", () => {
     const lessons = recallLessons([exp({ broke: ["focus_states"], strategies: ["Removed all outlines"] })], {
-      lane: "ui",
+      lane: "security",
       failing: ["slop_visual"],
       provider: "meta",
     });
@@ -96,7 +96,7 @@ describe("recallLessons", () => {
       exp({ provider: "simulated" }),
       exp({ provider: "anthropic" }),
     ];
-    const lessons = recallLessons(all, { lane: "ui", failing: ["slop_visual"], provider: "meta" });
+    const lessons = recallLessons(all, { lane: "security", failing: ["slop_visual"], provider: "meta" });
     expect(lessons.consulted).toBe(0);
     expect(lessons.worked).toEqual([]);
   });
@@ -105,7 +105,7 @@ describe("recallLessons", () => {
     const sentry = exp({ briefKeywords: ["policy", "event", "shape", "cli"], strategies: ["Validate event shape"] });
     const paths = exp({ briefKeywords: ["storage", "path", "workflows", "nested"], strategies: ["Strip a trailing workflows segment"] });
     const lessons = recallLessons([sentry, paths], {
-      lane: "ui",
+      lane: "security",
       failing: ["slop_visual"],
       provider: "meta",
       brief: "cmd_record path becomes double-nested: storage path gets extra /workflows/",
@@ -117,13 +117,13 @@ describe("recallLessons", () => {
     const now = Date.now();
     const old = exp({ createdAt: new Date(now - 120 * DAY).toISOString(), strategies: ["Old trick"] });
     const fresh = exp({ createdAt: new Date(now - DAY).toISOString(), strategies: ["New trick"] });
-    const lessons = recallLessons([old, fresh], { lane: "ui", failing: ["slop_visual"], provider: "meta", now });
+    const lessons = recallLessons([old, fresh], { lane: "security", failing: ["slop_visual"], provider: "meta", now });
     expect(lessons.worked.map((l) => l.strategy)).toEqual(["New trick", "Old trick"]);
     expect(lessons.worked[1].weight).toBeLessThan(0.1);
   });
 
   it("frames lessons as hints below the brief and the gate", () => {
-    const text = formatLessons(recallLessons([exp()], { lane: "ui", failing: ["slop_visual"], provider: "meta" }));
+    const text = formatLessons(recallLessons([exp()], { lane: "security", failing: ["slop_visual"], provider: "meta" }));
     expect(text).toMatch(/brief and the rules come first/);
     expect(text).toMatch(/gate checks everything again/);
   });

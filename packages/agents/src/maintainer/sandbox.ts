@@ -25,6 +25,15 @@ export const ValidationSchema = z.object({
   failToPass: z
     .object({ newTests: z.array(z.string()), failedOnBase: z.boolean(), passedAfter: z.boolean() })
     .nullable(),
+  /** Bandit findings (medium/high) the patch introduced in the source files it changes. */
+  security: z
+    .object({
+      ran: z.boolean(),
+      newIssues: z.array(
+        z.object({ file: z.string(), line: z.number(), testId: z.string(), severity: z.string(), confidence: z.string(), text: z.string() })
+      ),
+    })
+    .optional(),
   durationMs: z.number(),
 });
 export type Validation = z.infer<typeof ValidationSchema>;
@@ -116,12 +125,20 @@ export function validationChecks(v: Validation): TestCheck[] {
     check("py_lint", v.lint.issues.slice(0, 8).map((i) => `${i.file}:${i.line} ${i.code} ${i.message}`), "No lint errors in changed files."),
     check("py_tests", testProblems, `All ${tests.total} tests pass.`),
     check("fail_to_pass", ftpProblems, "New tests fail before the fix and pass after it."),
+    check("security_scan", securityProblems(v.security), "The patch adds no medium or high security findings (bandit)."),
   ];
+}
+
+function securityProblems(security: Validation["security"]): string[] {
+  if (!security?.ran) return ["Not verified: the sandbox didn't run the security scan"];
+  return security.newIssues
+    .slice(0, 8)
+    .map((i) => `${i.file}:${i.line} ${i.testId} (${i.severity.toLowerCase()}): ${i.text}`);
 }
 
 /** A validation that could not run must never look like a pass. */
 export function validationFailureChecks(reason: string): TestCheck[] {
-  return (["py_compile", "py_lint", "py_tests", "fail_to_pass"] as const).map((testType) => ({
+  return (["py_compile", "py_lint", "py_tests", "fail_to_pass", "security_scan"] as const).map((testType) => ({
     testType,
     authority: "objective" as const,
     passed: false,

@@ -27,12 +27,12 @@ describe("maintainerReducer", () => {
     expect(view.baseline?.pr).toContain("Fixed stuff");
     expect(view.current?.pr).toContain("Fixes #7");
     expect(view.comparison?.after.provesFix).toBe(true);
-    for (const lane of ["code", "ui", "doc", "write"] as const) expect(view.lanes[lane].state).toBe("clean");
+    for (const lane of ["code", "security", "doc", "write"] as const) expect(view.lanes[lane].state).toBe("clean");
   });
 
-  it("shows UIPolish correcting CodePolish in the feed", async () => {
+  it("shows SecurityPolish correcting CodePolish in the feed", async () => {
     const view = (await recordRun()).reduce(maintainerReducer, initialView());
-    expect(view.feed.some((f) => f.lane === "ui" && f.text.startsWith("→ CodePolish"))).toBe(true);
+    expect(view.feed.some((f) => f.lane === "security" && f.text.startsWith("→ CodePolish"))).toBe(true);
   });
 
   it("lists each candidate fix and marks the one the tests chose", () => {

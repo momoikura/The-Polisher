@@ -26,7 +26,7 @@ function AgentDetail({ lane, view }: { lane: LaneId; view: MaintainerView["lanes
 
       <dl className="agent-stats">
         <div>
-          <dt>{lane === "ui" ? "UX review" : "Critic"}</dt>
+          <dt>{lane === "security" ? "Security review" : "Critic"}</dt>
           <dd className="mono">
             {score ?? "—"}
             <span className="muted">/100</span>
@@ -60,7 +60,7 @@ function AgentDetail({ lane, view }: { lane: LaneId; view: MaintainerView["lanes
       )}
 
       <p className="agent-foot muted">
-        {lane === "ui"
+        {lane === "security"
           ? "CodePolish's revision is only kept when this review approves it too."
           : view.decision
             ? `${view.decision.accepted ? "Kept" : "Rejected"} round ${view.decision.round}: ${reasonText(view.decision.reason)}. ${view.kept} kept, ${view.rejected} rejected.`

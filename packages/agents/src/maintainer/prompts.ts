@@ -68,7 +68,11 @@ export function renderDiff(snapshot: RepoSnapshot, files: FileMap): string {
 export function describeValidation(v: Validation | null): string {
   if (!v) return "Sandbox: not run.";
   const ftp = v.failToPass ? `new tests ${v.failToPass.failedOnBase ? "fail" : "PASS"} on the original code and ${v.failToPass.passedAfter ? "pass" : "FAIL"} with the fix` : "no new tests";
-  return `Sandbox: ${v.tests.passed}/${v.tests.total} tests pass, ${v.tests.failed + v.tests.errors} failing; ${ftp}; ${v.lint.issues.length} lint issue(s); compiles: ${v.compile.ok}.${v.tests.failures.length ? `\nFailures:\n${v.tests.failures.slice(0, 5).map((f) => `- ${f.test}: ${f.message.slice(0, 300)}`).join("\n")}` : ""}`;
+  const found = v.security?.newIssues ?? [];
+  const sec = !v.security?.ran
+    ? "security scan: not run"
+    : `security scan (bandit): ${found.length} new finding(s)${found.map((i) => `\n  - ${i.file}:${i.line} ${i.testId} (${i.severity.toLowerCase()}): ${i.text}`).slice(0, 5).join("")}`;
+  return `Sandbox: ${v.tests.passed}/${v.tests.total} tests pass, ${v.tests.failed + v.tests.errors} failing; ${ftp}; ${v.lint.issues.length} lint issue(s); compiles: ${v.compile.ok}; ${sec}.${v.tests.failures.length ? `\nFailures:\n${v.tests.failures.slice(0, 5).map((f) => `- ${f.test}: ${f.message.slice(0, 300)}`).join("\n")}` : ""}`;
 }
 
 // ─── Planning + baseline ──────────────────────────────────────────────────
@@ -102,19 +106,19 @@ Respond with ONLY a JSON object: {"code": {"path": "content"}, "docs": {"path": 
 
 // ─── Lanes ────────────────────────────────────────────────────────────────
 
-export type MaintainerLane = "code" | "ui" | "doc" | "write";
+export type MaintainerLane = "code" | "security" | "doc" | "write";
 
 const ROLES: Record<MaintainerLane, { name: string; job: string; focus: string; rules: string }> = {
   code: {
     name: "CodePolish",
     job: "the fix and its pytest tests",
-    focus: "wrong or partial fixes, edge cases the issue implies, tests that would pass without the fix, weakened or deleted tests, needless rewrites of unrelated code, broken imports, missing input validation, style that clashes with the repo",
-    rules: `Make the smallest change that fully fixes the issue, in the repo's existing style. Add pytest tests that FAIL on the original code and PASS with the fix; never delete, skip or weaken existing tests. Only Python files: CHANGELOG, README and other docs belong to DocPolish, and any edit you make to them is discarded. No dependency or config changes. Return only files you change, with their FULL new contents. Act on UIPolish's review of user-facing behaviour.`,
+    focus: "wrong or partial fixes, edge cases the issue implies, tests that would pass without the fix, weakened or deleted tests, needless rewrites of unrelated code, broken imports, missing input validation, error messages that don't say what went wrong and how to fix it, swallowed exceptions, style that clashes with the repo",
+    rules: `Make the smallest change that fully fixes the issue, in the repo's existing style. Add pytest tests that FAIL on the original code and PASS with the fix; never delete, skip or weaken existing tests. Only Python files: CHANGELOG, README and other docs belong to DocPolish, and any edit you make to them is discarded. No dependency or config changes. Return only files you change, with their FULL new contents. Error messages must say what went wrong and how to fix it. Act on SecurityPolish's review; its bandit scan must report no new findings.`,
   },
-  ui: {
-    name: "UIPolish",
-    job: "the user experience of the change: error messages, exceptions, CLI output, public API names and defaults",
-    focus: "exceptions with no message or a generic one, messages that don't say how to fix the problem, surprising defaults, inconsistent naming with the rest of the API, silent failures, swallowed exceptions, output a user would find confusing",
+  security: {
+    name: "SecurityPolish",
+    job: "the security of the change: how it handles untrusted input, files, processes and data",
+    focus: "injection (shell=True, os.system, string-built SQL or commands), path traversal from user-supplied paths, unsafe deserialization (pickle, yaml.load, eval, exec), hard-coded secrets or tokens, insecure temp files or permissions, untrusted input used without validation, error messages or logs that leak secrets or internals, new findings from the sandbox's bandit scan",
     rules: "",
   },
   doc: {
@@ -131,7 +135,7 @@ const ROLES: Record<MaintainerLane, { name: string; job: string; focus: string; 
   },
 };
 
-export const LANE_NAMES: Record<MaintainerLane, string> = { code: "CodePolish", ui: "UIPolish", doc: "DocPolish", write: "WritePolish" };
+export const LANE_NAMES: Record<MaintainerLane, string> = { code: "CodePolish", security: "SecurityPolish", doc: "DocPolish", write: "WritePolish" };
 
 function sharedContext(s: RepoSnapshot, bundle: PrBundle, validation: Validation | null): string {
   return `${issueBlock(s)}\n\nCurrent code + test changes:\n${renderDiff(s, bundle.code)}\n\n${describeValidation(validation)}`;
@@ -163,7 +167,7 @@ ${EVALUATION_JSON_CONTRACT}`,
 }
 
 export function buildLaneRepairMessages(
-  lane: Exclude<MaintainerLane, "ui">,
+  lane: Exclude<MaintainerLane, "security">,
   s: RepoSnapshot,
   bundle: PrBundle,
   validation: Validation | null,

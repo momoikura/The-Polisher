@@ -51,6 +51,7 @@ export type TestType =
   | "tests_included"
   | "tests_intact"
   | "ux_messages"
+  | "security_scan"
   | "docs_accuracy"
   | "docs_updated"
   | "pr_structure"

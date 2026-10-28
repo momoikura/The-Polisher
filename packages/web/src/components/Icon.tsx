@@ -23,6 +23,7 @@ import github from "line-awesome/svg/github.svg?url";
 import history from "line-awesome/svg/history-solid.svg?url";
 import info from "line-awesome/svg/info-circle-solid.svg?url";
 import pen from "line-awesome/svg/pen-solid.svg?url";
+import shield from "line-awesome/svg/shield-alt-solid.svg?url";
 import sync from "line-awesome/svg/sync-solid.svg?url";
 import terminal from "line-awesome/svg/terminal-solid.svg?url";
 import times from "line-awesome/svg/times-solid.svg?url";
@@ -49,6 +50,7 @@ const ICONS = {
   history,
   info,
   pen,
+  shield,
   sync,
   terminal,
   times,

@@ -1,6 +1,6 @@
 /**
  * Auto-Maintainer lane agents. CodePolish, DocPolish and WritePolish own an
- * artifact each; UIPolish reviews CodePolish's work and gates it.
+ * artifact each; SecurityPolish reviews CodePolish's work and gates it.
  */
 
 import type {
@@ -31,7 +31,7 @@ import {
 } from "./prompts.js";
 import { validationChecks, validationFailureChecks, type SandboxClient, type Validation } from "./sandbox.js";
 
-export type OwnerLane = Exclude<MaintainerLane, "ui">;
+export type OwnerLane = Exclude<MaintainerLane, "security">;
 export type LaneActivity = "evaluating" | "testing" | "validating" | "repairing" | "reviewing";
 
 export interface RepairInfo {
@@ -41,7 +41,7 @@ export interface RepairInfo {
   model: string;
 }
 
-export interface UxReview {
+export interface SecurityReview {
   score: number;
   findings: Array<{ severity: string; description: string }>;
 }
@@ -68,9 +68,9 @@ export interface MaintainerLaneOptions {
   onRepaired?: (info: RepairInfo) => void;
   /** Called when rejections make the agent change approach. */
   onAdapt?: (strategy: AdaptStrategy) => void;
-  /** CodePolish only: UIPolish's critic verdict and objective checks, for the dashboard. */
-  onUxReview?: (review: UxReview) => void;
-  onUxChecks?: (checks: TestCheck[]) => void;
+  /** CodePolish only: SecurityPolish's critic verdict and the sandbox's security scan, for the dashboard. */
+  onSecurityReview?: (review: SecurityReview) => void;
+  onSecurityChecks?: (checks: TestCheck[]) => void;
 }
 
 const EVALUATION_TEMPERATURE = 0;
@@ -129,27 +129,27 @@ export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, Teste
       return { output: toEvaluatorOutput(r.data), model: r.model, promptTokens: r.promptTokens, completionTokens: r.completionTokens };
     }
 
-    // CodePolish is critiqued by its own critic and by UIPolish; both must sign off.
-    const ux = completeStructured(this.o.client, buildLaneEvaluationMessages("ui", snap, bundle, validation), EvaluationSchema, {
+    // CodePolish is critiqued by its own critic and by SecurityPolish; both must sign off.
+    const sec = completeStructured(this.o.client, buildLaneEvaluationMessages("security", snap, bundle, validation), EvaluationSchema, {
       temperature: EVALUATION_TEMPERATURE,
     });
-    const [codeR, uxR] = await Promise.all([own, ux]);
-    const uxOut = toEvaluatorOutput(uxR.data);
-    this.o.onUxReview?.({ score: uxR.data.score, findings: uxOut.issues.slice(0, 4).map((i) => ({ severity: i.severity, description: i.description })) });
+    const [codeR, secR] = await Promise.all([own, sec]);
+    const secOut = toEvaluatorOutput(secR.data);
+    this.o.onSecurityReview?.({ score: secR.data.score, findings: secOut.issues.slice(0, 4).map((i) => ({ severity: i.severity, description: i.description })) });
     const codeOut = toEvaluatorOutput(codeR.data);
     return {
       output: {
         scores: {
-          overall: Math.min(codeOut.scores.overall, uxOut.scores.overall),
+          overall: Math.min(codeOut.scores.overall, secOut.scores.overall),
           // Both critics' own verdicts, so the dashboard can show each agent's score separately.
-          dimensions: { ...codeOut.scores.dimensions, code_review: codeOut.scores.overall, ux_review: uxOut.scores.overall },
+          dimensions: { ...codeOut.scores.dimensions, code_review: codeOut.scores.overall, security_review: secOut.scores.overall },
           rationale: codeOut.scores.rationale,
         },
-        issues: [...codeOut.issues, ...uxOut.issues.map((i) => ({ ...i, description: `UIPolish: ${i.description}` }))],
+        issues: [...codeOut.issues, ...secOut.issues.map((i) => ({ ...i, description: `SecurityPolish: ${i.description}` }))],
       },
       model: codeR.model,
-      promptTokens: codeR.promptTokens + uxR.promptTokens,
-      completionTokens: codeR.completionTokens + uxR.completionTokens,
+      promptTokens: codeR.promptTokens + secR.promptTokens,
+      completionTokens: codeR.completionTokens + secR.completionTokens,
     };
   }
 
@@ -161,8 +161,6 @@ export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, Teste
     if (this.o.lane === "doc") return { checks: docChecks(bundle.docs, bundle, snap) };
     if (this.o.lane === "write") return { checks: prChecks(bundle.pr, bundle, snap, this.o.board.forCode(bundle.code)) };
 
-    const ux = uxChecks(bundle.code, snap);
-    if (content === this.candidate) this.o.onUxChecks?.(ux);
     let sandboxChecks: TestCheck[];
     if (!this.o.sandbox) {
       sandboxChecks = validationFailureChecks("no sandbox configured");
@@ -176,7 +174,8 @@ export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, Teste
         sandboxChecks = validationFailureChecks(err instanceof Error ? err.message : String(err));
       }
     }
-    return { checks: [...codeStaticChecks(bundle.code, snap), ...ux, ...sandboxChecks] };
+    if (content === this.candidate) this.o.onSecurityChecks?.(sandboxChecks.filter((c) => c.testType === "security_scan"));
+    return { checks: [...codeStaticChecks(bundle.code, snap), ...uxChecks(bundle.code, snap), ...sandboxChecks] };
   }
 
   async repair(

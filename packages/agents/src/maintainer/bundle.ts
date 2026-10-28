@@ -5,7 +5,7 @@
  *   code  (CodePolish) → source + test files
  *   doc   (DocPolish)  → README / docs / CHANGELOG
  *   write (WritePolish)→ PR title + description
- *   ui    (UIPolish)   → reviewer only: UX of the code change, gates CodePolish
+ *   security (SecurityPolish) → reviewer only: security of the code change, gates CodePolish
  */
 
 import { z } from "zod";

@@ -4,12 +4,12 @@
 
 Built for the Meta Global AI Developer Hackathon, *Push the Frontier* track (software).
 
-Paste a GitHub issue from a Python repository. The Polisher (PolishLoop inside the code) uses Muse Spark through the Meta Model API to write a single-prompt first draft of the fix, then four agents critique and revise it in parallel until the pull request is something a maintainer would merge. The tests run for real in a Modal sandbox. The first draft is kept so you can compare it with the result, side by side.
+Paste a GitHub issue from a Python repository. The Polisher (PolishLoop inside the code) uses Muse Spark through the Meta Model API to write three candidate fixes at once. Each is tested in its own Modal sandbox, and the tests pick the one to polish: the one whose new tests prove the fix, then the fewest failing checks, then the smallest diff. Four agents then critique and revise it in parallel until the pull request is something a maintainer would merge. The first draft is kept as the single-prompt baseline so you can compare it with the result, side by side.
 
 | Agent | Owns | Must pass |
 |---|---|---|
-| CodePolish | the fix + pytest tests | compiles, no lint errors, all tests pass, **new tests fail on the original code and pass with the fix**, no deleted/skipped/weakened tests, no debug leftovers, Python-only and focused |
-| UIPolish | reviews CodePolish's change from the user's side | error messages say what went wrong and how to fix it, no bare/silent excepts; its critic must also sign off, or CodePolish's revision is not accepted |
+| CodePolish | the fix + pytest tests | compiles, no lint errors, all tests pass, **new tests fail on the original code and pass with the fix**, no deleted/skipped/weakened tests, no debug leftovers, error messages say what went wrong and how to fix it, Python-only and focused |
+| SecurityPolish | reviews CodePolish's change for security problems | **the sandbox's bandit scan finds no new medium or high finding** in the changed code; its critic (injection, path traversal, unsafe deserialization, secrets, unvalidated input) must also sign off, or CodePolish's revision is not accepted |
 | DocPolish | README / CHANGELOG | docs updated, only mentions functions and files that exist, no hype |
 | WritePolish | PR title + description | clear title, Summary/Changes/Testing, `Fixes #N`, every changed file mentioned, **no testing claims the sandbox didn't confirm** |
 
@@ -20,8 +20,8 @@ Each owning agent runs the keep-or-reject loop. A revision is kept only if it do
 Everything in this repository was written during the building period (Oct 27 to Nov 4, 2026). The first file was created on Oct 27, and there is no earlier codebase. Git history starts on Oct 28, when the repo was created; the commits after that show the rest of the work.
 
 - **Core loop** (`packages/core`): the keep-or-reject gate, re-testing the best version, cost cap and round limits.
-- **Four agents and orchestrator** (`packages/agents/src/maintainer`): GitHub issue reading, the single-prompt first draft, the four parallel agents, a reconcile pass, and the before/after comparison.
-- **Verifiable fixes** (`sandbox-service/`): a Modal sandbox runs pytest on every candidate, and new tests must fail on the original code and pass with the fix.
+- **Four agents and orchestrator** (`packages/agents/src/maintainer`): GitHub issue reading, parallel candidate fixes chosen by the tests, the four parallel agents (they adapt when a revision is rejected), a reconcile pass, and the before/after comparison.
+- **Verifiable fixes** (`sandbox-service/`): a Modal sandbox runs pytest and a bandit security scan on every candidate; new tests must fail on the original code and pass with the fix, and the scan must find nothing new.
 - **Experience memory** (`packages/agents/src/memory`): agents record which revisions the gate kept and recall them in later runs.
 - **Web app** (`packages/web`): live run view, files changed, comparison, memory, and an explicit "Open pull request" button.
 

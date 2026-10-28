@@ -3,7 +3,7 @@ import type { IconName } from "../components/Icon.js";
 
 export const LANE_META: Record<LaneId, { agent: string; job: string; icon: IconName }> = {
   code: { agent: "CodePolish", job: "Writes the fix and its tests", icon: "code" },
-  ui: { agent: "UIPolish", job: "Reviews the fix from the user's side", icon: "eye" },
+  security: { agent: "SecurityPolish", job: "Reviews the fix for security problems", icon: "shield" },
   doc: { agent: "DocPolish", job: "Updates README and changelog", icon: "book" },
   write: { agent: "WritePolish", job: "Writes the pull request description", icon: "pen" },
 };

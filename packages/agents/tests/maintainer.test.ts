@@ -9,7 +9,7 @@ import { runMaintainer, verdict } from "../src/maintainer/orchestrator.js";
 import { DEMO_SNAPSHOT, createSimulatedMaintainerClient, createSimulatedSandbox } from "../src/maintainer/simulated.js";
 import { GitHubClient, parseIssueUrl } from "../src/maintainer/github.js";
 import { codeStaticChecks, docChecks, prChecks, uxChecks } from "../src/maintainer/checks.js";
-import { ModalSandboxClient, validationChecks, type Validation } from "../src/maintainer/sandbox.js";
+import { ModalSandboxClient, validationChecks, validationFailureChecks, type Validation } from "../src/maintainer/sandbox.js";
 import { PrWorkspace, diffFile, discardNotes, ownedFiles, serializeFiles, splitPr } from "../src/maintainer/bundle.js";
 import { MaintainerLaneAgent, ValidationBoard } from "../src/maintainer/lanes.js";
 import { FilesRepairSchema, buildBaselineMessages } from "../src/maintainer/prompts.js";
@@ -80,7 +80,7 @@ describe("code checks", () => {
   });
 });
 
-describe("UX checks (UIPolish)", () => {
+describe("UX checks (part of CodePolish)", () => {
   it("flag message-less and generic exceptions and swallowed errors in new code only", () => {
     const src = `${base[SRC]}\n\ndef a():\n    raise ValueError()\n\n\ndef b():\n    raise TypeError("Invalid input")\n\n\ndef c():\n    try:\n        pass\n    except Exception:\n        pass\n`;
     const check = uxChecks({ [SRC]: src }, DEMO_SNAPSHOT)[0];
@@ -139,6 +139,42 @@ describe("sandbox checks", () => {
     });
     expect(checks.find((c) => c.testType === "fail_to_pass")!.message).toMatch(/already pass on the original code/);
   });
+
+  const secure = (security: Validation["security"]): Validation => ({
+    install: { ok: true, logTail: "" },
+    compile: { ok: true, errors: [] },
+    lint: { issues: [] },
+    tests: { ran: true, total: 3, passed: 3, failed: 0, errors: 0, skipped: 0, failures: [], outputTail: "" },
+    failToPass: { newTests: [TESTS], failedOnBase: true, passedAfter: true },
+    security,
+    durationMs: 1,
+  });
+  const scan = (v: Validation) => validationChecks(v).find((c) => c.testType === "security_scan")!;
+
+  it("fail the security scan when the patch adds a medium or high finding", () => {
+    const check = scan(
+      secure({
+        ran: true,
+        newIssues: [{ file: "pkg/hooks.py", line: 26, testId: "B602", severity: "HIGH", confidence: "HIGH", text: "subprocess call with shell=True identified, security issue." }],
+      })
+    );
+    expect(check.passed).toBe(false);
+    expect(check.message).toContain("pkg/hooks.py:26");
+    expect(check.message).toContain("B602");
+  });
+
+  it("pass the security scan when the patch adds nothing new", () => {
+    expect(scan(secure({ ran: true, newIssues: [] })).passed).toBe(true);
+  });
+
+  it("never treat a scan that didn't run as a pass", () => {
+    expect(scan(secure({ ran: false, newIssues: [] })).passed).toBe(false);
+    expect(scan(secure(undefined)).passed).toBe(false);
+  });
+
+  it("include the security scan when the sandbox is unavailable", () => {
+    expect(validationFailureChecks("down").map((c) => c.testType)).toContain("security_scan");
+  });
 });
 
 describe("diffFile", () => {
@@ -180,10 +216,10 @@ describe("runMaintainer on the demo repo", () => {
     expect(code[1]).toMatchObject({ accepted: false, reason: "regression_detected" });
   });
 
-  it("has UIPolish review CodePolish's work and gate it", async () => {
+  it("has SecurityPolish review CodePolish's work and gate it", async () => {
     const { events, result } = await demoRun();
-    expect(events.some((e) => e.type === "review" && e.from === "ui" && e.to === "code" && e.findings.some((f) => /no message/.test(f)))).toBe(true);
-    expect(result.lanes.ui.clean).toBe(true);
+    expect(events.some((e) => e.type === "review" && e.from === "security" && e.to === "code" && e.findings.some((f) => /untrusted input/.test(f)))).toBe(true);
+    expect(result.lanes.security.clean).toBe(true);
   });
 
   it("cannot be clean without a sandbox, because tests never ran", async () => {
@@ -373,18 +409,18 @@ describe("ModalSandboxClient", () => {
 
 describe("verdict", () => {
   it("approves when every agent signed off", () => {
-    expect(verdict({ approved: ["code", "ui", "doc", "write"], objectivelyPassing: true, budgetHit: false }).status).toBe("clean");
+    expect(verdict({ approved: ["code", "security", "doc", "write"], objectivelyPassing: true, budgetHit: false }).status).toBe("clean");
   });
 
   it("reports verified when every objective check passes but a critic wants more polish", () => {
-    const v = verdict({ approved: ["ui", "doc", "write"], objectivelyPassing: true, budgetHit: false });
+    const v = verdict({ approved: ["security", "doc", "write"], objectivelyPassing: true, budgetHit: false });
     expect(v.status).toBe("verified");
     expect(v.message).toMatch(/new tests prove the fix/);
     expect(v.message).toContain("CodePolish");
   });
 
   it("is not clean when an objective check still fails", () => {
-    expect(verdict({ approved: ["ui", "doc", "write"], objectivelyPassing: false, budgetHit: true }).status).toBe("not_clean");
+    expect(verdict({ approved: ["security", "doc", "write"], objectivelyPassing: false, budgetHit: true }).status).toBe("not_clean");
   });
 });
 

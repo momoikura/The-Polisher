@@ -218,7 +218,7 @@ const REPAIRS = {
 
 // ─── Scripted model ───────────────────────────────────────────────────────
 
-type Lane = "CodePolish" | "UIPolish" | "DocPolish" | "WritePolish";
+type Lane = "CodePolish" | "SecurityPolish" | "DocPolish" | "WritePolish";
 
 function section(text: string, start: string, end?: string): string {
   const i = text.indexOf(start);
@@ -236,10 +236,10 @@ function score(lane: Lane, user: string): { score: number; finding?: string } {
     if (code.includes("re.findall")) return { score: 80, finding: "No test covers the empty separator the issue mentions" };
     return { score: 45, finding: "Only commas are removed; other punctuation is still kept" };
   }
-  if (lane === "UIPolish") {
+  if (lane === "SecurityPolish") {
     if (code.includes("non-empty string")) return { score: 91 };
-    if (code.includes("raise ValueError()")) return { score: 55, finding: "ValueError has no message; tell the caller the separator must be non-empty" };
-    return { score: 40, finding: "print() writes to stdout on every call" };
+    if (code.includes("raise ValueError()")) return { score: 60, finding: "The separator is untrusted input; reject a non-string or empty value with a clear error before it reaches the slug builder" };
+    return { score: 45, finding: "print() echoes every input to stdout, which can leak user data into logs" };
   }
   if (lane === "DocPolish") {
     const docs = section(user, "Documentation changes under review:");
@@ -255,7 +255,7 @@ function score(lane: Lane, user: string): { score: number; finding?: string } {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export function createSimulatedMaintainerClient(delay: { min: number; max: number } = { min: 500, max: 1200 }): ChatClient {
-  const count: Record<Lane, number> = { CodePolish: 0, UIPolish: 0, DocPolish: 0, WritePolish: 0 };
+  const count: Record<Lane, number> = { CodePolish: 0, SecurityPolish: 0, DocPolish: 0, WritePolish: 0 };
   return {
     async complete(messages) {
       await sleep(delay.min + Math.random() * (delay.max - delay.min));
@@ -268,7 +268,7 @@ export function createSimulatedMaintainerClient(delay: { min: number; max: numbe
       }
       if (system.startsWith("BASELINE MODE")) return reply({ code: BASELINE_CODE, docs: BASELINE_DOCS, pr: BASELINE_PR });
 
-      const lane = system.match(/You are (CodePolish|UIPolish|DocPolish|WritePolish)/)?.[1] as Lane | undefined;
+      const lane = system.match(/You are (CodePolish|SecurityPolish|DocPolish|WritePolish)/)?.[1] as Lane | undefined;
       if (!lane) return reply({});
 
       if (system.startsWith("EVALUATOR MODE")) {
@@ -280,7 +280,7 @@ export function createSimulatedMaintainerClient(delay: { min: number; max: numbe
       }
 
       // REPAIR MODE. With verified lessons in the prompt, skip straight to the final version.
-      const scripted = REPAIRS[lane as Exclude<Lane, "UIPolish">];
+      const scripted = REPAIRS[lane as Exclude<Lane, "SecurityPolish">];
       if (user.includes("Worked before for checks failing now")) count[lane] = scripted.length - 1;
       const step = scripted[Math.min(count[lane]++, scripted.length - 1)];
       if ("text" in step) {
@@ -306,6 +306,7 @@ function validation(total: number, failToPass: Validation["failToPass"]): Valida
     lint: { issues: [] },
     tests: { ran: true, total, passed: total, failed: 0, errors: 0, skipped: 0, failures: [], outputTail: `${total} passed` },
     failToPass,
+    security: { ran: true, newIssues: [] },
     durationMs: 1800,
   };
 }

@@ -10,7 +10,7 @@ import type {
   SideMetrics,
 } from "@polishloop/agents";
 
-export const LANE_IDS: LaneId[] = ["code", "ui", "doc", "write"];
+export const LANE_IDS: LaneId[] = ["code", "security", "doc", "write"];
 
 export interface LaneView {
   state: MaintainerLaneState;
@@ -69,7 +69,7 @@ const emptyLane = (): LaneView => ({
 export const initialView = (): MaintainerView => ({
   phase: "idle",
   context: null,
-  lanes: { code: emptyLane(), ui: emptyLane(), doc: emptyLane(), write: emptyLane() },
+  lanes: { code: emptyLane(), security: emptyLane(), doc: emptyLane(), write: emptyLane() },
   baseline: null,
   current: null,
   comparison: null,
@@ -79,7 +79,7 @@ export const initialView = (): MaintainerView => ({
   result: null,
 });
 
-export const AGENT: Record<LaneId, string> = { code: "CodePolish", ui: "UIPolish", doc: "DocPolish", write: "WritePolish" };
+export const AGENT: Record<LaneId, string> = { code: "CodePolish", security: "SecurityPolish", doc: "DocPolish", write: "WritePolish" };
 
 const PHASE_TEXT: Record<MaintainerPhase, string> = {
   fetching: "Reading the issue and the repository",
@@ -155,7 +155,7 @@ export function maintainerReducer(view: MaintainerView, event: MaintainerEvent):
       return pushFeed(next, event, {
         lane: event.lane,
         tone: event.score >= 85 ? "good" : "neutral",
-        text: `${event.lane === "ui" ? "UX review" : "Critic"} scored round ${event.round}: ${event.score}/100`,
+        text: `${event.lane === "security" ? "Security review" : "Critic"} scored round ${event.round}: ${event.score}/100`,
       });
     }
 
