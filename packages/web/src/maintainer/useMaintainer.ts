@@ -9,13 +9,16 @@ export interface MaintainerConfig {
   model: string;
   setupHint: string | null;
   isSandboxConfigured: boolean;
-  hasGitHubToken: boolean;
+  /** Whether this visitor can open a PR: as themselves (signed in) or with the server's GITHUB_TOKEN (local). */
+  prAccess: PrAccess;
   demoIssueUrl: string | null;
   activeRunId: string | null;
   isAuthEnabled: boolean;
   /** Runs must bring the user's own Meta key (public deployments). */
   requiresUserKey: boolean;
 }
+
+export type PrAccess = "ready" | "sign_in" | "set_token";
 
 export type PrState = { kind: "idle" } | { kind: "opening" } | { kind: "opened"; url: string } | { kind: "error"; message: string };
 

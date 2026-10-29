@@ -67,7 +67,7 @@ export default function App() {
               )
             }
             mergeBox={
-              <MergeBox view={view} isSimulated={isSimulated} hasGitHubToken={config?.hasGitHubToken ?? false} pr={pr} onOpenPr={() => void openPr()} />
+              <MergeBox view={view} isSimulated={isSimulated} prAccess={config?.prAccess ?? "set_token"} pr={pr} onOpenPr={() => void openPr()} />
             }
           />
         )}

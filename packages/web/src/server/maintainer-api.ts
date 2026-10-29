@@ -61,7 +61,16 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
 
   if (req.method === "GET" && url === "/api/maintainer/config") {
     const status = providerStatus();
-    const owner = (await currentUser(req))?.login ?? LOCAL_OWNER;
+    const user = await currentUser(req);
+    const owner = user?.login ?? LOCAL_OWNER;
+    // With sign-in on, PRs are opened as the signed-in user; without it, with the server's GITHUB_TOKEN.
+    const prAccess = isAuthEnabled()
+      ? user
+        ? "ready"
+        : "sign_in"
+      : process.env.GITHUB_TOKEN?.trim()
+        ? "ready"
+        : "set_token";
     // When every user brings their own Meta key, the server having none is the intended setup.
     const needsUserKey = requiresUserKey() && !isSimulated();
     sendJson(res, 200, {
@@ -71,7 +80,7 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
       model: status.model,
       setupHint: needsUserKey ? null : status.setupHint,
       isSandboxConfigured: sandboxClientOrNull() !== null,
-      hasGitHubToken: Boolean(process.env.GITHUB_TOKEN?.trim()),
+      prAccess,
       demoIssueUrl: isSimulated() ? DEMO_ISSUE_URL : null,
       // Each person reattaches to their own run, never someone else's.
       activeRunId: registry.activeSessions().find((s) => s.meta.owner === owner)?.id ?? null,

@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { LANE_IDS, type MaintainerView } from "../maintainer/reducer.js";
 import { LANE_META } from "../maintainer/lanes.js";
-import type { PrState } from "../maintainer/useMaintainer.js";
+import type { PrAccess, PrState } from "../maintainer/useMaintainer.js";
 import { Button } from "./Button.js";
 import { Icon } from "./Icon.js";
 
 type Props = {
   view: MaintainerView;
   isSimulated: boolean;
-  hasGitHubToken: boolean;
+  prAccess: PrAccess;
   pr: PrState;
   onOpenPr: () => void;
   /** A saved run: no pull request can be opened from it. */
@@ -16,13 +16,13 @@ type Props = {
 };
 
 /** GitHub-style merge box: per-agent checks, then the only action that writes to GitHub. */
-export function MergeBox({ view, isSimulated, hasGitHubToken, pr, onOpenPr, isReplay = false }: Props) {
+export function MergeBox({ view, isSimulated, prAccess, pr, onOpenPr, isReplay = false }: Props) {
   const [isConfirming, setIsConfirming] = useState(false);
   const result = view.result;
   const repo = view.context?.repo ?? "the repository";
   const isClean = result?.status === "clean";
   const isVerified = result?.status === "verified";
-  const canOpen = Boolean(result?.canOpenPr) && !isSimulated && hasGitHubToken;
+  const canOpen = Boolean(result?.canOpenPr) && !isSimulated && prAccess === "ready";
 
   const heading = !result
     ? "Review in progress"
@@ -86,8 +86,8 @@ export function MergeBox({ view, isSimulated, hasGitHubToken, pr, onOpenPr, isRe
             <div className="confirm">
               <p>
                 This opens a real pull request on <strong>{repo}</strong>
-                {!isClean && ", even though not every reviewer approved"}. If your GitHub token can't push there, it
-                first forks {repo} to your account and pushes the branch to the fork.
+                {!isClean && ", even though not every reviewer approved"}, as you. If you can't push there, it first forks{" "}
+                {repo} to your GitHub account and pushes the branch to the fork.
               </p>
               <div className="confirm-actions">
                 <Button variant="secondary" size="sm" onClick={() => setIsConfirming(false)}>
@@ -104,7 +104,15 @@ export function MergeBox({ view, isSimulated, hasGitHubToken, pr, onOpenPr, isRe
                 Open pull request on GitHub
               </Button>
               {isSimulated && <span className="field-help">The demo repo isn't on GitHub, so this is turned off.</span>}
-              {!isSimulated && !hasGitHubToken && (
+              {!isSimulated && prAccess === "sign_in" && (
+                <span className="field-help">
+                  <a className="link" href="/api/auth/login">
+                    Sign in with GitHub
+                  </a>{" "}
+                  to open it as yourself.
+                </span>
+              )}
+              {!isSimulated && prAccess === "set_token" && (
                 <span className="field-help">
                   Set <code>GITHUB_TOKEN</code> in .env to turn this on.
                 </span>

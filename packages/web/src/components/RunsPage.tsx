@@ -64,7 +64,7 @@ function Replay({ id, onBack }: { id: string; onBack: () => void }) {
       isSimulated={false}
       model={state.model}
       action={{ label: "All runs", onClick: onBack }}
-      mergeBox={<MergeBox view={state.view} isSimulated={false} hasGitHubToken={false} pr={{ kind: "idle" }} onOpenPr={() => {}} isReplay />}
+      mergeBox={<MergeBox view={state.view} isSimulated={false} prAccess="ready" pr={{ kind: "idle" }} onOpenPr={() => {}} isReplay />}
     />
   );
 }
