@@ -23,15 +23,18 @@ const MODAL_LONG_REQUEST_STATUS = 303;
 const MAX_HOPS = 20;
 
 export async function onRequest({ request, env }: Context): Promise<Response> {
-  if (!env.BACKEND_URL || !env.PROXY_SECRET) {
+  // trim() also drops the byte-order mark and line break some shells add when piping a secret in.
+  const backendUrl = env.BACKEND_URL?.trim();
+  const proxySecret = env.PROXY_SECRET?.trim();
+  if (!backendUrl || !proxySecret) {
     return Response.json({ error: "The site isn't connected to its server yet." }, { status: 503 });
   }
-  const backend = new URL(env.BACKEND_URL);
+  const backend = new URL(backendUrl);
   const incoming = new URL(request.url);
   let target = new URL(incoming.pathname + incoming.search, backend);
 
   const headers = new Headers(request.headers);
-  headers.set("x-thepolisher-proxy", env.PROXY_SECRET.trim());
+  headers.set("x-thepolisher-proxy", proxySecret);
   const body = request.method === "GET" || request.method === "HEAD" ? undefined : await request.arrayBuffer();
 
   for (let hop = 0; hop < MAX_HOPS; hop++) {

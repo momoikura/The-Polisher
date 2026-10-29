@@ -70,3 +70,16 @@ describe("Cloudflare Pages proxy", () => {
     expect(response.status).toBe(503);
   });
 });
+
+describe("Cloudflare Pages proxy settings", () => {
+  it("ignores a byte-order mark and line break around the settings", async () => {
+    const fetch = mockFetch(new Response("{}", { status: 200 }));
+    const messy = { BACKEND_URL: "\uFEFFhttps://ws--thepolisher-web-api.modal.run\r\n", PROXY_SECRET: "\uFEFFs3cret\r\n" };
+
+    const response = await onRequest({ request: new Request("https://thepolisher.pages.dev/api/auth/me"), env: messy });
+
+    expect(response.status).toBe(200);
+    expect(fetch.mock.calls[0][0].toString()).toBe("https://ws--thepolisher-web-api.modal.run/api/auth/me");
+    expect(new Headers(fetch.mock.calls[0][1]?.headers).get("x-thepolisher-proxy")).toBe("s3cret");
+  });
+});

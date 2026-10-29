@@ -17,7 +17,6 @@ function Invoke-Native([scriptblock]$Command, [string]$What) {
 }
 $PublicUrl = "https://thepolisher.pages.dev"
 $PagesProject = "thepolisher"
-$RoleName = "thepolisher-web"
 
 function Read-DotEnv([string]$Name, [string]$Default = "") {
     $line = Get-Content ".env" | Where-Object { $_ -match "^\s*$Name\s*=" } | Select-Object -First 1
@@ -41,7 +40,6 @@ try { $clientSecret = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr).
 finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
 if ($clientId.Length -lt 10 -or $clientSecret.Length -lt 20) { throw "That Client ID or secret looks too short." }
 
-$account = (aws sts get-caller-identity --profile thepolisher --query Account --output text).Trim()
 $proxySecret = New-Secret
 
 $settings = [ordered]@{
@@ -51,7 +49,6 @@ $settings = [ordered]@{
     THEPOLISHER_REQUIRE_USER_KEY = "1"
     THEPOLISHER_TABLE            = "thepolisher"
     AWS_REGION                   = "ap-southeast-2"
-    AWS_ROLE_ARN                 = "arn:aws:iam::${account}:role/$RoleName"
     GITHUB_CLIENT_ID             = $clientId
     GITHUB_CLIENT_SECRET         = $clientSecret
     SANDBOX_URL                  = Read-DotEnv "SANDBOX_URL"
