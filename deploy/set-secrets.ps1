@@ -61,10 +61,11 @@ $settings = [ordered]@{
     MODEL_ID                     = Read-DotEnv "MODEL_ID" "muse-spark-1.3"
 }
 
-$tmp = Join-Path $env:TEMP ("tp-" + [guid]::NewGuid() + ".env")
+$tmp = Join-Path $env:TEMP ("tp-" + [guid]::NewGuid() + ".json")
 try {
-    ($settings.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }) | Set-Content -Path $tmp -Encoding ascii
-    Invoke-Native { py -m modal secret create thepolisher-web --from-dotenv $tmp --force } "Creating the Modal secret"
+    # JSON (not --from-dotenv, which needs the python-dotenv package); UTF-8 without a BOM.
+    [IO.File]::WriteAllText($tmp, ($settings | ConvertTo-Json), (New-Object System.Text.UTF8Encoding $false))
+    Invoke-Native { py -m modal secret create thepolisher-web --from-json $tmp --force } "Creating the Modal secret"
     Write-Host "Modal secret 'thepolisher-web' set: $($settings.Keys -join ', ')"
 }
 finally { Remove-Item $tmp -Force -ErrorAction SilentlyContinue }
