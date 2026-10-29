@@ -435,7 +435,7 @@ and are reported as pre-existing.
   parametrized cases, and the check only counted new `def test_` functions.
   CodePolish worked around it by adding a function. Fixed after this run.
 
-## Run 9: more-itertools#1336 (large file, contributor tier)
+## Run 9: more-itertools/more-itertools#1336, large file (2026-10-29)
 
 [more-itertools/more-itertools#1336](https://github.com/more-itertools/more-itertools/issues/1336):
 `replace()` yields `None` for an empty iterable when `window_size > 1`.
