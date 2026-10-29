@@ -9,9 +9,12 @@ $PublicUrl = "https://thepolisher.pages.dev"
 $PagesProject = "thepolisher"
 $RoleName = "thepolisher-web"
 
-function Read-DotEnv([string]$Name) {
+function Read-DotEnv([string]$Name, [string]$Default = "") {
     $line = Get-Content ".env" | Where-Object { $_ -match "^\s*$Name\s*=" } | Select-Object -First 1
-    if (-not $line) { throw "$Name is missing from .env" }
+    if (-not $line) {
+        if ($Default) { return $Default }
+        throw "$Name is missing from .env"
+    }
     return ($line -split "=", 2)[1].Trim().Trim('"')
 }
 
@@ -45,7 +48,7 @@ $settings = [ordered]@{
     SANDBOX_TOKEN                = Read-DotEnv "SANDBOX_TOKEN"
     MODEL_PROVIDER               = "meta"
     MODEL_BASE_URL               = Read-DotEnv "MODEL_BASE_URL"
-    MODEL_ID                     = Read-DotEnv "MODEL_ID"
+    MODEL_ID                     = Read-DotEnv "MODEL_ID" "muse-spark-1.3"
 }
 
 $tmp = Join-Path $env:TEMP ("tp-" + [guid]::NewGuid() + ".env")
