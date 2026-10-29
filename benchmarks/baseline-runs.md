@@ -489,3 +489,25 @@ so no candidates were compared.
   flagged otherwise, since it would close the issue on merge.
 - DocPolish removed its own changelog entry when the sandbox showed the fix
   didn't work.
+
+## Run 11: more-itertools#1336 again, faster settings (2026-10-29)
+
+Same issue as run 9, after two speed changes:
+
+- **Reasoning effort per step** (Muse Spark's `reasoning_effort`): planning
+  `minimal`, first drafts and every critic `low`, DocPolish and WritePolish
+  revisions `low`, CodePolish revisions at the model default. On a small test
+  prompt: minimal 3 s, low 8 s, default 15 s, high 57 s, all correct.
+- **Draft grace period**: once one first draft is usable, the others get 60 s more.
+
+| | Run 9 | Run 11 |
+|---|---|---|
+| Wall time | ~4 min | 1 min 50 s |
+| Planning | ~15 s | 3 s |
+| Drafts + sandbox pick | ~2 min | 72 s |
+| Polishing | ~2 min | 33 s |
+| Status | clean | clean |
+| Cost | $0.014 | $0.008 |
+
+Same one-line fix in `more.py`; new tests in `tests/test_issue_1336.py`.
+Model: muse-spark-1.3-contributor. Run directly through `runMaintainer`.

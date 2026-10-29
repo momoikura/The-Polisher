@@ -13,9 +13,13 @@ export interface ChatCompletion {
   completionTokens: number;
 }
 
+export type ReasoningEffort = "minimal" | "low" | "medium" | "high";
+
 export interface ChatOptions {
   temperature?: number;
   maxTokens?: number;
+  /** How long a reasoning model thinks first; models without the setting ignore it. Unset = model default. */
+  reasoningEffort?: ReasoningEffort;
 }
 
 export interface ChatClient {
@@ -29,6 +33,7 @@ export function chatClientFromMeta(client: MetaModelClient): ChatClient {
         messages,
         temperature: options?.temperature,
         max_tokens: options?.maxTokens,
+        reasoning_effort: options?.reasoningEffort,
       });
       return {
         text: textOf(res.choices[0]?.message.content),

@@ -26,6 +26,8 @@ import {
   type RepoSnapshot,
 } from "./bundle.js";
 import { chooseCandidate } from "./candidates.js";
+import { EFFORT } from "./effort.js";
+import { settleWithGrace } from "./settle.js";
 import { codeStaticChecks, docChecks, prChecks, uxChecks } from "./checks.js";
 import type { CandidateSummary, LaneSummary, MaintainerEvent, MaintainerEventInput, MaintainerStatus, SideMetrics } from "./events.js";
 import { GitHubClient, parseIssueUrl } from "./github.js";
@@ -66,6 +68,8 @@ const OWNER_LANES: OwnerLane[] = ["code", "doc", "write"];
 /** Share of the post-baseline budget each owning lane may spend. */
 const BUDGET_SHARE: Record<OwnerLane, number> = { code: 0.6, doc: 0.2, write: 0.2 };
 const CLEAN_SCORE = 85;
+/** After the first usable draft, how long to wait for the others (pyparsing#693: two drafts took 5 more minutes). */
+const DRAFT_GRACE_MS = 60_000;
 // A file of at most this many bytes has at most that many characters: the sandbox's per-file limit.
 // Files over MAX_FILE_CHARS are shown as excerpts and changed through edits (large-files.ts).
 const MAX_FILE_BYTES = MAX_LARGE_FILE_CHARS;
@@ -296,7 +300,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
 
     // ── 2. Plan which files to read ────────────────────────────────────────
     emit({ type: "phase", phase: "planning" });
-    const plan = await setupCall(options.client, buildPlanMessages(snap0), PlanSchema, { temperature: 0 });
+    const plan = await setupCall(options.client, buildPlanMessages(snap0), PlanSchema, { temperature: 0, reasoningEffort: EFFORT.plan });
     chargeSetup(plan, "planner");
     if (source.kind === "github") {
       const chosen = selectFiles(snap0, sizes, plan.data.files);
@@ -314,12 +318,17 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     //       with a sandbox, several are drafted in parallel and the tests pick which to polish.
     emit({ type: "phase", phase: "baseline" });
     const count = options.sandbox ? Math.max(1, cfg.candidates) : 1;
-    const drafts = await Promise.allSettled(
-      Array.from({ length: count }, () => setupCall(options.client, buildBaselineMessages(snap), BaselineSchema, { temperature: 0.7 }))
+    // Each draft is charged when it arrives, including one that finishes after the run moved on.
+    const calls = Array.from({ length: count }, () =>
+      setupCall(options.client, buildBaselineMessages(snap), BaselineSchema, { temperature: 0.7, reasoningEffort: EFFORT.draft }).then((r) => {
+        chargeSetup(r, "baseline");
+        return r;
+      })
     );
+    // Once one draft is usable, wait only a short while for the rest.
+    const drafts = await settleWithGrace(calls, DRAFT_GRACE_MS);
     const written = drafts.flatMap((d) => (d.status === "fulfilled" ? [d.value] : []));
-    if (written.length === 0) throw draftFailure(drafts.map((d) => (d as PromiseRejectedResult).reason));
-    for (const r of written) chargeSetup(r, "baseline");
+    if (written.length === 0) throw draftFailure(drafts.map((d) => (d.status === "rejected" ? d.reason : null)));
     const bundles = written.map((r) => sanitizeBaseline(r.data, snap));
     baseline = bundles[0];
     const start = bundles.length > 1 && options.sandbox ? await pickCandidate(bundles, snap, options.sandbox) : baseline;

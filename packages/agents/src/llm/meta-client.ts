@@ -102,6 +102,8 @@ export const MetaChatCompletionRequestSchema = z.object({
   max_tokens: z.number().int().positive().optional(),
   stream: z.boolean().optional(),
   stop: z.union([z.string(), z.array(z.string())]).optional(),
+  /** Muse Spark: how long it reasons before answering. Lower is much faster. */
+  reasoning_effort: z.enum(["minimal", "low", "medium", "high"]).optional(),
 });
 
 export type MetaChatCompletionRequest = z.infer<typeof MetaChatCompletionRequestSchema>;
@@ -253,6 +255,7 @@ export class MetaModelClient {
       max_tokens: request.max_tokens,
       stream: request.stream,
       stop: request.stop,
+      reasoning_effort: request.reasoning_effort,
     };
 
     // Validate request schema with Zod

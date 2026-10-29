@@ -19,6 +19,7 @@ import type {
 } from "@thepolisher/core";
 import { StructuredOutputError, completeStructured, type ChatClient } from "../llm/chat-client.js";
 import { ModelTimeoutError } from "../llm/meta-client.js";
+import { EFFORT } from "./effort.js";
 import { applyEdits, isLarge } from "./large-files.js";
 import { EvaluationSchema, RepairSchema, toEvaluatorOutput } from "../schemas/agent-output.js";
 import type { CheckSnapshot } from "../memory/experience.js";
@@ -125,6 +126,7 @@ export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, Teste
     this.o.onActivity("evaluating");
     const own = completeStructured(this.o.client, buildLaneEvaluationMessages(this.o.lane, snap, bundle, validation), EvaluationSchema, {
       temperature: EVALUATION_TEMPERATURE,
+      reasoningEffort: EFFORT.review,
     });
     if (this.o.lane !== "code") {
       const r = await own;
@@ -134,6 +136,7 @@ export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, Teste
     // CodePolish is critiqued by its own critic and by SecurityPolish; both must sign off.
     const sec = completeStructured(this.o.client, buildLaneEvaluationMessages("security", snap, bundle, validation), EvaluationSchema, {
       temperature: EVALUATION_TEMPERATURE,
+      reasoningEffort: EFFORT.review,
     });
     const [codeR, secR] = await Promise.all([own, sec]);
     const secOut = toEvaluatorOutput(secR.data);
@@ -216,13 +219,16 @@ export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, Teste
     let completionTokens: number;
     try {
       if (this.o.lane === "write") {
-        const r = await completeStructured(this.o.client, messages, RepairSchema, { temperature });
+        const r = await completeStructured(this.o.client, messages, RepairSchema, { temperature, reasoningEffort: EFFORT.otherRepair });
         ({ model, promptTokens, completionTokens } = r);
         // File names come from the diff, not the model, so a missing one never costs a round.
         next = ensureFilesListed(r.data.candidateArtifact, diffBundle(snap, bundle).map((d) => d.path));
         changes = r.data.changesMade;
       } else {
-        const r = await completeStructured(this.o.client, messages, FilesRepairSchema, { temperature });
+        const r = await completeStructured(this.o.client, messages, FilesRepairSchema, {
+          temperature,
+          reasoningEffort: this.o.lane === "code" ? EFFORT.codeRepair : EFFORT.otherRepair,
+        });
         ({ model, promptTokens, completionTokens } = r);
         const current = parseFiles(content);
         // A revision may only touch its own files; a stray CHANGELOG in CodePolish's patch would block the sandbox.
