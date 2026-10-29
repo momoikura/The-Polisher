@@ -754,6 +754,27 @@ a {
   accent-color: var(--fg);
 }
 
+.free-runs {
+  display: flex;
+  gap: var(--s-2);
+  align-items: flex-start;
+  margin-bottom: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--fg);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+}
+
+.free-runs .icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.free-runs.is-out {
+  border-color: var(--border);
+  color: var(--fg-muted);
+}
+
 .saved-key {
   display: flex;
   flex-wrap: wrap;

@@ -16,6 +16,10 @@ export interface MaintainerConfig {
   isAuthEnabled: boolean;
   /** Runs must bring the user's own Meta key (public deployments). */
   requiresUserKey: boolean;
+  /** Free runs this person has left on the server's key; null when none are offered. */
+  freeRunsLeft: number | null;
+  freeRunsPerUser: number | null;
+  freeRunBudgetUSD: number | null;
 }
 
 export type PrAccess = "ready" | "sign_in" | "set_token";
@@ -124,6 +128,11 @@ export function useMaintainer() {
     setRunId(null);
     setPr({ kind: "idle" });
     dispatch({ type: "reset" });
+    // Back to the form: refresh what changed during the run (e.g. free runs left).
+    fetch("/api/maintainer/config")
+      .then((r) => (r.ok ? (r.json() as Promise<MaintainerConfig>) : null))
+      .then((c) => c && setConfig(c))
+      .catch(() => {});
   }, []);
 
   return { view, config, runId, start, reset, startError, isStarting, isConnectionLost, pr, openPr };

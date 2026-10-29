@@ -21,9 +21,10 @@ import {
   type MaintainerResult,
 } from "@thepolisher/agents";
 import { currentUser, isAuthEnabled, isSameOrigin, rememberMetaKey, savedMetaKey } from "./auth/auth-api.js";
-import { checkRunLimits, runLimitsFromEnv } from "./auth/limits.js";
+import { checkRunLimits, freeRunsFromEnv, runLimitsFromEnv } from "./auth/limits.js";
 import { finishedRecord, saveQuietly, startedRecord } from "./history.js";
-import { VerifiedMemory, runStore, sharedMemory, type RunRecord } from "./store/index.js";
+import { VerifiedMemory, freeRunStore, runStore, sharedMemory, type RunRecord } from "./store/index.js";
+import type { FreeRunClaim } from "./store/free-runs.js";
 import {
   activeProvider,
   githubClient,
@@ -53,7 +54,8 @@ const StartSchema = z.object({
 });
 
 const LOCAL_OWNER = "local";
-const startOfTodayUtc = () => `${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`;
+const todayUtc = () => new Date().toISOString().slice(0, 10);
+const startOfTodayUtc = () => `${todayUtc()}T00:00:00.000Z`;
 
 const MAX_BODY_BYTES = 8 * 1024;
 const registry = new SessionRegistry<MaintainerEvent, MaintainerResult>();
@@ -75,6 +77,16 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
         : "set_token";
     // When every user brings their own Meta key, the server having none is the intended setup.
     const needsUserKey = requiresUserKey() && !isSimulated();
+    // Free runs left for this person, or null when there are none to offer (signed out, or turned off).
+    const free = freeRunsFromEnv();
+    let freeRunsLeft: number | null = null;
+    if (needsUserKey && free && user) {
+      try {
+        freeRunsLeft = Math.max(0, free.perUser - (await freeRunStore().used(user.githubId)));
+      } catch {
+        freeRunsLeft = null;
+      }
+    }
     sendJson(res, 200, {
       provider: status.provider,
       isSimulated: status.provider === "simulated",
@@ -88,6 +100,9 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
       activeRunId: registry.activeSessions().find((s) => s.meta.owner === owner)?.id ?? null,
       isAuthEnabled: isAuthEnabled(),
       requiresUserKey: needsUserKey,
+      freeRunsLeft,
+      freeRunsPerUser: free?.perUser ?? null,
+      freeRunBudgetUSD: free?.budgetUSD ?? null,
     });
     return true;
   }
@@ -139,9 +154,12 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
     }
 
     // Bring your own key: the one typed in, else the one the user chose to save. Never logged.
+    // Without one, a signed-in person may use one of their free runs on the server's key.
     const typedKey = parsed.data.metaApiKey;
     const userKey = typedKey ?? (user ? await savedMetaKey(user) : null) ?? undefined;
-    if (requiresUserKey() && !userKey && !isSimulated()) {
+    const free = freeRunsFromEnv();
+    const isFreeRun = requiresUserKey() && !userKey && !isSimulated();
+    if (isFreeRun && (!user || !free)) {
       sendJson(res, 400, { error: "Add your Meta Model API key to start a run." });
       return true;
     }
@@ -150,6 +168,26 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
       sendJson(res, 503, { error: `${providerStatus().setupHint} To try the scripted demo, run \`pnpm --filter @thepolisher/web dev:sim\`.` });
       return true;
     }
+    // Claimed last, once nothing else can refuse the run, so a refused run never costs a free one.
+    if (isFreeRun && user && free) {
+      let claim: FreeRunClaim;
+      try {
+        claim = await freeRunStore().claim(user.githubId, todayUtc(), free);
+      } catch {
+        sendJson(res, 503, { error: "Couldn't check your free runs just now. Try again, or add your Meta Model API key." });
+        return true;
+      }
+      if (claim !== "ok") {
+        sendJson(res, 400, {
+          error:
+            claim === "user_limit"
+              ? `You've used your ${free.perUser} free runs. Add your Meta Model API key (dev.meta.ai → API keys) to keep going.`
+              : "Today's free runs are all used. Add your Meta Model API key to keep going, or try again tomorrow.",
+        });
+        return true;
+      }
+    }
+    const budgetUSD = isFreeRun && free ? Math.min(parsed.data.budgetUSD, free.budgetUSD) : parsed.data.budgetUSD;
 
     if (user && typedKey && parsed.data.rememberKey) {
       await saveQuietly("remember the Meta key", () => rememberMetaKey(user, typedKey));
@@ -170,7 +208,7 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
           result = await runMaintainer(source, {
             client,
             sandbox: sandboxClientOrNull() ?? undefined,
-            budgetUSD: parsed.data.budgetUSD,
+            budgetUSD,
             experience: memory,
             provider,
             onEvent: publish,

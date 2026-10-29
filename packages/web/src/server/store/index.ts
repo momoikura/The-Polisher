@@ -10,6 +10,7 @@ import { FileExperienceStore, type ExperienceStore } from "@thepolisher/agents";
 import { dataDir } from "../http.js";
 import { DynamoExperienceStore, DynamoRunStore } from "./dynamo.js";
 import { FileRunStore } from "./file-store.js";
+import { DynamoFreeRunStore, MemoryFreeRunStore, type FreeRunStore } from "./free-runs.js";
 import { DynamoMetaKeyStore, MemoryMetaKeyStore, type MetaKeyStore } from "../auth/meta-keys.js";
 import { DynamoSessionStore, MemorySessionStore, type SessionStore } from "../auth/sessions.js";
 import type { RunStore } from "./types.js";
@@ -44,6 +45,15 @@ export function sessionStore(): SessionStore {
   const name = table();
   sessions ??= name ? new DynamoSessionStore(client(), name) : new MemorySessionStore();
   return sessions;
+}
+
+let freeRuns: FreeRunStore | null = null;
+
+/** Free-run counters: in DynamoDB when configured, otherwise in memory. */
+export function freeRunStore(): FreeRunStore {
+  const name = table();
+  freeRuns ??= name ? new DynamoFreeRunStore(client(), name) : new MemoryFreeRunStore();
+  return freeRuns;
 }
 
 let metaKeys: MetaKeyStore | null = null;

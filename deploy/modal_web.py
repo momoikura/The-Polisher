@@ -11,6 +11,8 @@ Secrets:
                        permission is deploy/aws/dynamodb-policy.json. (AWS projects
                        on the new experience block OIDC providers, so keyless
                        federation from Modal isn't available.)
+  thepolisher-web-trial MODEL_API_KEY, the owner's Meta key, used only for free
+                       runs (without this secret there are none)
 
 Deploy (from the repo root, after `pnpm --filter @thepolisher/web build:server`):
     modal deploy deploy/modal_web.py
@@ -40,6 +42,9 @@ app = modal.App(APP_NAME)
     secrets=[
         modal.Secret.from_name("thepolisher-web"),
         modal.Secret.from_name("thepolisher-web-aws"),
+        # The owner's Meta key, used only for free runs (3 per person, 100 a day, $0.20 each).
+        # Delete this secret and redeploy to turn free runs off.
+        modal.Secret.from_name("thepolisher-web-trial"),
         modal.Secret.from_dict(SETTINGS),
     ],
     min_containers=1,

@@ -29,6 +29,25 @@ export function runLimitsFromEnv(env: NodeJS.ProcessEnv = process.env): RunLimit
   };
 }
 
+/** Free runs on the owner's Meta key (MODEL_API_KEY) for people without one. */
+export interface FreeRunLimits {
+  perUser: number;
+  perDay: number;
+  /** Budget cap for each free run. */
+  budgetUSD: number;
+}
+
+/** Off (null) without a server Meta key, or with THEPOLISHER_FREE_RUNS_PER_USER=0. */
+export function freeRunsFromEnv(env: NodeJS.ProcessEnv = process.env): FreeRunLimits | null {
+  if (!env.MODEL_API_KEY?.trim() || env.THEPOLISHER_FREE_RUNS_PER_USER?.trim() === "0") return null;
+  const budget = Number.parseFloat(env.THEPOLISHER_FREE_RUN_BUDGET_USD ?? "");
+  return {
+    perUser: positive(env.THEPOLISHER_FREE_RUNS_PER_USER, 3),
+    perDay: positive(env.THEPOLISHER_FREE_RUNS_PER_DAY, 100),
+    budgetUSD: Number.isFinite(budget) && budget > 0 ? budget : 0.2,
+  };
+}
+
 /** Why a run can't start right now, or null if it can. */
 export function checkRunLimits(usage: RunUsage, limits: RunLimits): string | null {
   if (usage.userActive >= limits.perUserActive) return "You already have a run going. Wait for it to finish.";

@@ -42,7 +42,9 @@ export function IssueForm({ config, user, isStarting, error, onStart, onForgetKe
   const needsSignIn = Boolean(config?.isAuthEnabled) && !user;
   const showKeyField = Boolean(config?.isAuthEnabled) && !config?.isSimulated;
   const usesSavedKey = Boolean(user?.hasSavedKey) && !isReplacingKey;
-  const isKeyMissing = Boolean(config?.requiresUserKey) && !usesSavedKey && metaKey.trim().length === 0;
+  const freeLeft = config?.freeRunsLeft ?? 0;
+  const isFreeRun = Boolean(config?.requiresUserKey) && !usesSavedKey && metaKey.trim().length === 0 && freeLeft > 0;
+  const isKeyMissing = Boolean(config?.requiresUserKey) && !usesSavedKey && metaKey.trim().length === 0 && freeLeft === 0;
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -125,8 +127,18 @@ export function IssueForm({ config, user, isStarting, error, onStart, onForgetKe
             {showKeyField && !usesSavedKey && (
               <div className="field">
                 <label htmlFor="meta-key" className="field-label">
-                  Your Meta Model API key{config?.requiresUserKey ? "" : " (optional)"}
+                  Your Meta Model API key{config?.requiresUserKey && freeLeft === 0 ? "" : " (optional)"}
                 </label>
+                {config?.freeRunsLeft != null && (
+                  <p className={`free-runs${freeLeft === 0 ? " is-out" : ""}`} role="note">
+                    <Icon name={freeLeft > 0 ? "checkCircle" : "info"} size={16} />
+                    <span>
+                      {freeLeft > 0
+                        ? `${freeLeft} of ${config.freeRunsPerUser} free runs left. Leave the key empty to use one; add your own key for unlimited runs.`
+                        : "You've used your free runs. Add your own key to keep going."}
+                    </span>
+                  </p>
+                )}
                 <input
                   id="meta-key"
                   className="input"
@@ -145,10 +157,13 @@ export function IssueForm({ config, user, isStarting, error, onStart, onForgetKe
                   </label>
                 )}
                 <p id="meta-key-help" className="field-help">
-                  {user && rememberKey
-                    ? "Saved encrypted on the server so you don't have to paste it again; you can forget it anytime. Never shown again."
-                    : "Used for this run only and never stored."}{" "}
-                  Runs are billed to your Meta account.
+                  {isFreeRun
+                    ? `Free runs use ThePolisher's key and stop at $${(config?.freeRunBudgetUSD ?? 0).toFixed(2)} each.`
+                    : `${
+                        user && rememberKey
+                          ? "Saved encrypted on the server so you don't have to paste it again; you can forget it anytime. Never shown again."
+                          : "Used for this run only and never stored."
+                      } Runs are billed to your Meta account.`}
                 </p>
               </div>
             )}
