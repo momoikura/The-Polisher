@@ -19,11 +19,12 @@ import type {
 } from "@thepolisher/core";
 import { StructuredOutputError, completeStructured, type ChatClient } from "../llm/chat-client.js";
 import { ModelTimeoutError } from "../llm/meta-client.js";
+import { applyEdits, isLarge } from "./large-files.js";
 import { EvaluationSchema, RepairSchema, toEvaluatorOutput } from "../schemas/agent-output.js";
 import type { CheckSnapshot } from "../memory/experience.js";
 import { adaptStrategy, type AdaptStrategy } from "./adapt.js";
 import { codeStaticChecks, docChecks, prChecks, uxChecks } from "./checks.js";
-import { diffBundle, discardNotes, ensureFilesListed, isTestPath, ownedFiles, parseFiles, serializeFiles, unloadedFiles, type FileMap, type PrBundle, type PrWorkspace } from "./bundle.js";
+import { diffBundle, discardNotes, ensureFilesListed, isTestPath, ownedFiles, parseFiles, serializeFiles, wholeFileBlocked, type FileMap, type PrBundle, type PrWorkspace } from "./bundle.js";
 import {
   FilesRepairSchema,
   buildLaneEvaluationMessages,
@@ -227,12 +228,22 @@ export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, Teste
         // A revision may only touch its own files; a stray CHANGELOG in CodePolish's patch would block the sandbox.
         const fileLane = this.o.lane === "doc" ? "doc" : "code";
         const existing = new Set(snap.tree);
-        const unloaded = unloadedFiles(snap);
-        const owned = ownedFiles(fileLane, r.data.files, existing, unloaded);
+        const blocked = wholeFileBlocked(snap, isLarge);
+        const owned = ownedFiles(fileLane, r.data.files, existing, blocked);
         const merged: Record<string, string> = { ...current, ...owned };
+        // Edits (the way to change large files) go on top, on this lane's own files only.
+        const editTargets = Object.fromEntries(r.data.edits.map((e) => [e.path, ""]));
+        const mine = new Set(Object.keys(ownedFiles(fileLane, editTargets, existing)));
+        const applied = applyEdits({ ...snap.files, ...merged }, r.data.edits.filter((e) => mine.has(e.path)));
+        Object.assign(merged, applied.files);
         for (const p of r.data.removeFromPatch ?? []) delete merged[p];
         next = serializeFiles(merged);
-        changes = [...r.data.changesMade, ...discardNotes(fileLane, r.data.files, existing, unloaded)];
+        changes = [
+          ...r.data.changesMade,
+          ...discardNotes(fileLane, r.data.files, existing, blocked),
+          ...discardNotes(fileLane, editTargets, existing),
+          ...applied.notes,
+        ];
       }
     } catch (err) {
       // One unusable reply or timeout is a failed attempt, not the end of the lane: hand back the

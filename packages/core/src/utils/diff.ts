@@ -23,12 +23,32 @@ export interface DiffChange {
 export function computeLineDiff(oldText: string, newText: string): DiffChange[] {
   const oldLines = oldText.split("\n");
   const newLines = newText.split("\n");
+
+  // Lines both versions share at the start and end are unchanged, so the O(n*m) LCS
+  // only runs on the middle. Edits to large files are local, which keeps that small.
+  let prefix = 0;
+  while (prefix < oldLines.length && prefix < newLines.length && oldLines[prefix] === newLines[prefix]) prefix++;
+  let suffix = 0;
+  while (
+    suffix < oldLines.length - prefix &&
+    suffix < newLines.length - prefix &&
+    oldLines[oldLines.length - 1 - suffix] === newLines[newLines.length - 1 - suffix]
+  ) {
+    suffix++;
+  }
+
   const changes: DiffChange[] = [];
+  for (let i = 0; i < prefix; i++) changes.push({ type: "unchanged", content: oldLines[i], lineNumber: i + 1 });
 
-  // Simple LCS-based diff (O(n*m) — fine for artifacts under 10k lines)
-  const lcs = buildLCSTable(oldLines, newLines);
-  backtrackDiff(oldLines, newLines, lcs, oldLines.length, newLines.length, changes);
+  const a = oldLines.slice(prefix, oldLines.length - suffix);
+  const b = newLines.slice(prefix, newLines.length - suffix);
+  const lcs = buildLCSTable(a, b);
+  for (const c of backtrackDiff(a, b, lcs)) changes.push({ ...c, lineNumber: c.lineNumber! + prefix });
 
+  for (let k = suffix; k > 0; k--) {
+    const i = oldLines.length - k;
+    changes.push({ type: "unchanged", content: oldLines[i], lineNumber: i + 1 });
+  }
   return changes;
 }
 
@@ -52,26 +72,25 @@ function buildLCSTable(a: string[], b: string[]): number[][] {
   return table;
 }
 
-function backtrackDiff(
-  a: string[],
-  b: string[],
-  table: number[][],
-  i: number,
-  j: number,
-  changes: DiffChange[]
-): void {
-  if (i === 0 && j === 0) return;
-
-  if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
-    backtrackDiff(a, b, table, i - 1, j - 1, changes);
-    changes.push({ type: "unchanged", content: a[i - 1], lineNumber: i });
-  } else if (j > 0 && (i === 0 || table[i][j - 1] >= table[i - 1][j])) {
-    backtrackDiff(a, b, table, i, j - 1, changes);
-    changes.push({ type: "added", content: b[j - 1], lineNumber: j });
-  } else if (i > 0) {
-    backtrackDiff(a, b, table, i - 1, j, changes);
-    changes.push({ type: "removed", content: a[i - 1], lineNumber: i });
+/** Walks the LCS table from the end (iteratively, so long inputs can't overflow the stack). */
+function backtrackDiff(a: string[], b: string[], table: number[][]): DiffChange[] {
+  const reversed: DiffChange[] = [];
+  let i = a.length;
+  let j = b.length;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
+      reversed.push({ type: "unchanged", content: a[i - 1], lineNumber: i });
+      i--;
+      j--;
+    } else if (j > 0 && (i === 0 || table[i][j - 1] >= table[i - 1][j])) {
+      reversed.push({ type: "added", content: b[j - 1], lineNumber: j });
+      j--;
+    } else {
+      reversed.push({ type: "removed", content: a[i - 1], lineNumber: i });
+      i--;
+    }
   }
+  return reversed.reverse();
 }
 
 /**

@@ -434,3 +434,31 @@ and are reported as pre-existing.
 - `tests_included` wrongly failed every candidate: humanize adds tests as new
   parametrized cases, and the check only counted new `def test_` functions.
   CodePolish worked around it by adding a function. Fixed after this run.
+
+## Run 9: more-itertools#1336 (large file, contributor tier)
+
+[more-itertools/more-itertools#1336](https://github.com/more-itertools/more-itertools/issues/1336):
+`replace()` yields `None` for an empty iterable when `window_size > 1`.
+Model: **muse-spark-1.3-contributor** (Meta's lower-cost tier; costs are not
+comparable with the runs above, which used muse-spark-1.3).
+
+The bug is in `more_itertools/more.py` (171 KB). Before large-file support the
+agents never saw it (files over 40 KB were skipped), and the chosen draft wrote
+a new `more_itertools/__init__.py` that monkey-patched `replace()`; as a PR it
+would have replaced the real `__init__.py`. That run (status "verified", $0.008)
+is not counted. With large-file support, `more.py` is shown as an excerpt around
+`replace` and `windowed`, and changed through exact find/replace edits.
+
+| Candidate | Proves the fix | Failing checks | Tests | Lines |
+|---|---|---|---|---|
+| **1 (single-prompt baseline, chosen)** | yes | 0 | 769/769 | +26 |
+| 2 | yes | 0 | 769/769 | +27 |
+| 3 | yes | 0 | 770/770 | +30 |
+
+- Status: **clean**, all four agents approved. Cost $0.014.
+- Fix: one line in `more.py`, `windowed(it, window_size, fillvalue=_marker)`,
+  the same approach `locate()` already uses. New tests in
+  `tests/test_replace_empty.py` (the existing `tests/test_more.py` is too large
+  to load, so new tests go in a new file).
+- Run directly through `runMaintainer` (not the web app). No PR opened: two
+  earlier fix attempts upstream were closed by the maintainers.

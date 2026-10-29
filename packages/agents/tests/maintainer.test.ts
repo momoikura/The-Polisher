@@ -10,9 +10,9 @@ import { DEMO_SNAPSHOT, createSimulatedMaintainerClient, createSimulatedSandbox 
 import { GitHubClient, parseIssueUrl } from "../src/maintainer/github.js";
 import { codeStaticChecks, docChecks, prChecks, uxChecks } from "../src/maintainer/checks.js";
 import { ModalSandboxClient, summarizeValidation, validationChecks, validationFailureChecks, type Validation } from "../src/maintainer/sandbox.js";
-import { PrWorkspace, diffFile, discardNotes, ensureFilesListed, ownedFiles, serializeFiles, splitPr } from "../src/maintainer/bundle.js";
+import { PrWorkspace, diffFile, discardNotes, ensureFilesListed, ownedFiles, serializeFiles, splitPr, wholeFileBlocked } from "../src/maintainer/bundle.js";
 import { MaintainerLaneAgent, ValidationBoard } from "../src/maintainer/lanes.js";
-import { FilesRepairSchema, buildBaselineMessages } from "../src/maintainer/prompts.js";
+import { FilesRepairSchema, buildBaselineMessages, buildLaneRepairMessages } from "../src/maintainer/prompts.js";
 import { RepairSchema } from "../src/schemas/agent-output.js";
 import { MemoryExperienceStore } from "../src/memory/experience.js";
 import type { MaintainerEvent } from "../src/maintainer/events.js";
@@ -440,12 +440,12 @@ describe("ownedFiles", () => {
 });
 
 describe("tooLargeToFix", () => {
-  const sizes = { "more_itertools/more.py": 175_454, "more_itertools/__init__.py": 600, "tests/test_more.py": 200_000, "README.rst": 9_000 };
+  const sizes = { "more_itertools/more.py": 250_000, "more_itertools/__init__.py": 600, "tests/test_more.py": 200_000, "README.rst": 9_000 };
 
   it("stops the run when every source file the planner wants is too large to load", () => {
     const message = tooLargeToFix(["more_itertools/more.py", "tests/test_more.py"], sizes, ["README.rst"]);
-    expect(message).toContain("more_itertools/more.py (171 KB)");
-    expect(message).toContain("up to 40 KB");
+    expect(message).toContain("more_itertools/more.py (244 KB)");
+    expect(message).toContain("up to 200 KB");
   });
 
   it("lets the run go on when some source file it wants was loaded", () => {
@@ -459,17 +459,23 @@ describe("tooLargeToFix", () => {
 
 describe("files the agents never saw", () => {
   // more_itertools/__init__.py exists in the repo but wasn't loaded; writing it would replace the whole file.
-  const unloaded = new Set(["pkg/__init__.py", "README.md"]);
-  const files = { "pkg/__init__.py": "patched", "pkg/new_module.py": "x", "pkg/more.py": "y" };
+  const snap = {
+    ...DEMO_SNAPSHOT,
+    tree: ["pkg/__init__.py", "pkg/more.py", "README.md"],
+    files: { "pkg/more.py": "y".repeat(50_000), "README.md": "# x" },
+  };
+  const blocked = wholeFileBlocked(snap, (c) => c.length > 40_000);
+  const files = { "pkg/__init__.py": "patched", "pkg/new_module.py": "x", "pkg/more.py": "short" };
 
-  it("are never written, even by the code lane, so a draft can't replace a file it didn't read", () => {
-    expect(Object.keys(ownedFiles("code", files, undefined, unloaded))).toEqual(["pkg/new_module.py", "pkg/more.py"]);
-    expect(Object.keys(ownedFiles("doc", { "README.md": "x" }, new Set(["README.md"]), unloaded))).toEqual([]);
+  it("are never written whole, so a draft can't replace a file it didn't read or only saw part of", () => {
+    expect(Object.keys(ownedFiles("code", files, undefined, blocked))).toEqual(["pkg/new_module.py"]);
+    expect(Object.keys(ownedFiles("doc", { "README.md": "x" }, new Set(snap.tree), blocked))).toEqual(["README.md"]);
   });
 
   it("are explained to the agent when its edit is thrown away", () => {
-    expect(discardNotes("code", files, undefined, unloaded)).toEqual([
+    expect(discardNotes("code", files, undefined, blocked)).toEqual([
       "Discarded pkg/__init__.py: it exists in the repo but wasn't loaded (too large or not picked), so writing it would replace the whole file",
+      'Discarded pkg/more.py: it is a large file shown as an excerpt: change it with "edits" (exact find/replace), not full contents',
     ]);
   });
 });
@@ -659,5 +665,71 @@ describe("ensureFilesListed", () => {
   it("leaves a description that already names every file untouched", () => {
     const pr = "# Fix\n\nChanged `a.py` and tests/test_a.py.";
     expect(ensureFilesListed(pr, ["a.py", "tests/test_a.py"])).toBe(pr);
+  });
+});
+
+describe("a revision on a large file", () => {
+  const BIG = "pkg/more.py";
+  const filler = Array.from({ length: 2_000 }, (_, i) => `x_${i} = ${i}  # padding to make this file large`).join("\n");
+  const original = `def replace(iterable, pred):\n    return [None]\n\n${filler}\n`;
+  const snap = { ...DEMO_SNAPSHOT, tree: [...DEMO_SNAPSHOT.tree, BIG], files: { ...DEMO_SNAPSHOT.files, [BIG]: original }, focus: ["replace"] };
+
+  function agentReplying(reply: object) {
+    const client = { async complete() { return { text: JSON.stringify(reply), model: "m", promptTokens: 1, completionTokens: 1 }; } };
+    return new MaintainerLaneAgent({
+      lane: "code",
+      client,
+      workspace: new PrWorkspace(snap, { code: {}, docs: {}, pr: "# x" }),
+      board: new ValidationBoard(),
+      onActivity: () => {},
+    });
+  }
+  const evaluation = { scores: { overall: 5, dimensions: {}, rationale: "" }, issues: [] };
+  const tests = { checks: [], allObjectivesPassed: true } as never;
+
+  it("applies an exact edit to the whole file, keeping everything the model didn't see", async () => {
+    const agent = agentReplying({ edits: [{ path: BIG, find: "    return [None]\n", replace: "    return []\n" }], changesMade: ["fix"] });
+
+    const result = await agent.repair({} as never, {} as never, serializeFiles({}), evaluation, tests);
+
+    const files = JSON.parse(result.content) as Record<string, string>;
+    expect(files[BIG]).toBe(original.replace("    return [None]\n", "    return []\n"));
+    expect(files[BIG]).toContain("x_1999 = 1999");
+  });
+
+  it("refuses a whole-file rewrite of a file the model only saw an excerpt of, and says why", async () => {
+    const agent = agentReplying({ files: { [BIG]: "def replace(iterable, pred):\n    return []\n" }, changesMade: ["rewrote"] });
+
+    const result = await agent.repair({} as never, {} as never, serializeFiles({}), evaluation, tests);
+
+    expect(JSON.parse(result.content)).toEqual({});
+    expect(result.changesMade?.join("\n")).toMatch(/large file shown as an excerpt/);
+  });
+
+  it("tells the agent when an edit's find text is ambiguous", async () => {
+    const agent = agentReplying({ edits: [{ path: BIG, find: "padding", replace: "pad" }], changesMade: [] });
+
+    const result = await agent.repair({} as never, {} as never, serializeFiles({}), evaluation, tests);
+
+    expect(result.changesMade?.join("\n")).toMatch(/matches 2000 places/);
+  });
+});
+
+describe("prompts with a large file", () => {
+  it("show an excerpt around the focus symbol and the changed lines, not the whole file", () => {
+    const BIG = "pkg/more.py";
+    const filler = Array.from({ length: 2_000 }, (_, i) => `x_${i} = ${i}  # padding to make this file large`).join("\n");
+    const original = `def replace(iterable, pred):\n    return [None]\n\n${filler}\n`;
+    const snap = { ...DEMO_SNAPSHOT, tree: [...DEMO_SNAPSHOT.tree, BIG], files: { [BIG]: original }, focus: ["replace"] };
+    const edited = original.replace("x_1500 = 1500", "x_1500 = 0");
+
+    const [, user] = buildLaneRepairMessages("code", snap, { code: { [BIG]: edited }, docs: {}, pr: "# x" }, null, [], [], "");
+    const text = String(user.content);
+
+    expect(text).toContain('excerpt="true"');
+    expect(text).toContain("    return [None]");
+    expect(text).toContain("x_1500 = 0");
+    expect(text).not.toContain("x_900 = 900");
+    expect(text.length).toBeLessThan(original.length);
   });
 });

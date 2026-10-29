@@ -20,7 +20,7 @@ import {
   isTestPath,
   ownedFiles,
   parseFiles,
-  unloadedFiles,
+  wholeFileBlocked,
   type PrBundle,
   type RepoSnapshot,
 } from "./bundle.js";
@@ -29,7 +29,8 @@ import { codeStaticChecks, docChecks, prChecks, uxChecks } from "./checks.js";
 import type { CandidateSummary, LaneSummary, MaintainerEvent, MaintainerEventInput, MaintainerStatus, SideMetrics } from "./events.js";
 import { GitHubClient, parseIssueUrl } from "./github.js";
 import { MaintainerLaneAgent, ValidationBoard, type OwnerLane, type RepairInfo, type SecurityReview } from "./lanes.js";
-import { BaselineSchema, MAINTAINER_PROMPT_VERSION, MAX_FILE_CHARS, PlanSchema, buildBaselineMessages, buildPlanMessages } from "./prompts.js";
+import { MAX_LARGE_FILE_CHARS, applyEdits, isLarge, issueSymbols, type FileEdit } from "./large-files.js";
+import { BaselineSchema, MAINTAINER_PROMPT_VERSION, PlanSchema, buildBaselineMessages, buildPlanMessages, promptChars } from "./prompts.js";
 import { summarizeValidation, validationChecks, validationFailureChecks, type SandboxClient, type Validation } from "./sandbox.js";
 
 export type MaintainerSource =
@@ -64,9 +65,11 @@ const OWNER_LANES: OwnerLane[] = ["code", "doc", "write"];
 /** Share of the post-baseline budget each owning lane may spend. */
 const BUDGET_SHARE: Record<OwnerLane, number> = { code: 0.6, doc: 0.2, write: 0.2 };
 const CLEAN_SCORE = 85;
-// A file of at most MAX_FILE_CHARS bytes has at most that many characters, so it always fits in the prompt in full.
-const MAX_FILE_BYTES = MAX_FILE_CHARS;
-const MAX_CONTEXT_BYTES = 150_000;
+// A file of at most this many bytes has at most that many characters: the sandbox's per-file limit.
+// Files over MAX_FILE_CHARS are shown as excerpts and changed through edits (large-files.ts).
+const MAX_FILE_BYTES = MAX_LARGE_FILE_CHARS;
+/** Prompt space for context files, counting large files at their excerpt size. */
+const MAX_CONTEXT_CHARS = 150_000;
 const CONTEXT_EXT = /\.(py|pyi|md|rst|txt|toml|cfg)$/i;
 
 // ─── Context loading ──────────────────────────────────────────────────────
@@ -109,16 +112,16 @@ function selectFiles(snapshot: RepoSnapshot, sizes: Record<string, number>, want
   const out: string[] = [];
   let total = 0;
   for (const p of picked) {
-    total += sizes[p] ?? 0;
-    if (total > MAX_CONTEXT_BYTES) break;
+    total += promptChars(sizes[p] ?? 0);
+    if (total > MAX_CONTEXT_CHARS) break;
     out.push(p);
   }
   return out;
 }
 
 /**
- * Files are edited whole, so a source file over MAX_FILE_BYTES can't be loaded or
- * changed. When every source file the planner wants is like that, the agents would
+ * A source file over MAX_FILE_BYTES can't be loaded or changed (the sandbox won't
+ * take it). When every source file the planner wants is like that, the agents would
  * work blind (and could only patch around the bug), so the run stops with a reason.
  */
 export function tooLargeToFix(wanted: readonly string[], sizes: Record<string, number>, loaded: readonly string[]): string | null {
@@ -161,13 +164,23 @@ export function verdict(input: { approved: readonly LaneId[]; objectivelyPassing
   };
 }
 
-function sanitizeBaseline(raw: { code: Record<string, string>; docs: Record<string, string>; pr: string }, snap: RepoSnapshot): PrBundle {
-  const unloaded = unloadedFiles(snap);
-  return {
-    code: ownedFiles("code", raw.code, undefined, unloaded),
-    docs: ownedFiles("doc", raw.docs, new Set(snap.tree), unloaded),
-    pr: raw.pr,
-  };
+/**
+ * A draft's files, limited to what each lane may own: whole files except blocked
+ * ones (not loaded, or large), then its edits applied on top. Edits that can't be
+ * applied are dropped; a draft has no agent to tell.
+ */
+function sanitizeBaseline(
+  raw: { code: Record<string, string>; docs: Record<string, string>; edits: FileEdit[]; pr: string },
+  snap: RepoSnapshot
+): PrBundle {
+  const blocked = wholeFileBlocked(snap, isLarge);
+  const existing = new Set(snap.tree);
+  const code: Record<string, string> = ownedFiles("code", raw.code, undefined, blocked);
+  const docs: Record<string, string> = ownedFiles("doc", raw.docs, existing, blocked);
+  const { files: edited } = applyEdits({ ...snap.files, ...code, ...docs }, raw.edits);
+  Object.assign(code, ownedFiles("code", edited));
+  Object.assign(docs, ownedFiles("doc", edited, existing));
+  return { code, docs, pr: raw.pr };
 }
 
 // ─── Metrics ──────────────────────────────────────────────────────────────
@@ -280,6 +293,8 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
       const contents = await Promise.all(chosen.map(async (p) => [p, await source.github.getFile(snap0.owner, snap0.repo, p, snap0.sha)] as const));
       snapshot = { ...snap0, files: Object.fromEntries(contents) };
     }
+    // Large files are shown around these names: the planner's picks plus the ones the issue mentions.
+    snapshot = { ...snapshot, focus: [...new Set([...plan.data.symbols, ...issueSymbols(snap0.issue.title, snap0.issue.body)])] };
     const snap = snapshot;
     emit({ type: "context", repo: `${snap.owner}/${snap.repo}`, sha: snap.sha, issue: { number: snap.issue.number, title: snap.issue.title, url: snap.issue.url }, files: Object.keys(snap.files), approach: plan.data.approach });
 

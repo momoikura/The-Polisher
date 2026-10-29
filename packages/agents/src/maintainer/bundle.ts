@@ -21,8 +21,10 @@ export interface RepoSnapshot {
   issue: { number: number; title: string; body: string; url: string };
   /** Every blob path in the repo (possibly truncated for huge repos). */
   tree: string[];
-  /** Contents of the files loaded as context. */
+  /** Contents of the files loaded as context (large ones in full; prompts show excerpts). */
   files: FileMap;
+  /** Function/class names to show from large files: from the planner and the issue. */
+  focus?: string[];
 }
 
 export interface PrBundle {
@@ -60,23 +62,34 @@ export const isForbiddenPath = (p: string) => p.startsWith("/") || p.includes(".
  * The files an agent may change: Python for CodePolish, docs for DocPolish, never config or CI.
  * With `existing` (the repo's paths), DocPolish may only edit docs the repo already has.
  */
-/** Files in the repo whose contents weren't loaded for this run. */
-export const unloadedFiles = (snapshot: RepoSnapshot): ReadonlySet<string> =>
-  new Set(snapshot.tree.filter((p) => !(p in snapshot.files)));
-
 /**
- * `unloaded`: files that exist in the repo but whose contents the agents never saw
- * (too large, or not picked). Files are written whole, so writing one would replace it.
+ * Files that may not be written with full contents, and why: files in the repo
+ * whose contents weren't loaded (writing one would replace a file nobody read),
+ * and large files the model only saw an excerpt of (they change through edits).
  */
+export function wholeFileBlocked(snapshot: RepoSnapshot, isLarge: (content: string) => boolean): ReadonlyMap<string, string> {
+  const blocked = new Map<string, string>();
+  for (const p of snapshot.tree) {
+    const content = snapshot.files[p];
+    if (content === undefined) {
+      blocked.set(p, "it exists in the repo but wasn't loaded (too large or not picked), so writing it would replace the whole file");
+    } else if (isLarge(content)) {
+      blocked.set(p, 'it is a large file shown as an excerpt: change it with "edits" (exact find/replace), not full contents');
+    }
+  }
+  return blocked;
+}
+
+/** `blocked`: files that may not be written whole (see wholeFileBlocked). */
 export function ownedFiles<T>(
   lane: "code" | "doc",
   files: Record<string, T>,
   existing?: ReadonlySet<string>,
-  unloaded?: ReadonlySet<string>
+  blocked?: ReadonlyMap<string, string>
 ): Record<string, T> {
   const owns = (p: string) =>
     !isForbiddenPath(p) &&
-    !unloaded?.has(p) &&
+    !blocked?.has(p) &&
     (lane === "code" ? /\.pyi?$/.test(p) : isDocPath(p) && (!existing || existing.has(p)));
   return Object.fromEntries(Object.entries(files).filter(([p]) => owns(p)));
 }
@@ -86,17 +99,16 @@ export function discardNotes(
   lane: "code" | "doc",
   files: Record<string, unknown>,
   existing?: ReadonlySet<string>,
-  unloaded?: ReadonlySet<string>
+  blocked?: ReadonlyMap<string, string>
 ): string[] {
-  const owned = ownedFiles(lane, files, existing, unloaded);
+  const owned = ownedFiles(lane, files, existing, blocked);
   const rule = (p: string) =>
-    unloaded?.has(p)
-      ? "it exists in the repo but wasn't loaded (too large or not picked), so writing it would replace the whole file"
-      : lane === "code"
-        ? "CodePolish may only change Python files (docs belong to DocPolish)"
-        : isDocPath(p)
-          ? "DocPolish may only edit docs that already exist in the repo"
-          : "DocPolish may only change README/CHANGELOG-style docs";
+    blocked?.get(p) ??
+    (lane === "code"
+      ? "CodePolish may only change Python files (docs belong to DocPolish)"
+      : isDocPath(p)
+        ? "DocPolish may only edit docs that already exist in the repo"
+        : "DocPolish may only change README/CHANGELOG-style docs");
   return Object.keys(files)
     .filter((p) => !(p in owned))
     .map((p) => `Discarded ${p}: ${rule(p)}`);
