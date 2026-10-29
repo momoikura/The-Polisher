@@ -1,6 +1,7 @@
 /**
- * One-at-a-time background runs with an event log that Server-Sent Events
- * replay on (re)connect. A second concurrent run would double model spend.
+ * Background runs with an event log that Server-Sent Events replay on
+ * (re)connect. How many can run at once is decided by the run limits
+ * (auth/limits.ts); finished runs are also saved to the run history.
  */
 
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -17,7 +18,8 @@ export interface Session<E extends Timed, R> {
   meta: Record<string, unknown>;
 }
 
-const MAX_SESSIONS = 10;
+/** Finished runs kept in memory for live reattach; older ones are replayed from the run history. */
+const MAX_SESSIONS = 50;
 
 export class SessionRegistry<E extends Timed, R> {
   private readonly sessions = new Map<string, Session<E, R>>();
@@ -28,6 +30,11 @@ export class SessionRegistry<E extends Timed, R> {
 
   active(): Session<E, R> | undefined {
     return [...this.sessions.values()].find((s) => !s.isDone);
+  }
+
+  /** Every run still going, for per-user and global limits. */
+  activeSessions(): Session<E, R>[] {
+    return [...this.sessions.values()].filter((s) => !s.isDone);
   }
 
   start(run: (publish: (event: E) => void) => Promise<R>, onCrash: (message: string) => E): Session<E, R> {

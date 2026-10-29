@@ -107,6 +107,18 @@ export function modelClientOrNull(): ChatClient | null {
   }
 }
 
+/**
+ * A Muse Spark client for one run, using the user's own Meta key. The key lives
+ * only in this client object for the run's lifetime: never stored or logged.
+ */
+export function modelClientForKey(apiKey: string): ChatClient {
+  const envTimeout = Number(process.env.MODEL_TIMEOUT_MS) || 0;
+  return chatClientFromMeta(new MetaModelClient({ apiKey, timeoutMs: Math.max(envTimeout, MIN_STUDIO_TIMEOUT_MS) }));
+}
+
+/** Production sets THEPOLISHER_REQUIRE_USER_KEY=1: every run must bring the user's own Meta key. */
+export const requiresUserKey = () => process.env.THEPOLISHER_REQUIRE_USER_KEY?.trim() === "1";
+
 let sandboxClient: { key: string; client: ModalSandboxClient } | null = null;
 
 /** Real test runs on Modal when SANDBOX_URL + SANDBOX_TOKEN are set; simulated in demo mode. */

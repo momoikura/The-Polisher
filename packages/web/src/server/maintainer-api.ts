@@ -1,7 +1,7 @@
 /**
  * Auto-Maintainer endpoints:
  *   GET  /api/maintainer/config          → model, sandbox, GitHub token status
- *   POST /api/maintainer                 → start a run { issueUrl, budgetUSD? }
+ *   POST /api/maintainer                 → start a run { issueUrl, budgetUSD?, metaApiKey? }
  *   GET  /api/maintainer/:id/events      → Server-Sent Events
  *   POST /api/maintainer/:id/pr          → open the PR on GitHub (explicit user action only)
  */
@@ -11,6 +11,7 @@ import { z } from "zod";
 import {
   DEMO_ISSUE_URL,
   DEMO_SNAPSHOT,
+  GitHubClient,
   GitHubError,
   diffBundle,
   parseIssueUrl,
@@ -19,15 +20,19 @@ import {
   type MaintainerEvent,
   type MaintainerResult,
 } from "@thepolisher/agents";
+import { currentUser, isAuthEnabled, isSameOrigin } from "./auth/auth-api.js";
+import { checkRunLimits, runLimitsFromEnv } from "./auth/limits.js";
 import { finishedRecord, saveQuietly, startedRecord } from "./history.js";
 import { VerifiedMemory, runStore, sharedMemory, type RunRecord } from "./store/index.js";
 import {
   activeProvider,
   githubClient,
   isSimulated,
+  modelClientForKey,
   modelClientOrNull,
   providerStatus,
   readJsonBody,
+  requiresUserKey,
   sandboxClientOrNull,
   sendJson,
 } from "./http.js";
@@ -36,7 +41,17 @@ import { SessionRegistry } from "./sessions.js";
 const StartSchema = z.object({
   issueUrl: z.string().trim().min(1, "Paste a GitHub issue link.").max(500),
   budgetUSD: z.number().min(0.1).max(20).default(3),
+  metaApiKey: z
+    .string()
+    .trim()
+    .min(10, "That Meta API key looks too short.")
+    .max(300)
+    .regex(/^\S+$/, "A Meta API key has no spaces.")
+    .optional(),
 });
+
+const LOCAL_OWNER = "local";
+const startOfTodayUtc = () => `${new Date().toISOString().slice(0, 10)}T00:00:00.000Z`;
 
 const MAX_BODY_BYTES = 8 * 1024;
 const registry = new SessionRegistry<MaintainerEvent, MaintainerResult>();
@@ -46,6 +61,7 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
 
   if (req.method === "GET" && url === "/api/maintainer/config") {
     const status = providerStatus();
+    const owner = (await currentUser(req))?.login ?? LOCAL_OWNER;
     sendJson(res, 200, {
       provider: status.provider,
       isSimulated: status.provider === "simulated",
@@ -55,7 +71,10 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
       isSandboxConfigured: sandboxClientOrNull() !== null,
       hasGitHubToken: Boolean(process.env.GITHUB_TOKEN?.trim()),
       demoIssueUrl: isSimulated() ? DEMO_ISSUE_URL : null,
-      activeRunId: registry.active()?.id ?? null,
+      // Each person reattaches to their own run, never someone else's.
+      activeRunId: registry.activeSessions().find((s) => s.meta.owner === owner)?.id ?? null,
+      isAuthEnabled: isAuthEnabled(),
+      requiresUserKey: requiresUserKey() && !isSimulated(),
     });
     return true;
   }
@@ -81,11 +100,38 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
         return true;
       }
     }
-    if (registry.active()) {
-      sendJson(res, 409, { error: "A run is already in progress. Wait for it to finish." });
+    if (!isSameOrigin(req)) {
+      sendJson(res, 403, { error: "Cross-site request refused." });
       return true;
     }
-    const client = modelClientOrNull();
+    const user = await currentUser(req);
+    if (isAuthEnabled() && !user) {
+      sendJson(res, 401, { error: "Sign in with GitHub to start a run." });
+      return true;
+    }
+    // Without sign-in (local development) every run belongs to one local owner.
+    const owner = user?.login ?? LOCAL_OWNER;
+    const active = registry.activeSessions();
+    const blocked = checkRunLimits(
+      {
+        userActive: active.filter((s) => s.meta.owner === owner).length,
+        userToday: user ? await runStore().countSince(user.login, startOfTodayUtc()) : 0,
+        globalActive: active.length,
+      },
+      runLimitsFromEnv()
+    );
+    if (blocked) {
+      sendJson(res, 429, { error: blocked });
+      return true;
+    }
+
+    // Bring your own key: a user's Meta key is used for this run only and never stored or logged.
+    const userKey = parsed.data.metaApiKey;
+    if (requiresUserKey() && !userKey && !isSimulated()) {
+      sendJson(res, 400, { error: "Add your Meta Model API key to start a run." });
+      return true;
+    }
+    const client = userKey && activeProvider() === "meta" ? modelClientForKey(userKey) : modelClientOrNull();
     if (!client) {
       sendJson(res, 503, { error: `${providerStatus().setupHint} To try the scripted demo, run \`pnpm --filter @thepolisher/web dev:sim\`.` });
       return true;
@@ -118,7 +164,8 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
       },
       (message) => ({ type: "error", message, at: Date.now() })
     );
-    holder.started = startedRecord(session.id, parsed.data.issueUrl, providerStatus().model, null);
+    session.meta.owner = owner;
+    holder.started = startedRecord(session.id, parsed.data.issueUrl, providerStatus().model, user?.login ?? null);
     const started = holder.started;
     void saveQuietly("record the run start", () => runStore().start(started));
     sendJson(res, 201, { id: session.id, isSimulated: isSimulated() });
@@ -138,18 +185,34 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
 
   const pr = url.match(/^\/api\/maintainer\/([0-9a-f-]{36})\/pr$/);
   if (req.method === "POST" && pr) {
-    await openPullRequest(res, pr[1]);
+    if (!isSameOrigin(req)) {
+      sendJson(res, 403, { error: "Cross-site request refused." });
+      return true;
+    }
+    await openPullRequest(req, res, pr[1]);
     return true;
   }
 
   return false;
 }
 
-async function openPullRequest(res: ServerResponse, id: string): Promise<void> {
+async function openPullRequest(req: IncomingMessage, res: ServerResponse, id: string): Promise<void> {
   const session = registry.get(id);
   if (!session || !session.isDone || !session.result) {
     sendJson(res, 404, { error: "That run hasn't finished (or the server restarted)." });
     return;
+  }
+  // With sign-in on, only the person who started the run can open its PR, as themselves.
+  const user = await currentUser(req);
+  if (isAuthEnabled()) {
+    if (!user) {
+      sendJson(res, 401, { error: "Sign in with GitHub to open a pull request." });
+      return;
+    }
+    if (session.meta.owner !== user.login) {
+      sendJson(res, 403, { error: "Only the person who started this run can open its pull request." });
+      return;
+    }
   }
   if (typeof session.meta.prUrl === "string") {
     sendJson(res, 200, { url: session.meta.prUrl, alreadyOpen: true });
@@ -164,7 +227,7 @@ async function openPullRequest(res: ServerResponse, id: string): Promise<void> {
     sendJson(res, 400, { error: "This run didn't produce a pull request." });
     return;
   }
-  const github = githubClient();
+  const github = user ? new GitHubClient({ token: user.token }) : githubClient();
   if (!github.hasToken()) {
     sendJson(res, 400, { error: "Set GITHUB_TOKEN in .env (with write access to this repo) and restart the dev server." });
     return;
