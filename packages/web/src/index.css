@@ -380,52 +380,106 @@ a {
   color: var(--fg);
 }
 
-.account {
+.account-menu {
+  position: relative;
+  margin-left: var(--s-1);
+}
+
+/* The avatar is the button: 44px to tap, 28px to see. */
+.account-button {
   display: inline-flex;
   align-items: center;
-  gap: var(--s-2);
-  margin-left: var(--s-2);
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
 }
 
 .account-avatar {
+  display: block;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  transition: border-color var(--fast) var(--ease);
 }
 
-.account-login {
+.account-button:hover .account-avatar,
+.account-button[aria-expanded="true"] .account-avatar {
+  border-color: var(--fg-inverse);
+}
+
+.account-button:focus-visible {
+  outline: 2px solid var(--fg-inverse);
+  outline-offset: 0;
+}
+
+.account-dropdown {
+  position: absolute;
+  top: calc(100% + var(--s-1));
+  right: 0;
+  z-index: 30;
+  min-width: 220px;
+  padding: var(--s-1) 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: var(--shadow-pop);
+}
+
+.account-who {
+  margin: 0;
+  padding: var(--s-2) var(--s-3) var(--s-3);
+  border-bottom: 1px solid var(--border-muted);
+  color: var(--fg-muted);
   font-size: var(--text-sm);
-  font-weight: 600;
 }
 
-.account-signout,
+.account-who strong {
+  color: var(--fg);
+}
+
+.account-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 var(--s-3);
+  border: 0;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.account-item:hover,
+.account-item:focus-visible {
+  background: var(--bg-muted);
+  outline: none;
+}
+
 .account-signin {
   display: inline-flex;
   align-items: center;
   gap: var(--s-1);
   min-height: 44px;
+  margin-left: var(--s-1);
   padding: 0 var(--s-2);
-  border: 0;
-  background: none;
-  color: rgba(255, 255, 255, 0.75);
-  font: inherit;
+  color: var(--fg-inverse);
   font-size: var(--text-sm);
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.account-signin {
-  margin-left: var(--s-2);
-  color: var(--fg-inverse);
   font-weight: 600;
+  text-decoration: none;
 }
 
-.account-signout:hover,
 .account-signin:hover {
-  color: var(--fg-inverse);
   text-decoration: underline;
 }
 
-.account-signout:focus-visible,
 .account-signin:focus-visible {
   outline: 2px solid var(--fg-inverse);
   outline-offset: 2px;

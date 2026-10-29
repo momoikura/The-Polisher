@@ -1,6 +1,7 @@
 import type { AuthState } from "../maintainer/useAuth.js";
 import type { MaintainerConfig } from "../maintainer/useMaintainer.js";
 import { modelLabel } from "../maintainer/model-label.js";
+import { AccountMenu } from "./AccountMenu.js";
 import { Icon } from "./Icon.js";
 
 export type Page = "maintainer" | "runs" | "memory";
@@ -48,13 +49,7 @@ export function Header({ config, auth, repo, page, onNavigate }: Props) {
           {auth.isEnabled &&
             !auth.isLoading &&
             (auth.user ? (
-              <span className="account">
-                <img className="account-avatar" src={auth.user.avatarUrl} alt="" width={24} height={24} />
-                <span className="account-login">{auth.user.login}</span>
-                <button type="button" className="account-signout" onClick={() => void auth.signOut()}>
-                  Sign out
-                </button>
-              </span>
+              <AccountMenu user={auth.user} onSignOut={() => void auth.signOut()} />
             ) : (
               <a className="account-signin" href="/api/auth/login">
                 <Icon name="github" size={14} />
