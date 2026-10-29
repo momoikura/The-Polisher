@@ -5,6 +5,16 @@
 # typed with hidden input. Run from the repo root:  .\deploy\set-secrets.ps1
 
 $ErrorActionPreference = "Stop"
+# Windows PowerShell 5.1 turns any stderr line from a program (even a warning) into
+# a fatal error under "Stop", so program calls below run under Invoke-Native and are
+# judged by their exit code instead.
+$env:PYTHONWARNINGS = "ignore::DeprecationWarning"
+
+function Invoke-Native([scriptblock]$Command, [string]$What) {
+    $ErrorActionPreference = "Continue"
+    & $Command 2>&1 | ForEach-Object { if ($_ -is [System.Management.Automation.ErrorRecord]) { Write-Host $_.Exception.Message } else { Write-Host $_ } }
+    if ($LASTEXITCODE -ne 0) { throw "$What failed (exit code $LASTEXITCODE)." }
+}
 $PublicUrl = "https://thepolisher.pages.dev"
 $PagesProject = "thepolisher"
 $RoleName = "thepolisher-web"
@@ -54,12 +64,10 @@ $settings = [ordered]@{
 $tmp = Join-Path $env:TEMP ("tp-" + [guid]::NewGuid() + ".env")
 try {
     ($settings.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }) | Set-Content -Path $tmp -Encoding ascii
-    py -m modal secret create thepolisher-web --from-dotenv $tmp --force 2>$null
-    if ($LASTEXITCODE -ne 0) { throw "Creating the Modal secret failed." }
+    Invoke-Native { py -m modal secret create thepolisher-web --from-dotenv $tmp --force } "Creating the Modal secret"
     Write-Host "Modal secret 'thepolisher-web' set: $($settings.Keys -join ', ')"
 }
 finally { Remove-Item $tmp -Force -ErrorAction SilentlyContinue }
 
-$proxySecret | npx wrangler@4 pages secret put PROXY_SECRET --project-name $PagesProject
-if ($LASTEXITCODE -ne 0) { throw "Setting the Cloudflare secret failed." }
+Invoke-Native { $proxySecret | npx wrangler@4 pages secret put PROXY_SECRET --project-name $PagesProject } "Setting the Cloudflare secret"
 Write-Host "Cloudflare Pages secret PROXY_SECRET set. Done; no secret was shown."
