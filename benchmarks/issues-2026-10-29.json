@@ -1,0 +1,25 @@
+{
+  "chosen": "2026-10-29, before any of these runs",
+  "criteria": "Open GitHub issues in popular pure-Python repos with pytest suites, filed 2026-08-01 or later, with no linked pull request, that report a reproducible bug in library code still present in the current code. Excluded: feature requests, docs, refactors, CI, typing-only, performance, spam, and issues a commenter or maintainer shows are already fixed or intended. Whether someone offered to fix it doesn't matter: no pull request is opened.",
+  "budgetUSD": 0.5,
+  "concurrency": 2,
+  "issues": [
+    { "url": "https://github.com/more-itertools/more-itertools/issues/1336", "seenBefore": true },
+    { "url": "https://github.com/python-humanize/humanize/issues/459", "seenBefore": true },
+    { "url": "https://github.com/Textualize/rich/issues/4238", "seenBefore": true },
+    { "url": "https://github.com/python-jsonschema/jsonschema/issues/1589", "seenBefore": true },
+    { "url": "https://github.com/pyparsing/pyparsing/issues/693", "seenBefore": true },
+    { "url": "https://github.com/Textualize/rich/issues/4244" },
+    { "url": "https://github.com/Textualize/rich/issues/4242" },
+    { "url": "https://github.com/Textualize/rich/issues/4239" },
+    { "url": "https://github.com/Textualize/rich/issues/4237" },
+    { "url": "https://github.com/python-jsonschema/jsonschema/issues/1597" },
+    { "url": "https://github.com/python-jsonschema/jsonschema/issues/1588" },
+    { "url": "https://github.com/python-jsonschema/jsonschema/issues/1584" },
+    { "url": "https://github.com/tobymao/sqlglot/issues/8820" },
+    { "url": "https://github.com/tobymao/sqlglot/issues/8752" },
+    { "url": "https://github.com/pylint-dev/astroid/issues/3255" },
+    { "url": "https://github.com/urllib3/urllib3/issues/5164" },
+    { "url": "https://github.com/pygments/pygments/issues/3247" }
+  ]
+}
