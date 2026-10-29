@@ -16,6 +16,8 @@ import {
   ModelTimeoutError,
   ModelAuthError,
   ModelValidationError,
+  ModelRateLimitError,
+  ModelServiceError,
   resolveMetaConfig,
 } from "../src/llm/meta-client.js";
 
@@ -34,7 +36,7 @@ describe("MetaModelClient", () => {
     it("uses default values when env vars are not set", () => {
       const config = resolveMetaConfig();
       expect(config.baseUrl).toBe("https://api.meta.ai/v1");
-      expect(config.modelId).toBe("muse-spark-1.3");
+      expect(config.modelId).toBe("muse-spark-1.3-contributor");
       expect(config.timeoutMs).toBe(30000);
       expect(config.apiKey).toBe("");
     });
@@ -44,7 +46,7 @@ describe("MetaModelClient", () => {
       process.env.MODEL_ID = "";
       const config = resolveMetaConfig();
       expect(config.baseUrl).toBe("https://api.meta.ai/v1");
-      expect(config.modelId).toBe("muse-spark-1.3");
+      expect(config.modelId).toBe("muse-spark-1.3-contributor");
     });
 
     it("respects environment variables when provided", () => {
@@ -66,7 +68,7 @@ describe("MetaModelClient", () => {
 
       const clientConfigured = new MetaModelClient({ apiKey: "mock-key" });
       expect(clientConfigured.isConfigured()).toBe(true);
-      expect(clientConfigured.getModelId()).toBe("muse-spark-1.3");
+      expect(clientConfigured.getModelId()).toBe("muse-spark-1.3-contributor");
       expect(clientConfigured.getBaseUrl()).toBe("https://api.meta.ai/v1");
     });
   });
@@ -212,6 +214,50 @@ describe("MetaModelClient", () => {
         const error = err as ModelAuthError;
         expect(error.message).not.toContain("sk-super-secret-key-12345");
       }
+    });
+  });
+
+  describe("Rate limits", () => {
+    const completion = {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: "chatcmpl-rl",
+        model: "muse-spark-1.3-contributor",
+        choices: [{ index: 0, message: { role: "assistant", content: "ok" }, finish_reason: "stop" }],
+      }),
+    };
+    const tooMany = (retryAfter?: string) => ({
+      ok: false,
+      status: 429,
+      headers: new Headers(retryAfter ? { "retry-after": retryAfter } : {}),
+      text: async () => "rate limited",
+    });
+
+    it("waits and retries when Meta answers 429, then returns the completion", async () => {
+      const mockFetch = vi.fn().mockResolvedValueOnce(tooMany()).mockResolvedValueOnce(tooMany("0")).mockResolvedValueOnce(completion);
+      const client = new MetaModelClient({ apiKey: "k", rateLimitDelayMs: 1, fetchFn: mockFetch as unknown as typeof fetch });
+
+      const result = await client.createChatCompletion({ messages: [{ role: "user", content: "hi" }] });
+
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+      expect(result.choices[0].message.content).toBe("ok");
+    });
+
+    it("gives up with ModelRateLimitError after the last retry", async () => {
+      const mockFetch = vi.fn().mockResolvedValue(tooMany());
+      const client = new MetaModelClient({ apiKey: "k", rateLimitDelayMs: 1, fetchFn: mockFetch as unknown as typeof fetch });
+
+      await expect(client.createChatCompletion({ messages: [{ role: "user", content: "hi" }] })).rejects.toThrow(ModelRateLimitError);
+      expect(mockFetch).toHaveBeenCalledTimes(4);
+    });
+
+    it("does not retry other errors", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: false, status: 500, text: async () => "boom" });
+      const client = new MetaModelClient({ apiKey: "k", rateLimitDelayMs: 1, fetchFn: mockFetch as unknown as typeof fetch });
+
+      await expect(client.createChatCompletion({ messages: [{ role: "user", content: "hi" }] })).rejects.toThrow(ModelServiceError);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
     });
   });
 

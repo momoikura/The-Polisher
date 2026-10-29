@@ -27,6 +27,9 @@ PORT = 8000
 BUNDLE = pathlib.Path(__file__).resolve().parent.parent / "packages/web/dist-server/server.mjs"
 # Long enough for a whole run's live updates on one connection.
 REQUEST_TIMEOUT_S = 60 * 60
+# Not secret, so it lives here. META_MODEL_ID wins over MODEL_ID from the secret.
+# The contributor tier is ~21x cheaper; Meta may train on what is sent (the form says so).
+SETTINGS = {"META_MODEL_ID": "muse-spark-1.3-contributor"}
 
 image = modal.Image.from_registry("node:22-slim", add_python="3.12").add_local_file(BUNDLE, "/app/server.mjs")
 app = modal.App(APP_NAME)
@@ -34,7 +37,11 @@ app = modal.App(APP_NAME)
 
 @app.function(
     image=image,
-    secrets=[modal.Secret.from_name("thepolisher-web"), modal.Secret.from_name("thepolisher-web-aws")],
+    secrets=[
+        modal.Secret.from_name("thepolisher-web"),
+        modal.Secret.from_name("thepolisher-web-aws"),
+        modal.Secret.from_dict(SETTINGS),
+    ],
     min_containers=1,
     max_containers=1,
     cpu=0.25,

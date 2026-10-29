@@ -44,7 +44,7 @@ pnpm --filter @thepolisher/web dev:sim
 
 **Real runs:** copy `.env.example` to `.env` at the repo root and set:
 
-- a model: `MODEL_PROVIDER=meta` (default) + `MODEL_BASE_URL`, `MODEL_API_KEY`, and optionally `MODEL_ID` (defaults to `muse-spark-1.3`). Claude (`MODEL_PROVIDER=anthropic` + `ANTHROPIC_API_KEY`) is only for local comparison runs.
+- a model: `MODEL_PROVIDER=meta` (default) + `MODEL_BASE_URL`, `MODEL_API_KEY`, and optionally `MODEL_ID` (defaults to `muse-spark-1.3-contributor`, Meta's lower-cost tier, about 21× cheaper than `muse-spark-1.3`; Meta may use what is sent to it to train its models, so use it on public repositories only). Claude (`MODEL_PROVIDER=anthropic` + `ANTHROPIC_API_KEY`) is only for local comparison runs.
 - the sandbox: deploy `sandbox-service/modal_app.py` (steps in its header), then `SANDBOX_URL` + `SANDBOX_TOKEN`
 - optionally `GITHUB_TOKEN` (higher read limits; required for **Open PR**)
 

@@ -3,6 +3,7 @@ import type { AuthUser } from "../maintainer/useAuth.js";
 import type { MaintainerConfig } from "../maintainer/useMaintainer.js";
 import { LANE_IDS } from "../maintainer/reducer.js";
 import { LANE_META } from "../maintainer/lanes.js";
+import { prettyModel } from "../maintainer/model-label.js";
 import { Button } from "./Button.js";
 import { Icon } from "./Icon.js";
 
@@ -130,6 +131,15 @@ export function IssueForm({ config, user, isStarting, error, onStart }: Props) {
               <p className="flash" role="note">
                 <Icon name="info" size={16} />
                 <span>Demo mode. The model and test results are scripted and a built-in demo repo is used, whatever link you paste. The checks, the gate and the memory are real.</span>
+              </p>
+            )}
+            {config && !config.isSimulated && config.model.endsWith("-contributor") && (
+              <p className="flash" role="note">
+                <Icon name="info" size={16} />
+                <span>
+                  Runs use {prettyModel(config.model)}, Meta's lower-cost tier: Meta may use the issue, the repository code and the
+                  drafts sent to it to train its models. Only use it on public repositories.
+                </span>
               </p>
             )}
             {config && !config.isConfigured && (

@@ -13,15 +13,22 @@ import { z } from "zod";
 
 // ─── Environment & Configuration ─────────────────────────────────────────────
 
+/** The contributor tier allows ~100 requests/min, so short bursts can hit 429; these retry it. */
+const RATE_LIMIT_RETRIES = 3;
+const DEFAULT_RATE_LIMIT_DELAY_MS = 2_000;
+const MAX_RETRY_AFTER_MS = 30_000;
+
 export interface MetaClientConfig {
   /** Base URL for the Meta Model API (defaults to process.env.META_BASE_URL || process.env.MODEL_BASE_URL || "https://api.meta.ai/v1") */
   baseUrl?: string;
   /** API Key (defaults to process.env.META_API_KEY || process.env.MODEL_API_KEY) */
   apiKey?: string;
-  /** Model ID (defaults to process.env.META_MODEL_ID || process.env.MODEL_ID || "muse-spark-1.3") */
+  /** Model ID (defaults to process.env.META_MODEL_ID || process.env.MODEL_ID || "muse-spark-1.3-contributor") */
   modelId?: string;
   /** Request timeout in milliseconds (defaults to 30000) */
   timeoutMs?: number;
+  /** First wait after a 429 when Meta sends no Retry-After; doubles on each retry (defaults to 2000) */
+  rateLimitDelayMs?: number;
   /** Fetch implementation override (useful for testing) */
   fetchFn?: typeof fetch;
 }
@@ -43,7 +50,8 @@ export function resolveMetaConfig(config?: MetaClientConfig): Required<Omit<Meta
     config?.modelId ||
     process.env.META_MODEL_ID ||
     process.env.MODEL_ID ||
-    "muse-spark-1.3";
+    // Contributor tier: ~21x cheaper; Meta may train on what is sent (the form says so).
+    "muse-spark-1.3-contributor";
 
   const timeoutMs =
     config?.timeoutMs ??
@@ -56,6 +64,7 @@ export function resolveMetaConfig(config?: MetaClientConfig): Required<Omit<Meta
     apiKey,
     modelId,
     timeoutMs,
+    rateLimitDelayMs: config?.rateLimitDelayMs ?? DEFAULT_RATE_LIMIT_DELAY_MS,
     fetchFn,
   };
 }
@@ -149,10 +158,20 @@ export class ModelAuthError extends ModelClientError {
 }
 
 export class ModelRateLimitError extends ModelClientError {
-  constructor(message = "Meta Model API rate limit exceeded.") {
+  constructor(
+    message = "Meta Model API rate limit exceeded.",
+    /** How long Meta asked us to wait (Retry-After), if it said. */
+    public readonly retryAfterMs?: number
+  ) {
     super(message, "RATE_LIMIT_ERROR", 429);
     this.name = "ModelRateLimitError";
   }
+}
+
+/** Retry-After in seconds → ms, capped; undefined if absent or not a number. */
+function retryAfterMs(headers: Headers | undefined): number | undefined {
+  const seconds = Number(headers?.get("retry-after"));
+  return headers?.get("retry-after") != null && Number.isFinite(seconds) ? Math.min(seconds * 1000, MAX_RETRY_AFTER_MS) : undefined;
 }
 
 export class ModelValidationError extends ModelClientError {
@@ -245,6 +264,19 @@ export class MetaModelClient {
       );
     }
 
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.post(validationResult.data);
+      } catch (error: unknown) {
+        if (!(error instanceof ModelRateLimitError) || attempt >= RATE_LIMIT_RETRIES) throw error;
+        const waitMs = error.retryAfterMs ?? this.config.rateLimitDelayMs * 2 ** attempt;
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
+      }
+    }
+  }
+
+  /** One request to /chat/completions, with errors mapped to the typed errors above. */
+  private async post(body: MetaChatCompletionRequest): Promise<MetaChatCompletionResponse> {
     const url = `${this.config.baseUrl}/chat/completions`;
     const controller = new AbortController();
     const timeoutHandle = setTimeout(() => {
@@ -258,7 +290,7 @@ export class MetaModelClient {
           "Content-Type": "application/json",
           Authorization: `Bearer ${this.config.apiKey}`,
         },
-        body: JSON.stringify(validationResult.data),
+        body: JSON.stringify(body),
         signal: controller.signal,
       });
 
@@ -276,7 +308,7 @@ export class MetaModelClient {
           throw new ModelAuthError();
         }
         if (response.status === 429) {
-          throw new ModelRateLimitError();
+          throw new ModelRateLimitError(undefined, retryAfterMs(response.headers));
         }
         throw new ModelServiceError(
           `Meta Model API responded with status ${response.status}: ${errorBody.slice(0, 300)}`,
