@@ -31,7 +31,7 @@ export async function onRequest({ request, env }: Context): Promise<Response> {
   let target = new URL(incoming.pathname + incoming.search, backend);
 
   const headers = new Headers(request.headers);
-  headers.set("x-thepolisher-proxy", env.PROXY_SECRET);
+  headers.set("x-thepolisher-proxy", env.PROXY_SECRET.trim());
   const body = request.method === "GET" || request.method === "HEAD" ? undefined : await request.arrayBuffer();
 
   for (let hop = 0; hop < MAX_HOPS; hop++) {

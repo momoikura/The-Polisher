@@ -62,19 +62,21 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
   if (req.method === "GET" && url === "/api/maintainer/config") {
     const status = providerStatus();
     const owner = (await currentUser(req))?.login ?? LOCAL_OWNER;
+    // When every user brings their own Meta key, the server having none is the intended setup.
+    const needsUserKey = requiresUserKey() && !isSimulated();
     sendJson(res, 200, {
       provider: status.provider,
       isSimulated: status.provider === "simulated",
-      isConfigured: status.isConfigured,
+      isConfigured: status.isConfigured || needsUserKey,
       model: status.model,
-      setupHint: status.setupHint,
+      setupHint: needsUserKey ? null : status.setupHint,
       isSandboxConfigured: sandboxClientOrNull() !== null,
       hasGitHubToken: Boolean(process.env.GITHUB_TOKEN?.trim()),
       demoIssueUrl: isSimulated() ? DEMO_ISSUE_URL : null,
       // Each person reattaches to their own run, never someone else's.
       activeRunId: registry.activeSessions().find((s) => s.meta.owner === owner)?.id ?? null,
       isAuthEnabled: isAuthEnabled(),
-      requiresUserKey: requiresUserKey() && !isSimulated(),
+      requiresUserKey: needsUserKey,
     });
     return true;
   }
