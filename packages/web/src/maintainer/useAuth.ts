@@ -3,6 +3,8 @@ import { useCallback, useEffect, useState } from "react";
 export interface AuthUser {
   login: string;
   avatarUrl: string;
+  /** A Meta API key is saved (encrypted) on the server; the key itself never comes back. */
+  hasSavedKey: boolean;
 }
 
 export interface AuthState {
@@ -13,6 +15,10 @@ export interface AuthState {
   /** A sign-in error GitHub's redirect brought back (?auth_error=…). */
   error: string | null;
   signOut: () => Promise<void>;
+  /** Delete the saved Meta key from the server. Resolves to an error message, or null. */
+  forgetKey: () => Promise<string | null>;
+  /** Note that a run just saved the user's key. */
+  markKeySaved: () => void;
 }
 
 /** Who is signed in. The GitHub token never reaches the browser; only login and avatar do. */
@@ -45,5 +51,22 @@ export function useAuth(): AuthState {
     setState((s) => ({ ...s, user: null }));
   }, []);
 
-  return { ...state, error, signOut };
+  const setHasSavedKey = useCallback((hasSavedKey: boolean) => {
+    setState((s) => (s.user ? { ...s, user: { ...s.user, hasSavedKey } } : s));
+  }, []);
+
+  const forgetKey = useCallback(async () => {
+    try {
+      const res = await fetch("/api/auth/meta-key", { method: "DELETE" });
+      if (!res.ok) return `Couldn't forget the key (HTTP ${res.status}).`;
+      setHasSavedKey(false);
+      return null;
+    } catch {
+      return "Couldn't reach the server.";
+    }
+  }, [setHasSavedKey]);
+
+  const markKeySaved = useCallback(() => setHasSavedKey(true), [setHasSavedKey]);
+
+  return { ...state, error, signOut, forgetKey, markKeySaved };
 }

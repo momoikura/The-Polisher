@@ -700,6 +700,18 @@ a {
   accent-color: var(--fg);
 }
 
+.saved-key {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-1) var(--s-3);
+  min-height: 40px;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--text-sm);
+}
+
 /* ---------- Flash ---------- */
 
 .flash {

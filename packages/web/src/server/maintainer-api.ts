@@ -1,7 +1,7 @@
 /**
  * Auto-Maintainer endpoints:
- *   GET  /api/maintainer/config          → model, sandbox, GitHub token status
- *   POST /api/maintainer                 → start a run { issueUrl, budgetUSD?, metaApiKey? }
+ *   GET  /api/maintainer/config          → model, sandbox, who can open PRs
+ *   POST /api/maintainer                 → start a run { issueUrl, budgetUSD?, metaApiKey?, rememberKey? }
  *   GET  /api/maintainer/:id/events      → Server-Sent Events
  *   POST /api/maintainer/:id/pr          → open the PR on GitHub (explicit user action only)
  */
@@ -20,7 +20,7 @@ import {
   type MaintainerEvent,
   type MaintainerResult,
 } from "@thepolisher/agents";
-import { currentUser, isAuthEnabled, isSameOrigin } from "./auth/auth-api.js";
+import { currentUser, isAuthEnabled, isSameOrigin, rememberMetaKey, savedMetaKey } from "./auth/auth-api.js";
 import { checkRunLimits, runLimitsFromEnv } from "./auth/limits.js";
 import { finishedRecord, saveQuietly, startedRecord } from "./history.js";
 import { VerifiedMemory, runStore, sharedMemory, type RunRecord } from "./store/index.js";
@@ -48,6 +48,8 @@ const StartSchema = z.object({
     .max(300)
     .regex(/^\S+$/, "A Meta API key has no spaces.")
     .optional(),
+  /** Save metaApiKey (encrypted) to the signed-in user's account for later runs. */
+  rememberKey: z.boolean().default(false),
 });
 
 const LOCAL_OWNER = "local";
@@ -136,8 +138,9 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
       return true;
     }
 
-    // Bring your own key: a user's Meta key is used for this run only and never stored or logged.
-    const userKey = parsed.data.metaApiKey;
+    // Bring your own key: the one typed in, else the one the user chose to save. Never logged.
+    const typedKey = parsed.data.metaApiKey;
+    const userKey = typedKey ?? (user ? await savedMetaKey(user) : null) ?? undefined;
     if (requiresUserKey() && !userKey && !isSimulated()) {
       sendJson(res, 400, { error: "Add your Meta Model API key to start a run." });
       return true;
@@ -146,6 +149,10 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
     if (!client) {
       sendJson(res, 503, { error: `${providerStatus().setupHint} To try the scripted demo, run \`pnpm --filter @thepolisher/web dev:sim\`.` });
       return true;
+    }
+
+    if (user && typedKey && parsed.data.rememberKey) {
+      await saveQuietly("remember the Meta key", () => rememberMetaKey(user, typedKey));
     }
 
     const source = isSimulated()

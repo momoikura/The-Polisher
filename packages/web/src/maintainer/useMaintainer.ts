@@ -78,24 +78,28 @@ export function useMaintainer() {
   }, [attach]);
 
   const start = useCallback(
-    async (issueUrl: string, budgetUSD: number, metaApiKey?: string) => {
+    /** Resolves to whether the run started. */
+    async (issueUrl: string, budgetUSD: number, metaApiKey?: string, rememberKey = false): Promise<boolean> => {
       setIsStarting(true);
       setStartError(null);
       try {
         const res = await fetch("/api/maintainer", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          // The key goes with this one request only; nothing in the browser keeps it.
-          body: JSON.stringify({ issueUrl, budgetUSD, ...(metaApiKey ? { metaApiKey } : {}) }),
+          // The key goes with this one request; nothing in the browser keeps it. With
+          // rememberKey the server saves it, encrypted, to the signed-in account.
+          body: JSON.stringify({ issueUrl, budgetUSD, ...(metaApiKey ? { metaApiKey, rememberKey } : {}) }),
         });
         const data = (await res.json()) as { id?: string; error?: string };
         if (!res.ok || !data.id) {
           setStartError(data.error ?? `Couldn't start the run (HTTP ${res.status}).`);
-          return;
+          return false;
         }
         attach(data.id);
+        return true;
       } catch {
         setStartError("Couldn't reach the server. Is the dev server still running?");
+        return false;
       } finally {
         setIsStarting(false);
       }

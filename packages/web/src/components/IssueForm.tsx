@@ -23,24 +23,38 @@ type Props = {
   user: AuthUser | null;
   isStarting: boolean;
   error: string | null;
-  onStart: (issueUrl: string, budgetUSD: number, metaApiKey?: string) => void;
+  onStart: (issueUrl: string, budgetUSD: number, metaApiKey?: string, rememberKey?: boolean) => void;
+  /** Delete the saved key; resolves to an error message, or null. */
+  onForgetKey: () => Promise<string | null>;
 };
 
-export function IssueForm({ config, user, isStarting, error, onStart }: Props) {
+export function IssueForm({ config, user, isStarting, error, onStart, onForgetKey }: Props) {
   const [issueUrl, setIssueUrl] = useState("");
   const [budget, setBudget] = useState(3);
   // Held only in this component for one submit; never written to localStorage or cookies.
   const [metaKey, setMetaKey] = useState("");
+  const [rememberKey, setRememberKey] = useState(true);
+  const [isReplacingKey, setIsReplacingKey] = useState(false);
+  const [keyError, setKeyError] = useState<string | null>(null);
   const trimmed = issueUrl.trim();
   const isValid = ISSUE_URL.test(trimmed);
   const showInvalid = trimmed.length > 0 && !isValid;
   const needsSignIn = Boolean(config?.isAuthEnabled) && !user;
   const showKeyField = Boolean(config?.isAuthEnabled) && !config?.isSimulated;
-  const isKeyMissing = Boolean(config?.requiresUserKey) && metaKey.trim().length === 0;
+  const usesSavedKey = Boolean(user?.hasSavedKey) && !isReplacingKey;
+  const isKeyMissing = Boolean(config?.requiresUserKey) && !usesSavedKey && metaKey.trim().length === 0;
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (isValid && !isKeyMissing) onStart(trimmed, budget, metaKey.trim() || undefined);
+    if (!isValid || isKeyMissing) return;
+    const typed = usesSavedKey ? undefined : metaKey.trim() || undefined;
+    onStart(trimmed, budget, typed, Boolean(user) && rememberKey);
+  };
+
+  const handleForget = async () => {
+    setKeyError(await onForgetKey());
+    setIsReplacingKey(false);
+    setMetaKey("");
   };
 
   return (
@@ -92,7 +106,23 @@ export function IssueForm({ config, user, isStarting, error, onStart }: Props) {
               )}
             </div>
 
-            {showKeyField && (
+            {showKeyField && usesSavedKey && (
+              <div className="field">
+                <p className="field-label">Your Meta Model API key</p>
+                <div className="saved-key">
+                  <Icon name="checkCircle" size={16} />
+                  <span>Using the key saved to your account.</span>
+                  <button type="button" className="link-button" onClick={() => setIsReplacingKey(true)}>
+                    Use a different key
+                  </button>
+                  <button type="button" className="link-button" onClick={() => void handleForget()}>
+                    Forget it
+                  </button>
+                </div>
+                <p className="field-help">Saved encrypted on the server and never shown again. Runs are billed to your Meta account.</p>
+              </div>
+            )}
+            {showKeyField && !usesSavedKey && (
               <div className="field">
                 <label htmlFor="meta-key" className="field-label">
                   Your Meta Model API key{config?.requiresUserKey ? "" : " (optional)"}
@@ -108,10 +138,25 @@ export function IssueForm({ config, user, isStarting, error, onStart }: Props) {
                   placeholder="From dev.meta.ai → API keys"
                   aria-describedby="meta-key-help"
                 />
+                {user && (
+                  <label className="check-toggle">
+                    <input type="checkbox" checked={rememberKey} onChange={(e) => setRememberKey(e.target.checked)} />
+                    Remember my key on this account
+                  </label>
+                )}
                 <p id="meta-key-help" className="field-help">
-                  Used for this run only and never stored. Runs are billed to your Meta account.
+                  {user && rememberKey
+                    ? "Saved encrypted on the server so you don't have to paste it again; you can forget it anytime. Never shown again."
+                    : "Used for this run only and never stored."}{" "}
+                  Runs are billed to your Meta account.
                 </p>
               </div>
+            )}
+            {keyError && (
+              <p className="flash flash-strong" role="alert">
+                <Icon name="timesCircle" size={16} />
+                <span>{keyError}</span>
+              </p>
             )}
 
             <fieldset className="field">

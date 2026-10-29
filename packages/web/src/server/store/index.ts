@@ -10,6 +10,7 @@ import { FileExperienceStore, type ExperienceStore } from "@thepolisher/agents";
 import { dataDir } from "../http.js";
 import { DynamoExperienceStore, DynamoRunStore } from "./dynamo.js";
 import { FileRunStore } from "./file-store.js";
+import { DynamoMetaKeyStore, MemoryMetaKeyStore, type MetaKeyStore } from "../auth/meta-keys.js";
 import { DynamoSessionStore, MemorySessionStore, type SessionStore } from "../auth/sessions.js";
 import type { RunStore } from "./types.js";
 
@@ -43,6 +44,15 @@ export function sessionStore(): SessionStore {
   const name = table();
   sessions ??= name ? new DynamoSessionStore(client(), name) : new MemorySessionStore();
   return sessions;
+}
+
+let metaKeys: MetaKeyStore | null = null;
+
+/** Saved Meta API keys ("Remember my key"): in DynamoDB when configured, otherwise in memory. */
+export function metaKeyStore(): MetaKeyStore {
+  const name = table();
+  metaKeys ??= name ? new DynamoMetaKeyStore(client(), name) : new MemoryMetaKeyStore();
+  return metaKeys;
 }
 
 /** One instance per provider, so its read cache is shared by every run on this server. */

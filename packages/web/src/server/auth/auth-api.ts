@@ -4,6 +4,7 @@
  *   GET  /api/auth/callback  → check `state`, swap the code for a token, start a session
  *   GET  /api/auth/me        → who is signed in ({ user: null } if nobody)
  *   POST /api/auth/logout    → end the session
+ *   DELETE /api/auth/meta-key → forget the user's saved Meta API key
  *
  * Sign-in is on when GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET and
  * THEPOLISHER_SESSION_SECRET are all set. THEPOLISHER_PUBLIC_URL is the site's
@@ -14,10 +15,11 @@
 import { randomBytes } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { sendJson } from "../http.js";
-import { sessionStore } from "../store/index.js";
+import { metaKeyStore, sessionStore } from "../store/index.js";
 import { clearedCookie, parseCookies, sessionCookie } from "./cookies.js";
 import { decryptToken, encryptToken } from "./crypto.js";
 import { authorizeUrl, exchangeCode, fetchIdentity, isValidState } from "./github-oauth.js";
+import { forgetMetaKey, hasMetaKey, loadMetaKey, saveMetaKey } from "./meta-keys.js";
 import { newSessionId } from "./sessions.js";
 
 const SESSION_COOKIE = "tp_session";
@@ -27,6 +29,8 @@ const STATE_MAX_AGE_S = 600;
 
 export interface SignedInUser {
   login: string;
+  /** GitHub's permanent numeric id; logins can be renamed and reused. */
+  githubId: number;
   avatarUrl: string;
   /** The user's own GitHub token, decrypted for this request only. Never sent to the browser. */
   token: string;
@@ -73,11 +77,26 @@ export async function currentUser(req: IncomingMessage): Promise<SignedInUser | 
   const session = await sessionStore().get(id);
   if (!session) return null;
   try {
-    return { login: session.login, avatarUrl: session.avatarUrl, token: decryptToken(session.tokenSealed, config().sessionSecret) };
+    return {
+      login: session.login,
+      githubId: session.githubId,
+      avatarUrl: session.avatarUrl,
+      token: decryptToken(session.tokenSealed, config().sessionSecret),
+    };
   } catch {
     // The secret changed or the record was tampered with: treat as signed out.
     return null;
   }
+}
+
+/** The user's saved Meta API key, for server-side use only, or null. */
+export function savedMetaKey(user: SignedInUser): Promise<string | null> {
+  return loadMetaKey(metaKeyStore(), config().sessionSecret, user.githubId);
+}
+
+/** Remember the user's Meta API key ("Remember my key"). */
+export function rememberMetaKey(user: SignedInUser, key: string): Promise<void> {
+  return saveMetaKey(metaKeyStore(), config().sessionSecret, user.githubId, key);
 }
 
 function redirect(res: ServerResponse, location: string, cookies: string[] = []): void {
@@ -93,7 +112,11 @@ export async function handleAuthRequest(req: IncomingMessage, res: ServerRespons
 
   if (req.method === "GET" && url === "/api/auth/me") {
     const user = await currentUser(req);
-    sendJson(res, 200, { enabled: isAuthEnabled(), user: user ? { login: user.login, avatarUrl: user.avatarUrl } : null });
+    sendJson(res, 200, {
+      enabled: isAuthEnabled(),
+      // Whether a key is saved, never the key itself.
+      user: user ? { login: user.login, avatarUrl: user.avatarUrl, hasSavedKey: await hasMetaKey(metaKeyStore(), user.githubId) } : null,
+    });
     return true;
   }
 
@@ -145,6 +168,23 @@ export async function handleAuthRequest(req: IncomingMessage, res: ServerRespons
     return true;
   }
 
+  if (req.method === "DELETE" && url === "/api/auth/meta-key") {
+    if (!isSameOrigin(req)) {
+      sendJson(res, 403, { error: "Cross-site request refused." });
+      return true;
+    }
+    const user = await currentUser(req);
+    if (!user) {
+      sendJson(res, 401, { error: "Sign in to manage your saved key." });
+      return true;
+    }
+    await forgetMetaKey(metaKeyStore(), user.githubId);
+    res.statusCode = 204;
+    res.end();
+    return true;
+  }
+
+  // Signing out ends the session only; a saved Meta key stays until the user chooses Forget.
   if (req.method === "POST" && url === "/api/auth/logout") {
     if (!isSameOrigin(req)) {
       sendJson(res, 403, { error: "Cross-site request refused." });

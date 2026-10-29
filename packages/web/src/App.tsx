@@ -49,7 +49,12 @@ export default function App() {
             user={auth.user}
             isStarting={isStarting}
             error={startError}
-            onStart={(url, budget, key) => void start(url, budget, key)}
+            onStart={(url, budget, key, remember) =>
+              void start(url, budget, key, remember).then((started) => {
+                if (started && key && remember) auth.markKeySaved();
+              })
+            }
+            onForgetKey={auth.forgetKey}
           />
         ) : (
           <RunView
