@@ -18,11 +18,12 @@ import type {
   TesterAgent,
 } from "@thepolisher/core";
 import { StructuredOutputError, completeStructured, type ChatClient } from "../llm/chat-client.js";
+import { ModelTimeoutError } from "../llm/meta-client.js";
 import { EvaluationSchema, RepairSchema, toEvaluatorOutput } from "../schemas/agent-output.js";
 import type { CheckSnapshot } from "../memory/experience.js";
 import { adaptStrategy, type AdaptStrategy } from "./adapt.js";
 import { codeStaticChecks, docChecks, prChecks, uxChecks } from "./checks.js";
-import { diffBundle, discardNotes, ensureFilesListed, isTestPath, ownedFiles, parseFiles, serializeFiles, type FileMap, type PrBundle, type PrWorkspace } from "./bundle.js";
+import { diffBundle, discardNotes, ensureFilesListed, isTestPath, ownedFiles, parseFiles, serializeFiles, unloadedFiles, type FileMap, type PrBundle, type PrWorkspace } from "./bundle.js";
 import {
   FilesRepairSchema,
   buildLaneEvaluationMessages,
@@ -226,15 +227,19 @@ export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, Teste
         // A revision may only touch its own files; a stray CHANGELOG in CodePolish's patch would block the sandbox.
         const fileLane = this.o.lane === "doc" ? "doc" : "code";
         const existing = new Set(snap.tree);
-        const owned = ownedFiles(fileLane, r.data.files, existing);
+        const unloaded = unloadedFiles(snap);
+        const owned = ownedFiles(fileLane, r.data.files, existing, unloaded);
         const merged: Record<string, string> = { ...current, ...owned };
         for (const p of r.data.removeFromPatch ?? []) delete merged[p];
         next = serializeFiles(merged);
-        changes = [...r.data.changesMade, ...discardNotes(fileLane, r.data.files, existing)];
+        changes = [...r.data.changesMade, ...discardNotes(fileLane, r.data.files, existing, unloaded)];
       }
     } catch (err) {
-      // One unusable reply is a failed attempt, not the end of the lane: hand back the current
-      // version so the gate rejects it and the next round adapts, with the tokens still charged.
+      // One unusable reply or timeout is a failed attempt, not the end of the lane: hand back the
+      // current version so the gate rejects it and the next round adapts, with any tokens charged.
+      if (err instanceof ModelTimeoutError) {
+        return { content, changesMade: [`The model timed out (${err.message}); nothing was changed`], model: "", promptTokens: 0, completionTokens: 0 };
+      }
       if (!(err instanceof StructuredOutputError)) throw err;
       const usage = err.usage ?? { model: "", promptTokens: 0, completionTokens: 0 };
       return { content, changesMade: [`Reply was unusable (${err.message}); nothing was changed`], ...usage };

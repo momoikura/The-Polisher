@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { runMaintainer, verdict } from "../src/maintainer/orchestrator.js";
+import { runMaintainer, tooLargeToFix, verdict } from "../src/maintainer/orchestrator.js";
 import { DEMO_SNAPSHOT, createSimulatedMaintainerClient, createSimulatedSandbox } from "../src/maintainer/simulated.js";
 import { GitHubClient, parseIssueUrl } from "../src/maintainer/github.js";
 import { codeStaticChecks, docChecks, prChecks, uxChecks } from "../src/maintainer/checks.js";
@@ -16,6 +16,7 @@ import { FilesRepairSchema, buildBaselineMessages } from "../src/maintainer/prom
 import { RepairSchema } from "../src/schemas/agent-output.js";
 import { MemoryExperienceStore } from "../src/memory/experience.js";
 import type { MaintainerEvent } from "../src/maintainer/events.js";
+import { ModelTimeoutError } from "../src/llm/meta-client.js";
 
 const fast = { min: 0, max: 0 };
 const failing = (checks: ReturnType<typeof codeStaticChecks>) => checks.filter((c) => !c.passed).map((c) => c.testType);
@@ -438,6 +439,41 @@ describe("ownedFiles", () => {
   });
 });
 
+describe("tooLargeToFix", () => {
+  const sizes = { "more_itertools/more.py": 175_454, "more_itertools/__init__.py": 600, "tests/test_more.py": 200_000, "README.rst": 9_000 };
+
+  it("stops the run when every source file the planner wants is too large to load", () => {
+    const message = tooLargeToFix(["more_itertools/more.py", "tests/test_more.py"], sizes, ["README.rst"]);
+    expect(message).toContain("more_itertools/more.py (171 KB)");
+    expect(message).toContain("up to 40 KB");
+  });
+
+  it("lets the run go on when some source file it wants was loaded", () => {
+    expect(tooLargeToFix(["more_itertools/more.py", "more_itertools/__init__.py"], sizes, ["more_itertools/__init__.py"])).toBeNull();
+  });
+
+  it("lets the run go on when nothing it wants is too large", () => {
+    expect(tooLargeToFix(["more_itertools/__init__.py"], sizes, [])).toBeNull();
+  });
+});
+
+describe("files the agents never saw", () => {
+  // more_itertools/__init__.py exists in the repo but wasn't loaded; writing it would replace the whole file.
+  const unloaded = new Set(["pkg/__init__.py", "README.md"]);
+  const files = { "pkg/__init__.py": "patched", "pkg/new_module.py": "x", "pkg/more.py": "y" };
+
+  it("are never written, even by the code lane, so a draft can't replace a file it didn't read", () => {
+    expect(Object.keys(ownedFiles("code", files, undefined, unloaded))).toEqual(["pkg/new_module.py", "pkg/more.py"]);
+    expect(Object.keys(ownedFiles("doc", { "README.md": "x" }, new Set(["README.md"]), unloaded))).toEqual([]);
+  });
+
+  it("are explained to the agent when its edit is thrown away", () => {
+    expect(discardNotes("code", files, undefined, unloaded)).toEqual([
+      "Discarded pkg/__init__.py: it exists in the repo but wasn't loaded (too large or not picked), so writing it would replace the whole file",
+    ]);
+  });
+});
+
 describe("discardNotes", () => {
   it("says which files a revision touched that weren't the agent's to change", () => {
     const notes = discardNotes("code", { "src/a.py": "x", "CHANGELOG.md": "y" });
@@ -589,6 +625,25 @@ describe("an unusable revision", () => {
     expect(result.content).toBe(content);
     expect(result.changesMade?.[0]).toMatch(/unusable/i);
     expect(result.promptTokens).toBe(14);
+  });
+
+  it("includes a model timeout: the round is lost, the lane goes on", async () => {
+    const slow = { async complete(): Promise<never> { throw new ModelTimeoutError(120_000); } };
+    const content = serializeFiles({ [SRC]: base[SRC] });
+    const agent = new MaintainerLaneAgent({
+      lane: "code",
+      client: slow,
+      workspace: new PrWorkspace(DEMO_SNAPSHOT, { code: { [SRC]: base[SRC] }, docs: {}, pr: "# x" }),
+      board: new ValidationBoard(),
+      onActivity: () => {},
+    });
+    const evaluation = { scores: { overall: 5, dimensions: {}, rationale: "" }, issues: [] };
+    const tests = { checks: [], allObjectivesPassed: true } as never;
+
+    const result = await agent.repair({} as never, {} as never, content, evaluation, tests);
+
+    expect(result.content).toBe(content);
+    expect(result.changesMade?.[0]).toMatch(/timed out/i);
   });
 });
 

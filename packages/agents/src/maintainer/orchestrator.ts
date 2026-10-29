@@ -20,6 +20,7 @@ import {
   isTestPath,
   ownedFiles,
   parseFiles,
+  unloadedFiles,
   type PrBundle,
   type RepoSnapshot,
 } from "./bundle.js";
@@ -115,6 +116,21 @@ function selectFiles(snapshot: RepoSnapshot, sizes: Record<string, number>, want
   return out;
 }
 
+/**
+ * Files are edited whole, so a source file over MAX_FILE_BYTES can't be loaded or
+ * changed. When every source file the planner wants is like that, the agents would
+ * work blind (and could only patch around the bug), so the run stops with a reason.
+ */
+export function tooLargeToFix(wanted: readonly string[], sizes: Record<string, number>, loaded: readonly string[]): string | null {
+  const isSource = (p: string) => p.endsWith(".py") && !isTestPath(p);
+  const wantedSource = wanted.filter((p) => isSource(p) && p in sizes);
+  if (wantedSource.length === 0 || loaded.some(isSource)) return null;
+  const big = wantedSource.filter((p) => sizes[p] > MAX_FILE_BYTES);
+  if (big.length === 0) return null;
+  const listed = big.map((p) => `${p} (${Math.round(sizes[p] / 1024)} KB)`).join(", ");
+  return `ThePolisher can't fix this issue yet: the code to change is in ${listed}, and it can only edit Python files up to ${MAX_FILE_BYTES / 1000} KB. The run stopped after planning, before writing any drafts.`;
+}
+
 /** Keep only what each lane may own; anything else the baseline produced is dropped. */
 const AGENT_NAMES: Record<LaneId, string> = { code: "CodePolish", security: "SecurityPolish", doc: "DocPolish", write: "WritePolish" };
 
@@ -145,8 +161,13 @@ export function verdict(input: { approved: readonly LaneId[]; objectivelyPassing
   };
 }
 
-function sanitizeBaseline(raw: { code: Record<string, string>; docs: Record<string, string>; pr: string }, tree: readonly string[]): PrBundle {
-  return { code: ownedFiles("code", raw.code), docs: ownedFiles("doc", raw.docs, new Set(tree)), pr: raw.pr };
+function sanitizeBaseline(raw: { code: Record<string, string>; docs: Record<string, string>; pr: string }, snap: RepoSnapshot): PrBundle {
+  const unloaded = unloadedFiles(snap);
+  return {
+    code: ownedFiles("code", raw.code, undefined, unloaded),
+    docs: ownedFiles("doc", raw.docs, new Set(snap.tree), unloaded),
+    pr: raw.pr,
+  };
 }
 
 // ─── Metrics ──────────────────────────────────────────────────────────────
@@ -254,6 +275,8 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     chargeSetup(plan, "planner");
     if (source.kind === "github") {
       const chosen = selectFiles(snap0, sizes, plan.data.files);
+      const blocked = tooLargeToFix(plan.data.files, sizes, chosen);
+      if (blocked) throw new Error(blocked);
       const contents = await Promise.all(chosen.map(async (p) => [p, await source.github.getFile(snap0.owner, snap0.repo, p, snap0.sha)] as const));
       snapshot = { ...snap0, files: Object.fromEntries(contents) };
     }
@@ -270,7 +293,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     const written = drafts.flatMap((d) => (d.status === "fulfilled" ? [d.value] : []));
     if (written.length === 0) throw (drafts[0] as PromiseRejectedResult).reason;
     for (const r of written) chargeSetup(r, "baseline");
-    const bundles = written.map((r) => sanitizeBaseline(r.data, snap.tree));
+    const bundles = written.map((r) => sanitizeBaseline(r.data, snap));
     baseline = bundles[0];
     const start = bundles.length > 1 && options.sandbox ? await pickCandidate(bundles, snap, options.sandbox) : baseline;
     workspace = new PrWorkspace(snap, start);

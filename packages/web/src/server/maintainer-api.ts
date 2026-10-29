@@ -165,14 +165,28 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
     const holder: { started: RunRecord | null } = { started: null };
     const session = registry.start(
       async (publish) => {
-        const result = await runMaintainer(source, {
-          client,
-          sandbox: sandboxClientOrNull() ?? undefined,
-          budgetUSD: parsed.data.budgetUSD,
-          experience: memory,
-          provider,
-          onEvent: publish,
-        });
+        let result: MaintainerResult;
+        try {
+          result = await runMaintainer(source, {
+            client,
+            sandbox: sandboxClientOrNull() ?? undefined,
+            budgetUSD: parsed.data.budgetUSD,
+            experience: memory,
+            provider,
+            onEvent: publish,
+          });
+        } catch (err) {
+          // A run that stops with an error (closed issue, file too large) is saved as failed, not left "running".
+          const started = holder.started;
+          if (started) {
+            // What was spent before it stopped: the running total from the last cost event.
+            const spent = session.events.reduce((usd, e) => (e.type === "cost" ? e.totalUSD : usd), 0);
+            await saveQuietly("save the failed run", () =>
+              runStore().finish(finishedRecord(started, { status: "failed", totalUSD: spent, title: "" }), session.events)
+            );
+          }
+          throw err;
+        }
         const started = holder.started;
         if (started) {
           const finished = finishedRecord(started, { status: result.status, totalUSD: result.totalUSD, title: result.snapshot?.issue.title ?? "" });

@@ -60,21 +60,43 @@ export const isForbiddenPath = (p: string) => p.startsWith("/") || p.includes(".
  * The files an agent may change: Python for CodePolish, docs for DocPolish, never config or CI.
  * With `existing` (the repo's paths), DocPolish may only edit docs the repo already has.
  */
-export function ownedFiles<T>(lane: "code" | "doc", files: Record<string, T>, existing?: ReadonlySet<string>): Record<string, T> {
+/** Files in the repo whose contents weren't loaded for this run. */
+export const unloadedFiles = (snapshot: RepoSnapshot): ReadonlySet<string> =>
+  new Set(snapshot.tree.filter((p) => !(p in snapshot.files)));
+
+/**
+ * `unloaded`: files that exist in the repo but whose contents the agents never saw
+ * (too large, or not picked). Files are written whole, so writing one would replace it.
+ */
+export function ownedFiles<T>(
+  lane: "code" | "doc",
+  files: Record<string, T>,
+  existing?: ReadonlySet<string>,
+  unloaded?: ReadonlySet<string>
+): Record<string, T> {
   const owns = (p: string) =>
-    !isForbiddenPath(p) && (lane === "code" ? /\.pyi?$/.test(p) : isDocPath(p) && (!existing || existing.has(p)));
+    !isForbiddenPath(p) &&
+    !unloaded?.has(p) &&
+    (lane === "code" ? /\.pyi?$/.test(p) : isDocPath(p) && (!existing || existing.has(p)));
   return Object.fromEntries(Object.entries(files).filter(([p]) => owns(p)));
 }
 
 /** One note per file a revision touched but may not change, so the agent learns its edit was thrown away. */
-export function discardNotes(lane: "code" | "doc", files: Record<string, unknown>, existing?: ReadonlySet<string>): string[] {
-  const owned = ownedFiles(lane, files, existing);
+export function discardNotes(
+  lane: "code" | "doc",
+  files: Record<string, unknown>,
+  existing?: ReadonlySet<string>,
+  unloaded?: ReadonlySet<string>
+): string[] {
+  const owned = ownedFiles(lane, files, existing, unloaded);
   const rule = (p: string) =>
-    lane === "code"
-      ? "CodePolish may only change Python files (docs belong to DocPolish)"
-      : isDocPath(p)
-        ? "DocPolish may only edit docs that already exist in the repo"
-        : "DocPolish may only change README/CHANGELOG-style docs";
+    unloaded?.has(p)
+      ? "it exists in the repo but wasn't loaded (too large or not picked), so writing it would replace the whole file"
+      : lane === "code"
+        ? "CodePolish may only change Python files (docs belong to DocPolish)"
+        : isDocPath(p)
+          ? "DocPolish may only edit docs that already exist in the repo"
+          : "DocPolish may only change README/CHANGELOG-style docs";
   return Object.keys(files)
     .filter((p) => !(p in owned))
     .map((p) => `Discarded ${p}: ${rule(p)}`);
