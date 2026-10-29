@@ -44,7 +44,9 @@ export function readJsonBody(req: IncomingMessage, maxBytes: number): Promise<un
   });
 }
 
-const MIN_STUDIO_TIMEOUT_MS = 120_000;
+// Muse Spark reasons before answering; a first draft written from several large
+// context files took over 2 minutes (pyparsing#693). A ceiling, not a wait.
+const MIN_STUDIO_TIMEOUT_MS = 300_000;
 
 export const isSimulated = () => process.env.THEPOLISHER_SIMULATE === "1";
 

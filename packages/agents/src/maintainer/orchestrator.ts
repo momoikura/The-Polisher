@@ -9,6 +9,7 @@
 
 import { CostTracker, DEFAULT_RUN_CONFIG, LoopController, type ArtifactMode, type LoopEvent, type TestCheck } from "@thepolisher/core";
 import { completeStructured, StructuredOutputError, type ChatClient } from "../llm/chat-client.js";
+import { ModelTimeoutError } from "../llm/meta-client.js";
 import { LaneArtifactStore, LaneRunStore } from "../loop/stores.js";
 import { buildExperience, formatLessons, recallLessons, type CheckSnapshot, type Experience, type ExperienceStore } from "../memory/experience.js";
 import { LANES, type LaneId } from "../lanes.js";
@@ -132,6 +133,17 @@ export function tooLargeToFix(wanted: readonly string[], sizes: Record<string, n
   if (big.length === 0) return null;
   const listed = big.map((p) => `${p} (${Math.round(sizes[p] / 1024)} KB)`).join(", ");
   return `ThePolisher can't fix this issue yet: the code to change is in ${listed}, and it can only edit Python files up to ${MAX_FILE_BYTES / 1000} KB. The run stopped after planning, before writing any drafts.`;
+}
+
+/** Why no first draft could be written, in words a user can act on. */
+export function draftFailure(reasons: readonly unknown[]): Error {
+  if (reasons.length > 0 && reasons.every((r) => r instanceof ModelTimeoutError)) {
+    return new Error(
+      `The model didn't finish any first draft in time (${(reasons[0] as ModelTimeoutError).message.toLowerCase()}). The issue may need a lot of code context; try again, or pick an issue in a smaller part of the codebase.`
+    );
+  }
+  const first = reasons[0];
+  return first instanceof Error ? first : new Error(String(first));
 }
 
 /** Keep only what each lane may own; anything else the baseline produced is dropped. */
@@ -306,7 +318,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
       Array.from({ length: count }, () => setupCall(options.client, buildBaselineMessages(snap), BaselineSchema, { temperature: 0.7 }))
     );
     const written = drafts.flatMap((d) => (d.status === "fulfilled" ? [d.value] : []));
-    if (written.length === 0) throw (drafts[0] as PromiseRejectedResult).reason;
+    if (written.length === 0) throw draftFailure(drafts.map((d) => (d as PromiseRejectedResult).reason));
     for (const r of written) chargeSetup(r, "baseline");
     const bundles = written.map((r) => sanitizeBaseline(r.data, snap));
     baseline = bundles[0];

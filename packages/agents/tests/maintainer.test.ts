@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { runMaintainer, tooLargeToFix, verdict } from "../src/maintainer/orchestrator.js";
+import { draftFailure, runMaintainer, tooLargeToFix, verdict } from "../src/maintainer/orchestrator.js";
 import { DEMO_SNAPSHOT, createSimulatedMaintainerClient, createSimulatedSandbox } from "../src/maintainer/simulated.js";
 import { GitHubClient, parseIssueUrl } from "../src/maintainer/github.js";
 import { codeStaticChecks, docChecks, prChecks, uxChecks } from "../src/maintainer/checks.js";
@@ -731,5 +731,20 @@ describe("prompts with a large file", () => {
     expect(text).toContain("x_1500 = 0");
     expect(text).not.toContain("x_900 = 900");
     expect(text.length).toBeLessThan(original.length);
+  });
+});
+
+describe("draftFailure", () => {
+  it("explains a run where every first draft timed out", () => {
+    const err = draftFailure([new ModelTimeoutError(300_000), new ModelTimeoutError(300_000)]);
+
+    expect(err.message).toMatch(/didn't finish any first draft in time/);
+    expect(err.message).toMatch(/try again/);
+  });
+
+  it("passes any other failure through unchanged", () => {
+    const boom = new Error("boom");
+
+    expect(draftFailure([boom, new ModelTimeoutError(1)])).toBe(boom);
   });
 });
