@@ -139,7 +139,8 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
 
     const source = isSimulated()
       ? ({ kind: "snapshot", snapshot: DEMO_SNAPSHOT } as const)
-      : ({ kind: "github", issueUrl: parsed.data.issueUrl, github: githubClient() } as const);
+      : // Read with the user's own token: each person gets GitHub's full rate limit instead of sharing one.
+        ({ kind: "github", issueUrl: parsed.data.issueUrl, github: user ? new GitHubClient({ token: user.token }) : githubClient() } as const);
     const provider = activeProvider();
     // Shared memory only learns from this run if the sandbox verifies its result.
     const memory = new VerifiedMemory(sharedMemory(provider));

@@ -1,0 +1,15 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ThePolisherWebOnModal",
+      "Effect": "Allow",
+      "Principal": { "Federated": "arn:aws:iam::<ACCOUNT_ID>:oidc-provider/oidc.modal.com" },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": { "oidc.modal.com:aud": "oidc.modal.com" },
+        "StringLike": { "oidc.modal.com:sub": "modal:workspace_id:<WORKSPACE_ID>:environment_name:main:app_name:thepolisher-web:*" }
+      }
+    }
+  ]
+}

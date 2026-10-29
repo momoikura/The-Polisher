@@ -36,3 +36,7 @@ coverage/
 # Python
 __pycache__/
 *.pyc
+
+# Production server bundle
+dist-server/
+.wrangler/
