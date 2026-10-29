@@ -126,6 +126,25 @@ describe("PR checks (WritePolish)", () => {
     expect(honest.problemCount).toBe(2);
   });
 
+  describe("issue link", () => {
+    const proven = { ...v(3), failToPass: { ran: true, newTests: ["t"], failedOnBase: true, passedAfter: true } } as Validation;
+    const pr = (link: string) => `# Drop punctuation in slugify\n\n## Summary\n${link}\n\n## Changes\n- ${SRC}\n\n## Testing\nx`;
+    const linkCheck = (text: string, validation: Validation) => prChecks(pr(text), bundle, DEMO_SNAPSHOT, validation).find((c) => c.testType === "pr_links_issue")!;
+
+    it("requires a closing keyword once the new tests prove the fix", () => {
+      expect(linkCheck("Fixes #7", proven).passed).toBe(true);
+      expect(linkCheck("Refs #7", proven).passed).toBe(false);
+    });
+
+    it("requires a non-closing reference while the fix isn't proven, so merging can't close an unfixed issue", () => {
+      expect(linkCheck("Refs #7", v(3)).passed).toBe(true);
+      expect(linkCheck("Related to #7", v(3)).passed).toBe(true);
+      const closing = linkCheck("Fixes #7", v(3));
+      expect(closing.passed).toBe(false);
+      expect(closing.message).toMatch(/Refs #7/);
+    });
+  });
+
   it("require the issue link and every changed file", () => {
     const pr = "# Drop punctuation in slugify\n\n## Summary\nx\n## Changes\nx\n## Testing\nx";
     expect(failing(prChecks(pr, bundle, DEMO_SNAPSHOT, v(3)))).toEqual(expect.arrayContaining(["pr_links_issue", "pr_files_listed"]));

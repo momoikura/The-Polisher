@@ -10,7 +10,7 @@ import { diffFile, splitPr, type FileMap, type PrBundle, type RepoSnapshot, base
 import { EXCERPT_CHARS, FileEditSchema, MAX_FILE_CHARS, changedLineNumbers, excerpt, isLarge } from "./large-files.js";
 import type { Validation } from "./sandbox.js";
 
-export const MAINTAINER_PROMPT_VERSION = "maintainer-v5";
+export const MAINTAINER_PROMPT_VERSION = "maintainer-v6";
 
 const MAX_TREE_PATHS = 1500;
 export { MAX_FILE_CHARS };
@@ -147,8 +147,8 @@ const ROLES: Record<MaintainerLane, { name: string; job: string; focus: string; 
   write: {
     name: "WritePolish",
     job: "the pull request title and description",
-    focus: "vague titles, missing 'Fixes #N', sections that pad instead of inform, claims the sandbox results don't support, changed files not mentioned, hype",
-    rules: `First line "# <title>" (imperative, 10-72 chars, no trailing period). Then "## Summary" (the problem and the fix, linking "Fixes #N"), "## Changes" (each changed file and why), "## Testing" (what the sandbox actually ran and its real results; never claim more). ${NO_SLOP}\n${COPY_RULEBOOK}`,
+    focus: "vague titles, a wrong issue link ('Fixes #N' only when the sandbox proves the fix, otherwise 'Refs #N'), sections that pad instead of inform, claims the sandbox results don't support, changed files not mentioned, hype",
+    rules: `First line "# <title>" (imperative, 10-72 chars, no trailing period). Then "## Summary" (the problem and the fix, linking "Fixes #N" if the sandbox shows the new tests prove the fix, otherwise "Refs #N", since "Fixes" closes the issue on merge), "## Changes" (each changed file and why), "## Testing" (what the sandbox actually ran and its real results; never claim more). ${NO_SLOP}\n${COPY_RULEBOOK}`,
   },
 };
 

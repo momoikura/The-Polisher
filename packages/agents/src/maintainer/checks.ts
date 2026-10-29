@@ -6,7 +6,7 @@
 import { computeLineDiff, type TestCheck } from "@thepolisher/core";
 import { check, emojiCheck, findEmoji, findSlopPhrases, slopPhraseCheck } from "../slop/shared.js";
 import { baseContent, isChangelogPath, isForbiddenPath, isTestPath, mentionsFile, splitPr, type FileMap, type PrBundle, type RepoSnapshot } from "./bundle.js";
-import type { Validation } from "./sandbox.js";
+import { summarizeValidation, type Validation } from "./sandbox.js";
 
 const MAX_ADDED_LINES = 600;
 
@@ -161,7 +161,21 @@ export function prChecks(pr: string, bundle: PrBundle, snapshot: RepoSnapshot, v
     if (!headings.some((h) => re.test(h))) structure.push(`missing a "${label}" section`);
   }
 
-  const linksIssue = new RegExp(`\\b(fixes|closes|resolves)\\s+#${snapshot.issue.number}\\b`, "i").test(body);
+  // "Fixes #N" closes the issue on merge, so it's only right once the new tests prove the fix;
+  // until then the PR must point at the issue without closing it.
+  const n = snapshot.issue.number;
+  const closes = new RegExp(`\\b(fixes|closes|resolves)\\s+#${n}\\b`, "i").test(body);
+  const refers = new RegExp(`\\b(refs|references|related to|part of|see)\\s+#${n}\\b`, "i").test(body);
+  const provesFix = Boolean(summarizeValidation(validation)?.provesFix);
+  const linkProblems = provesFix
+    ? closes
+      ? []
+      : [`does not say "Fixes #${n}"`]
+    : closes
+      ? [`says it closes #${n}, but the sandbox hasn't shown the new tests prove the fix; say "Refs #${n}" until it does`]
+      : refers
+        ? []
+        : [`does not say "Refs #${n}" (use "Fixes #${n}" once the new tests prove the fix)`];
 
   const changedPaths = Object.entries({ ...bundle.code, ...bundle.docs })
     .filter(([p, c]) => c !== baseContent(snapshot, p))
@@ -177,7 +191,7 @@ export function prChecks(pr: string, bundle: PrBundle, snapshot: RepoSnapshot, v
 
   return [
     check("pr_structure", structure, "Clear title with summary, changes and testing sections."),
-    check("pr_links_issue", linksIssue ? [] : [`does not say "Fixes #${snapshot.issue.number}"`], "Links the issue it fixes."),
+    check("pr_links_issue", linkProblems, "Links the issue: closes it only when the tests prove the fix."),
     check("pr_files_listed", unlisted.map((p) => `${p} changed but isn't mentioned`), "Mentions every changed file."),
     check("pr_honest_claims", honesty, "Claims about testing match the sandbox results."),
     slopPhraseCheck(`${title}\n${body}`),

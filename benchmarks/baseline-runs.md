@@ -462,3 +462,30 @@ is not counted. With large-file support, `more.py` is shown as an excerpt around
   to load, so new tests go in a new file).
 - Run directly through `runMaintainer` (not the web app). No PR opened: two
   earlier fix attempts upstream were closed by the maintainers.
+
+## Run 10: pyparsing/pyparsing#693 (2026-10-29)
+
+[pyparsing/pyparsing#693](https://github.com/pyparsing/pyparsing/issues/693):
+`.ignore()` is ignored in 3.3.3 (`nested_expr` with a comment expression).
+Model: **muse-spark-1.3-contributor**. Run directly through `runMaintainer`,
+budget $1.
+
+The same issue first failed on the live site: all three first drafts hit the
+120 s model limit (several large context files; Muse Spark reasons first). With
+a 300 s limit this run got one of three drafts through (the other two timed out),
+so no candidates were compared.
+
+- Status: **not clean**. Cost $0.065. Wall time about 34 min.
+- The new test never proved the fix (`fail_to_pass` failed to the end). CodePolish
+  wrapped `nested_expr`'s result in a `Forward` subclass whose `ignore()` walks the
+  inner expressions: a workaround in `helpers.py`, not the root cause. The
+  regression is likely in `core.py` (255 KB), over the 200 KB limit, so no agent
+  could read it.
+- One CodePolish round timed out at 300 s; it counted as a lost round and the run
+  went on (before today's fix it would have ended the lane).
+- WritePolish kept trying to write "Refs #693" because the fix wasn't proven, and
+  the `pr_links_issue` check rejected it for not saying "Fixes #693". Fixed after
+  this run: "Fixes #N" is required only when the new tests prove the fix, and is
+  flagged otherwise, since it would close the issue on merge.
+- DocPolish removed its own changelog entry when the sandbox showed the fix
+  didn't work.
