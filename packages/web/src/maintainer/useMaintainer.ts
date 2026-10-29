@@ -12,6 +12,9 @@ export interface MaintainerConfig {
   hasGitHubToken: boolean;
   demoIssueUrl: string | null;
   activeRunId: string | null;
+  isAuthEnabled: boolean;
+  /** Runs must bring the user's own Meta key (public deployments). */
+  requiresUserKey: boolean;
 }
 
 export type PrState = { kind: "idle" } | { kind: "opening" } | { kind: "opened"; url: string } | { kind: "error"; message: string };
@@ -72,14 +75,15 @@ export function useMaintainer() {
   }, [attach]);
 
   const start = useCallback(
-    async (issueUrl: string, budgetUSD: number) => {
+    async (issueUrl: string, budgetUSD: number, metaApiKey?: string) => {
       setIsStarting(true);
       setStartError(null);
       try {
         const res = await fetch("/api/maintainer", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ issueUrl, budgetUSD }),
+          // The key goes with this one request only; nothing in the browser keeps it.
+          body: JSON.stringify({ issueUrl, budgetUSD, ...(metaApiKey ? { metaApiKey } : {}) }),
         });
         const data = (await res.json()) as { id?: string; error?: string };
         if (!res.ok || !data.id) {

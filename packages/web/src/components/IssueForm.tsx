@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import type { AuthUser } from "../maintainer/useAuth.js";
 import type { MaintainerConfig } from "../maintainer/useMaintainer.js";
 import { LANE_IDS } from "../maintainer/reducer.js";
 import { LANE_META } from "../maintainer/lanes.js";
@@ -17,21 +18,28 @@ const STEPS = [
 
 type Props = {
   config: MaintainerConfig | null;
+  /** Signed-in user, or null; only consulted when the server has sign-in enabled. */
+  user: AuthUser | null;
   isStarting: boolean;
   error: string | null;
-  onStart: (issueUrl: string, budgetUSD: number) => void;
+  onStart: (issueUrl: string, budgetUSD: number, metaApiKey?: string) => void;
 };
 
-export function IssueForm({ config, isStarting, error, onStart }: Props) {
+export function IssueForm({ config, user, isStarting, error, onStart }: Props) {
   const [issueUrl, setIssueUrl] = useState("");
   const [budget, setBudget] = useState(3);
+  // Held only in this component for one submit; never written to localStorage or cookies.
+  const [metaKey, setMetaKey] = useState("");
   const trimmed = issueUrl.trim();
   const isValid = ISSUE_URL.test(trimmed);
   const showInvalid = trimmed.length > 0 && !isValid;
+  const needsSignIn = Boolean(config?.isAuthEnabled) && !user;
+  const showKeyField = Boolean(config?.isAuthEnabled) && !config?.isSimulated;
+  const isKeyMissing = Boolean(config?.requiresUserKey) && metaKey.trim().length === 0;
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (isValid) onStart(trimmed, budget);
+    if (isValid && !isKeyMissing) onStart(trimmed, budget, metaKey.trim() || undefined);
   };
 
   return (
@@ -83,6 +91,28 @@ export function IssueForm({ config, isStarting, error, onStart }: Props) {
               )}
             </div>
 
+            {showKeyField && (
+              <div className="field">
+                <label htmlFor="meta-key" className="field-label">
+                  Your Meta Model API key{config?.requiresUserKey ? "" : " (optional)"}
+                </label>
+                <input
+                  id="meta-key"
+                  className="input"
+                  type="password"
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={metaKey}
+                  onChange={(e) => setMetaKey(e.target.value)}
+                  placeholder="From dev.meta.ai → API keys"
+                  aria-describedby="meta-key-help"
+                />
+                <p id="meta-key-help" className="field-help">
+                  Used for this run only and never stored. Runs are billed to your Meta account.
+                </p>
+              </div>
+            )}
+
             <fieldset className="field">
               <legend className="field-label">Budget cap</legend>
               <div className="segmented" role="radiogroup" aria-label="Budget cap">
@@ -127,15 +157,22 @@ export function IssueForm({ config, isStarting, error, onStart }: Props) {
             )}
           </div>
           <div className="box-footer">
-            <Button
-              type="submit"
-              isLoading={isStarting}
-              loadingLabel="Starting…"
-              disabled={!isValid || (config !== null && !config.isConfigured)}
-              trailingIcon={<Icon name="arrowRight" size={16} />}
-            >
-              Fix this issue
-            </Button>
+            {needsSignIn ? (
+              <a className="btn btn-primary btn-md" href="/api/auth/login">
+                <Icon name="github" size={16} />
+                <span>Sign in with GitHub to fix this issue</span>
+              </a>
+            ) : (
+              <Button
+                type="submit"
+                isLoading={isStarting}
+                loadingLabel="Starting…"
+                disabled={!isValid || isKeyMissing || (config !== null && !config.isConfigured && !metaKey.trim())}
+                trailingIcon={<Icon name="arrowRight" size={16} />}
+              >
+                Fix this issue
+              </Button>
+            )}
           </div>
         </form>
 

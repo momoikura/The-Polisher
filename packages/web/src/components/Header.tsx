@@ -1,3 +1,4 @@
+import type { AuthState } from "../maintainer/useAuth.js";
 import type { MaintainerConfig } from "../maintainer/useMaintainer.js";
 import { modelLabel } from "../maintainer/model-label.js";
 import { Icon } from "./Icon.js";
@@ -10,9 +11,9 @@ const PAGES: Array<{ id: Page; label: string }> = [
   { id: "memory", label: "Memory" },
 ];
 
-type Props = { config: MaintainerConfig | null; repo: string | null; page: Page; onNavigate: (page: Page) => void };
+type Props = { config: MaintainerConfig | null; auth: AuthState; repo: string | null; page: Page; onNavigate: (page: Page) => void };
 
-export function Header({ config, repo, page, onNavigate }: Props) {
+export function Header({ config, auth, repo, page, onNavigate }: Props) {
   const modelText = modelLabel(config);
 
   return (
@@ -44,6 +45,22 @@ export function Header({ config, repo, page, onNavigate }: Props) {
             <Icon name="brain" size={14} />
             <span className="pill-text">{modelText}</span>
           </span>
+          {auth.isEnabled &&
+            !auth.isLoading &&
+            (auth.user ? (
+              <span className="account">
+                <img className="account-avatar" src={auth.user.avatarUrl} alt="" width={24} height={24} />
+                <span className="account-login">{auth.user.login}</span>
+                <button type="button" className="account-signout" onClick={() => void auth.signOut()}>
+                  Sign out
+                </button>
+              </span>
+            ) : (
+              <a className="account-signin" href="/api/auth/login">
+                <Icon name="github" size={14} />
+                <span>Sign in</span>
+              </a>
+            ))}
         </div>
       </div>
 

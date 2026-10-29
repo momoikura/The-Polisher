@@ -7,10 +7,12 @@ import { MergeBox } from "./components/MergeBox.js";
 import { RunsPage } from "./components/RunsPage.js";
 import { RunView } from "./components/RunView.js";
 import { modelLabel } from "./maintainer/model-label.js";
+import { useAuth } from "./maintainer/useAuth.js";
 import { useMaintainer } from "./maintainer/useMaintainer.js";
 
 export default function App() {
   const { view, config, runId, start, reset, startError, isStarting, isConnectionLost, pr, openPr } = useMaintainer();
+  const auth = useAuth();
   const [page, setPage] = useState<Page>("maintainer");
   const isSimulated = config?.isSimulated ?? false;
 
@@ -19,9 +21,15 @@ export default function App() {
       <a href="#main" className="skip-link">
         Skip to content
       </a>
-      <Header config={config} repo={page === "maintainer" ? (view.context?.repo ?? null) : null} page={page} onNavigate={setPage} />
+      <Header config={config} auth={auth} repo={page === "maintainer" ? (view.context?.repo ?? null) : null} page={page} onNavigate={setPage} />
 
       <main id="main" className="container">
+        {auth.error && (
+          <p className="flash flash-strong" role="alert">
+            <Icon name="timesCircle" size={16} />
+            <span>{auth.error}</span>
+          </p>
+        )}
         {page === "memory" ? (
           <div className="memory-page">
             <div className="new-head">
@@ -36,7 +44,13 @@ export default function App() {
         ) : page === "runs" ? (
           <RunsPage />
         ) : !runId ? (
-          <IssueForm config={config} isStarting={isStarting} error={startError} onStart={(url, budget) => void start(url, budget)} />
+          <IssueForm
+            config={config}
+            user={auth.user}
+            isStarting={isStarting}
+            error={startError}
+            onStart={(url, budget, key) => void start(url, budget, key)}
+          />
         ) : (
           <RunView
             view={view}
