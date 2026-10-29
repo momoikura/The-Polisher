@@ -11,6 +11,14 @@ Safety model:
   network limited to GitHub (source download) and PyPI (dependencies).
 - Only public repos are supported (the sandbox downloads without credentials).
 
+Dependency cache: installing a repo's dependencies is the slowest step, so the
+result is cached per repo commit in the Volume "thepolisher-sandbox-deps". The
+environment is packed right after installing from the ORIGINAL code, before any
+patch or test runs, and this trusted function (not the sandbox) copies it out
+and into the Volume. Sandboxes never mount the Volume; a later sandbox for the
+same commit gets a copy unpacked into it. So agent-written code and tests can't
+reach the cache another run will use.
+
 Setup (once):
     pip install modal
     modal setup
@@ -37,6 +45,14 @@ MAX_FILES = 40
 MAX_FILE_CHARS = 200_000
 TAIL_CHARS = 2_000
 LINT_RULES = "E9,F63,F7,F82,F401,F811,F841"
+# The repo's dependencies go into this venv; it sees the image's pytest/ruff/bandit.
+VENV = "/opt/venv"
+CACHE_DIR = "/cache"
+# Bump when the image or the install steps change in a way old caches don't reflect.
+CACHE_VERSION = "1"
+MAX_CACHE_BYTES = 400_000_000
+MAX_CACHE_ENTRIES = 60
+PACKED = "/tmp/deps.tar.gz"
 REQUIREMENT_FILES = ["requirements.txt", "requirements-dev.txt", "requirements_dev.txt", "dev-requirements.txt", "test-requirements.txt", "requirements-test.txt"]
 
 # Runs inside the sandbox. Installs the project and whatever its tests need, and exits non-zero
@@ -85,6 +101,8 @@ sys.exit(0 if ok else 1)
 
 app = modal.App(APP_NAME)
 
+deps_volume = modal.Volume.from_name("thepolisher-sandbox-deps", create_if_missing=True)
+
 web_image = modal.Image.debian_slim(python_version="3.12").pip_install("fastapi[standard]")
 
 sandbox_image = (
@@ -102,7 +120,8 @@ def tail(text: str) -> str:
 
 def run(sb: "modal.Sandbox", cmd: str, timeout: int = 120) -> tuple[int, str, str]:
     try:
-        p = sb.exec("bash", "-lc", cmd, timeout=timeout, workdir=REPO_DIR)
+        # The venv first, so `python` is the one with the repo's dependencies.
+        p = sb.exec("bash", "-lc", f"export PATH={VENV}/bin:$PATH; {cmd}", timeout=timeout, workdir=REPO_DIR)
         p.wait()
         return p.returncode, p.stdout.read(), p.stderr.read()
     except Exception as exc:  # exec timeout or sandbox failure: report, don't crash the endpoint
@@ -121,6 +140,83 @@ def read_file(sb: "modal.Sandbox", path: str) -> str | None:
         return sb.filesystem.read_text(f"{REPO_DIR}/{path}")
     except Exception:
         return None
+
+
+# ─── Dependency cache ─────────────────────────────────────────────────────
+
+
+def cache_path(repo: str, sha: str) -> str:
+    """Volume path for a repo commit's installed dependencies (a hash, so no path tricks)."""
+    import hashlib
+
+    key = hashlib.sha256(f"{CACHE_VERSION}|{repo}|{sha}|{INSTALL_SCRIPT}".encode()).hexdigest()
+    return f"{CACHE_DIR}/{key}.tar.gz"
+
+
+def restore_deps(sb: "modal.Sandbox", path: str) -> bool:
+    """Unpack a cached environment into the sandbox. False on a miss or any problem."""
+    try:
+        deps_volume.reload()  # see what other containers saved
+    except Exception:
+        pass
+    if not os.path.exists(path):
+        return False
+    try:
+        sb.filesystem.copy_from_local(path, PACKED)
+    except Exception:
+        return False
+    code, _, _ = run(sb, f"tar xzf {PACKED} -C / && rm -f {PACKED}", timeout=180)
+    return code == 0
+
+
+def install_deps(sb: "modal.Sandbox") -> tuple[bool, str]:
+    """Fresh install into the venv. Notes which files the install creates in the repo
+    (e.g. a generated _version.py), so a cached copy can bring them back too."""
+    run(sb, "find . -type f | sort > /tmp/files_before.txt")
+    run(sb, f"python -m venv --system-site-packages {VENV}")
+    # A new venv's pip is the one bundled with Python; dependency groups need pip >= 25.1.
+    run(sb, 'python -m pip install -q --upgrade "pip>=25.1"', timeout=INSTALL_TIMEOUT_S)
+    sb.filesystem.write_text(INSTALL_SCRIPT, "/tmp/install_deps.py")
+    code, out, err = run(sb, "python /tmp/install_deps.py", timeout=INSTALL_TIMEOUT_S)
+    return code == 0, out + err
+
+
+def save_deps(sb: "modal.Sandbox", path: str) -> None:
+    """Pack the venv plus files the install created in the repo, and store them in the
+    Volume. Runs before any patch or test touches the sandbox. Best effort: a failure
+    here only means the next run installs again."""
+    try:
+        code, _, _ = run(
+            sb,
+            "find . -type f | sort > /tmp/files_after.txt; "
+            "comm -13 /tmp/files_before.txt /tmp/files_after.txt | sed 's|^\\./|repo/|' > /tmp/created.txt; "
+            f"tar czf {PACKED} -C / {VENV.lstrip('/')} -T /tmp/created.txt",
+            timeout=180,
+        )
+        if code != 0:
+            return
+        size, _, _ = run(sb, f"test $(stat -c %s {PACKED}) -le {MAX_CACHE_BYTES}")
+        if size != 0:
+            return
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        tmp = f"{path}.partial"
+        sb.filesystem.copy_to_local(PACKED, tmp)
+        os.replace(tmp, path)  # another container may save the same commit; last one wins
+        prune_cache()
+        deps_volume.commit()
+    except Exception:
+        pass
+
+
+def prune_cache() -> None:
+    """Keep the newest MAX_CACHE_ENTRIES environments."""
+    entries = sorted(
+        (e for e in os.scandir(CACHE_DIR) if e.name.endswith(".tar.gz")),
+        key=lambda e: e.stat().st_mtime,
+        reverse=True,
+    )
+    for e in entries[MAX_CACHE_ENTRIES:]:
+        os.remove(e.path)
 
 
 TEST_PATH = re.compile(r"(^|/)(tests?/|test_[^/]*\.py$|[^/]*_test\.py$|conftest\.py$)")
@@ -257,9 +353,16 @@ def validate_patch(repo: str, sha: str, changes: dict[str, str], new_tests: list
         if code != 0:
             raise RuntimeError(f"could not download {repo}@{sha}: {tail(err)}")
 
-        sb.filesystem.write_text(INSTALL_SCRIPT, "/tmp/install_deps.py")
-        icode, iout, ierr = run(sb, "python /tmp/install_deps.py", timeout=INSTALL_TIMEOUT_S)
-        install_ok = icode == 0
+        # Dependencies: from the cache when this commit was installed before, else installed and
+        # cached now, while the repo is still the original code (no patch, no tests run yet).
+        cached = cache_path(repo, sha)
+        from_cache = restore_deps(sb, cached)
+        if from_cache:
+            install_ok, install_log = True, "Dependencies restored from the cache for this commit."
+        else:
+            install_ok, install_log = install_deps(sb)
+            if install_ok:
+                save_deps(sb, cached)
 
         # Fail-to-pass, part 1: only the new/changed tests on the ORIGINAL code.
         fail_to_pass = None
@@ -360,7 +463,7 @@ def validate_patch(repo: str, sha: str, changes: dict[str, str], new_tests: list
             tests_result = {"ran": False, "total": 0, "passed": 0, "failed": 0, "errors": 0, "skipped": 0, "failures": [], "outputTail": tail(tout + terr)}
 
         return {
-            "install": {"ok": install_ok, "logTail": tail(iout + ierr)},
+            "install": {"ok": install_ok, "logTail": tail(install_log), "cached": from_cache},
             "compile": {"ok": not compile_errors, "errors": compile_errors},
             "lint": {"issues": lint[:30]},
             "tests": tests_result,
@@ -372,7 +475,13 @@ def validate_patch(repo: str, sha: str, changes: dict[str, str], new_tests: list
         sb.terminate()
 
 
-@app.function(image=web_image, secrets=[modal.Secret.from_name("thepolisher-sandbox")], timeout=900, max_containers=4)
+@app.function(
+    image=web_image,
+    secrets=[modal.Secret.from_name("thepolisher-sandbox")],
+    volumes={CACHE_DIR: deps_volume},
+    timeout=900,
+    max_containers=4,
+)
 @modal.asgi_app()
 def web():
     # Imported here so `modal deploy` works without FastAPI installed locally.
