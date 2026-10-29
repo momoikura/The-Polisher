@@ -3,6 +3,7 @@
  * current text color, with no SVG markup injected into the page.
  */
 
+import angleDown from "line-awesome/svg/angle-down-solid.svg?url";
 import arrowRight from "line-awesome/svg/arrow-right-solid.svg?url";
 import book from "line-awesome/svg/book-open-solid.svg?url";
 import brain from "line-awesome/svg/brain-solid.svg?url";
@@ -30,6 +31,7 @@ import times from "line-awesome/svg/times-solid.svg?url";
 import timesCircle from "line-awesome/svg/times-circle.svg?url";
 
 const ICONS = {
+  angleDown,
   arrowRight,
   book,
   brain,

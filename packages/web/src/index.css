@@ -1419,6 +1419,12 @@ a {
   margin-top: var(--s-1);
 }
 
+/* Only phones collapse a reviewer to one row (see the max-width: 640px block). */
+.agent-chip,
+.agent-toggle {
+  display: none;
+}
+
 /* ---------- Files changed ---------- */
 
 .files {
@@ -1825,19 +1831,75 @@ a {
     padding: 4px;
   }
 
+  /* One reviewer per row: name, status and score; tap the row for everything else. */
   .pr-sidebar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: var(--s-3);
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .agent {
-    padding: var(--s-3) 0;
+    position: relative;
+    padding: var(--s-2) 0;
   }
 
-  .agent-stats,
-  .agent-failing,
-  .agent-foot {
+  .agent-head {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+  }
+
+  .agent-chip {
+    display: inline-flex;
+    grid-column: 3;
+    grid-row: 1 / span 2;
+    align-items: baseline;
+    font-size: var(--text-sm);
+    font-weight: 500;
+  }
+
+  .agent-toggle {
+    display: inline-flex;
+    grid-column: 4;
+    grid-row: 1 / span 2;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--fg-muted);
+    cursor: pointer;
+  }
+
+  /* The whole row is the tap target. */
+  .agent-toggle::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius);
+  }
+
+  .agent-toggle:focus-visible {
+    outline: none;
+  }
+
+  .agent-toggle:focus-visible::after {
+    outline: 2px solid var(--focus);
+    outline-offset: -2px;
+  }
+
+  .agent-toggle .icon {
+    transition: transform var(--fast) var(--ease);
+  }
+
+  .agent.is-open .agent-toggle .icon {
+    transform: rotate(180deg);
+  }
+
+  .agent:not(.is-open) .agent-body {
     display: none;
+  }
+
+  .agent-body {
+    padding-bottom: var(--s-2);
   }
 
   .pr-title-row {
