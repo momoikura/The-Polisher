@@ -23,7 +23,7 @@ import {
 import { currentUser, isAuthEnabled, isSameOrigin, rememberMetaKey, savedMetaKey } from "./auth/auth-api.js";
 import { checkRunLimits, freeRunsFromEnv, runLimitsFromEnv } from "./auth/limits.js";
 import { finishedRecord, saveQuietly, startedRecord } from "./history.js";
-import { VerifiedMemory, freeRunStore, runStore, sharedMemory, type RunRecord } from "./store/index.js";
+import { VerifiedMemory, freeRunStore, runStore, sharedMemory, type RunRecord, type SavedPullRequest } from "./store/index.js";
 import type { FreeRunClaim } from "./store/free-runs.js";
 import {
   activeProvider,
@@ -230,6 +230,9 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
           const finished = finishedRecord(started, { status: result.status, totalUSD: result.totalUSD, title: result.snapshot?.issue.title ?? "" });
           await saveQuietly("save the finished run", () => runStore().finish(finished, session.events));
         }
+        // Kept so the PR can still be opened after a restart, or later from the run history.
+        const toOpen = pullRequestFrom(result, providerStatus().model);
+        if (toOpen) await saveQuietly("save the pull request", () => runStore().savePullRequest(session.id, toOpen));
         await saveQuietly("share this run's lessons", () => memory.commit(result.status));
         return result;
       },
@@ -267,12 +270,49 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
   return false;
 }
 
+/** What "Open pull request" needs from a finished run, or null if it has nothing to open. */
+export function pullRequestFrom(result: MaintainerResult, model: string): SavedPullRequest | null {
+  const { snapshot, final, status } = result;
+  if (!snapshot || !final || status === "failed") return null;
+  const files = Object.fromEntries(diffBundle(snapshot, final).map((d) => [d.path, final.code[d.path] ?? final.docs[d.path]] as const));
+  if (Object.keys(files).length === 0) return null;
+  return {
+    owner: snapshot.owner,
+    repo: snapshot.repo,
+    defaultBranch: snapshot.defaultBranch,
+    baseSha: snapshot.sha,
+    issueNumber: snapshot.issue.number,
+    status,
+    model,
+    files,
+    pr: final.pr,
+  };
+}
+
 async function openPullRequest(req: IncomingMessage, res: ServerResponse, id: string): Promise<void> {
+  // The live run if this server still has it; otherwise what was saved when it finished,
+  // so a restart (or opening it later from the run history) doesn't lose the PR.
   const session = registry.get(id);
-  if (!session || !session.isDone || !session.result) {
-    sendJson(res, 404, { error: "That run hasn't finished (or the server restarted)." });
+  if (session && !session.isDone) {
+    sendJson(res, 409, { error: "That run hasn't finished yet." });
     return;
   }
+  let owner: string | null = null;
+  let saved: SavedPullRequest | null = null;
+  if (session?.result) {
+    owner = typeof session.meta.owner === "string" ? session.meta.owner : null;
+    saved = pullRequestFrom(session.result, providerStatus().model);
+    if (saved && typeof session.meta.prUrl === "string") saved = { ...saved, prUrl: session.meta.prUrl };
+  } else {
+    const [run, stored] = await Promise.all([runStore().get(id), runStore().getPullRequest(id)]);
+    owner = run?.record.user ?? (run ? LOCAL_OWNER : null);
+    saved = stored;
+  }
+  if (!saved) {
+    sendJson(res, 404, { error: "This run has no pull request to open (it failed, changed nothing, or finished before PRs were saved)." });
+    return;
+  }
+
   // With sign-in on, only the person who started the run can open its PR, as themselves.
   const user = await currentUser(req);
   if (isAuthEnabled()) {
@@ -280,22 +320,17 @@ async function openPullRequest(req: IncomingMessage, res: ServerResponse, id: st
       sendJson(res, 401, { error: "Sign in with GitHub to open a pull request." });
       return;
     }
-    if (session.meta.owner !== user.login) {
+    if (owner !== user.login) {
       sendJson(res, 403, { error: "Only the person who started this run can open its pull request." });
       return;
     }
   }
-  if (typeof session.meta.prUrl === "string") {
-    sendJson(res, 200, { url: session.meta.prUrl, alreadyOpen: true });
+  if (saved.prUrl) {
+    sendJson(res, 200, { url: saved.prUrl, alreadyOpen: true });
     return;
   }
   if (isSimulated()) {
     sendJson(res, 400, { error: "This is the scripted demo repo; there is nothing on GitHub to open a PR against." });
-    return;
-  }
-  const { snapshot, final, status } = session.result;
-  if (!snapshot || !final || status === "failed") {
-    sendJson(res, 400, { error: "This run didn't produce a pull request." });
     return;
   }
   const github = user ? new GitHubClient({ token: user.token }) : githubClient();
@@ -305,31 +340,33 @@ async function openPullRequest(req: IncomingMessage, res: ServerResponse, id: st
   }
 
   try {
-    const repo = await github.getRepo(snapshot.owner, snapshot.repo);
+    const repo = await github.getRepo(saved.owner, saved.repo);
     // Without push access, contribute the way outside contributors do: branch on your fork, PR to the original.
-    const head = repo.canPush ? undefined : await github.forkFor(snapshot.owner, snapshot.repo, repo.defaultBranch);
-    const files = Object.fromEntries(
-      diffBundle(snapshot, final).map((d) => [d.path, final.code[d.path] ?? final.docs[d.path]] as const)
-    );
-    const { title, body } = splitPr(final.pr);
+    const head = repo.canPush ? undefined : await github.forkFor(saved.owner, saved.repo, repo.defaultBranch);
+    const { title, body } = splitPr(saved.pr);
     const opened = await github.createPullRequest({
-      owner: snapshot.owner,
-      repo: snapshot.repo,
+      owner: saved.owner,
+      repo: saved.repo,
       head,
-      baseBranch: snapshot.defaultBranch,
-      baseSha: snapshot.sha,
-      branch: `thepolisher/issue-${snapshot.issue.number}-${id.slice(0, 8)}`,
-      files,
+      baseBranch: saved.defaultBranch,
+      baseSha: saved.baseSha,
+      branch: `thepolisher/issue-${saved.issueNumber}-${id.slice(0, 8)}`,
+      files: saved.files,
       title,
-      body: `${body}\n\n---\n_AI-assisted: opened by [ThePolisher](https://github.com/momoikura/The-Polisher) using ${providerStatus().model} after ${
-        status === "clean"
+      body: `${body}
+
+---
+_AI-assisted: opened by [ThePolisher](https://github.com/momoikura/The-Polisher) using ${saved.model} after ${
+        saved.status === "clean"
           ? "all four agents signed off and the sandbox confirmed the tests"
-          : status === "verified"
+          : saved.status === "verified"
             ? "the sandbox confirmed the tests prove the fix, though not every reviewer signed off on style"
             : "the run stopped before every agent signed off"
       }. A person reviewed it and chose to open it._`,
     });
-    session.meta.prUrl = opened.url;
+    if (session) session.meta.prUrl = opened.url;
+    const withUrl = { ...saved, prUrl: opened.url };
+    await saveQuietly("remember the opened pull request", () => runStore().savePullRequest(id, withUrl));
     sendJson(res, 201, { url: opened.url });
   } catch (err) {
     const status = err instanceof GitHubError && err.status ? err.status : 502;

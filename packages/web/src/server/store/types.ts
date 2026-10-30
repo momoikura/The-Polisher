@@ -18,11 +18,43 @@ export interface RunRecord {
   finishedAt: string | null;
   /** GitHub login of whoever started it; null before sign-in exists. */
   user: string | null;
+  /** "benchmark" for runs imported from benchmarks/ (scripts/import-benchmark-runs.mjs). */
+  source?: "web" | "benchmark";
+  /** Benchmark results; older ones have no timeline, and startedAt is then just the date. */
+  benchmark?: {
+    list: string;
+    provesFix: boolean;
+    baselineProvesFix: boolean | null;
+    tests: string | null;
+    wallSeconds: number;
+    seenBefore: boolean;
+    hasTimeline: boolean;
+  };
 }
 
 export interface SavedRun {
   record: RunRecord;
   events: unknown[];
+}
+
+/**
+ * Everything "Open pull request" needs, saved when a run finishes so the PR can
+ * still be opened after the server restarts. Kept apart from the public run.
+ */
+export interface SavedPullRequest {
+  owner: string;
+  repo: string;
+  defaultBranch: string;
+  baseSha: string;
+  issueNumber: number;
+  status: Exclude<RunStatus, "running" | "failed">;
+  model: string;
+  /** Full new content of every changed file. */
+  files: Record<string, string>;
+  /** "# Title" then the body. */
+  pr: string;
+  /** Set once the PR is opened. */
+  prUrl?: string;
 }
 
 export interface RunStore {
@@ -35,6 +67,15 @@ export interface RunStore {
   list(limit: number): Promise<RunRecord[]>;
   /** How many runs this user has started since `sinceIso`, for the daily limit. */
   countSince(user: string, sinceIso: string): Promise<number>;
+  savePullRequest(id: string, pr: SavedPullRequest): Promise<void>;
+  getPullRequest(id: string): Promise<SavedPullRequest | null>;
+}
+
+/** Split a string into pieces of at most `maxChars`. */
+export function splitString(text: string, maxChars: number): string[] {
+  const pieces: string[] = [];
+  for (let i = 0; i < text.length; i += maxChars) pieces.push(text.slice(i, i + maxChars));
+  return pieces.length ? pieces : [""];
 }
 
 /**

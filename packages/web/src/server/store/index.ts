@@ -15,7 +15,7 @@ import { DynamoMetaKeyStore, MemoryMetaKeyStore, type MetaKeyStore } from "../au
 import { DynamoSessionStore, MemorySessionStore, type SessionStore } from "../auth/sessions.js";
 import type { RunStore } from "./types.js";
 
-export type { RunRecord, RunStatus, RunStore, SavedRun } from "./types.js";
+export type { RunRecord, RunStatus, RunStore, SavedPullRequest, SavedRun } from "./types.js";
 export { VerifiedMemory } from "./verified-memory.js";
 
 let ddb: DynamoDBDocumentClient | null = null;

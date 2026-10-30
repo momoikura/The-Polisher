@@ -9,7 +9,7 @@
 
 import { CostTracker, DEFAULT_RUN_CONFIG, LoopController, type ArtifactMode, type LoopEvent, type TestCheck } from "@thepolisher/core";
 import { completeStructured, StructuredOutputError, type ChatClient } from "../llm/chat-client.js";
-import { ModelTimeoutError } from "../llm/meta-client.js";
+import { ModelServiceError, ModelTimeoutError } from "../llm/meta-client.js";
 import { LaneArtifactStore, LaneRunStore } from "../loop/stores.js";
 import { buildExperience, formatLessons, recallLessons, type CheckSnapshot, type Experience, type ExperienceStore } from "../memory/experience.js";
 import { LANES, type LaneId } from "../lanes.js";
@@ -27,6 +27,7 @@ import {
 } from "./bundle.js";
 import { chooseCandidate } from "./candidates.js";
 import { EFFORT } from "./effort.js";
+import { issueImages, withImages } from "./issue-images.js";
 import { settleWithGrace } from "./settle.js";
 import { codeStaticChecks, docChecks, prChecks, uxChecks } from "./checks.js";
 import type { CandidateSummary, LaneSummary, MaintainerEvent, MaintainerEventInput, MaintainerStatus, SideMetrics } from "./events.js";
@@ -288,6 +289,20 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
   let baseline: PrBundle | null = null;
   let workspace: PrWorkspace | null = null;
   const board = new ValidationBoard();
+  let imagesUsed: string[] = [];
+  /**
+   * A call with the issue's images; if the Meta API refuses them (e.g. it couldn't
+   * fetch one), the same call once more without, and later calls skip them too.
+   */
+  const withImageFallback = async <T>(imgs: readonly string[], call: (imgs: readonly string[]) => Promise<T>): Promise<T> => {
+    try {
+      return await call(imgs);
+    } catch (err) {
+      if (imgs.length === 0 || !(err instanceof ModelServiceError) || (err.statusCode ?? 500) >= 500) throw err;
+      imagesUsed = [];
+      return call([]);
+    }
+  };
 
   try {
     // ── 1. Fetch the issue and repo ────────────────────────────────────────
@@ -305,7 +320,12 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
 
     // ── 2. Plan which files to read ────────────────────────────────────────
     emit({ type: "phase", phase: "planning" });
-    const plan = await setupCall(options.client, buildPlanMessages(snap0), PlanSchema, { temperature: 0, reasoningEffort: EFFORT.plan });
+    // Screenshots in the issue (tracebacks, broken output) go to the planner and the first drafts.
+    const images = issueImages(snap0.issue.body);
+    imagesUsed = images;
+    const plan = await withImageFallback(images, (imgs) =>
+      setupCall(options.client, withImages(buildPlanMessages(snap0), imgs), PlanSchema, { temperature: 0, reasoningEffort: EFFORT.plan })
+    );
     chargeSetup(plan, "planner");
     if (source.kind === "github") {
       const chosen = selectFiles(snap0, sizes, plan.data.files);
@@ -317,7 +337,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     // Large files are shown around these names: the planner's picks plus the ones the issue mentions.
     snapshot = { ...snapshot, focus: [...new Set([...plan.data.symbols, ...issueSymbols(snap0.issue.title, snap0.issue.body)])] };
     const snap = snapshot;
-    emit({ type: "context", repo: `${snap.owner}/${snap.repo}`, sha: snap.sha, issue: { number: snap.issue.number, title: snap.issue.title, url: snap.issue.url }, files: Object.keys(snap.files), approach: plan.data.approach });
+    emit({ type: "context", repo: `${snap.owner}/${snap.repo}`, sha: snap.sha, issue: { number: snap.issue.number, title: snap.issue.title, url: snap.issue.url }, files: Object.keys(snap.files), approach: plan.data.approach, images: imagesUsed.length });
 
     // ── 3. First drafts. The first is the single-prompt baseline kept for the comparison;
     //       with a sandbox, several are drafted in parallel and the tests pick which to polish.
@@ -325,7 +345,9 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     const count = options.sandbox ? Math.max(1, cfg.candidates) : 1;
     // Each draft is charged when it arrives, including one that finishes after the run moved on.
     const calls = Array.from({ length: count }, () =>
-      setupCall(options.client, buildBaselineMessages(snap), BaselineSchema, { temperature: 0.7, reasoningEffort: EFFORT.draft }).then((r) => {
+      withImageFallback(imagesUsed, (imgs) =>
+        setupCall(options.client, withImages(buildBaselineMessages(snap), imgs), BaselineSchema, { temperature: 0.7, reasoningEffort: EFFORT.draft })
+      ).then((r) => {
         chargeSetup(r, "baseline");
         return r;
       })

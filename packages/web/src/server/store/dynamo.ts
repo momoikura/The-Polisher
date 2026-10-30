@@ -4,6 +4,7 @@
  *
  *   RUN#<id>        META           the run's summary
  *   RUN#<id>        EV#0001…       the event timeline, a few large pages
+ *   RUN#<id>        PR#0001…       what "Open pull request" needs, in pages (owner only)
  *   FEED            <start>#<id>   every run, for the public list
  *   USER#<login>    <start>#<id>   a signed-in user's runs, for the daily limit
  *   SESSION#<hash>  META           a signed-in session (see auth/sessions.ts)
@@ -14,7 +15,7 @@
 
 import { BatchWriteCommand, PutCommand, QueryCommand, type DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import type { Experience, ExperienceStore } from "@thepolisher/agents";
-import { splitIntoPages, type RunRecord, type RunStore, type SavedRun } from "./types.js";
+import { splitIntoPages, splitString, type RunRecord, type RunStore, type SavedPullRequest, type SavedRun } from "./types.js";
 
 /** Comfortably under DynamoDB's 400 KB item limit. */
 const PAGE_CHARS = 300_000;
@@ -24,9 +25,10 @@ const BATCH_RETRIES = 5;
 const MEMORY_CACHE_MS = 60_000;
 const MAX_MEMORY_ITEMS = 5_000;
 
-type Item = { pk: string; sk: string; data: string };
+type Item = { pk: string; sk: string; data: string; pages?: number };
 
 const pageKey = (n: number) => `EV#${String(n).padStart(4, "0")}`;
+const prKey = (n: number) => `PR#${String(n).padStart(4, "0")}`;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function queryAll(ddb: DynamoDBDocumentClient, table: string, pk: string, newestFirst = false, max = Infinity): Promise<Item[]> {
@@ -122,6 +124,26 @@ export class DynamoRunStore implements RunStore {
   async list(limit: number): Promise<RunRecord[]> {
     const items = await queryAll(this.ddb, this.table, "FEED", true, limit);
     return items.map((i) => JSON.parse(i.data) as RunRecord);
+  }
+
+  async savePullRequest(id: string, pr: SavedPullRequest): Promise<void> {
+    // Every page says how many pages this version has, so a shorter rewrite
+    // (e.g. after adding prUrl) never picks up a leftover page from before.
+    const pieces = splitString(JSON.stringify(pr), PAGE_CHARS);
+    await batchPut(
+      this.ddb,
+      this.table,
+      pieces.map((data, i) => ({ pk: `RUN#${id}`, sk: prKey(i + 1), data, pages: pieces.length }))
+    );
+  }
+
+  async getPullRequest(id: string): Promise<SavedPullRequest | null> {
+    const items = (await queryAll(this.ddb, this.table, `RUN#${id}`))
+      .filter((i) => i.sk.startsWith("PR#"))
+      .sort((a, b) => a.sk.localeCompare(b.sk));
+    if (items.length === 0) return null;
+    const pages = items[0].pages ?? items.length;
+    return JSON.parse(items.slice(0, pages).map((i) => i.data).join("")) as SavedPullRequest;
   }
 }
 

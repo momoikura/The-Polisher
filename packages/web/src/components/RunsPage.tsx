@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import type { MaintainerEvent } from "@thepolisher/agents";
 import { initialView, maintainerReducer, type MaintainerView } from "../maintainer/reducer.js";
 import { prettyModel } from "../maintainer/model-label.js";
+import { requestPullRequest } from "../maintainer/pull-request.js";
+import type { AuthUser } from "../maintainer/useAuth.js";
+import type { PrState } from "../maintainer/useMaintainer.js";
 import { Icon, type IconName } from "./Icon.js";
 import { MergeBox } from "./MergeBox.js";
 import { RunView } from "./RunView.js";
@@ -17,6 +20,10 @@ interface RunRecord {
   totalUSD: number;
   model: string;
   startedAt: string;
+  user: string | null;
+  issueUrl: string;
+  source?: "web" | "benchmark";
+  benchmark?: { list: string; provesFix: boolean; baselineProvesFix: boolean | null; tests: string | null; wallSeconds: number; seenBefore: boolean; hasTimeline: boolean };
 }
 
 const STATUS: Record<RunStatus, { label: string; icon: IconName }> = {
@@ -28,6 +35,63 @@ const STATUS: Record<RunStatus, { label: string; icon: IconName }> = {
 };
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
+const dayFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeZone: "UTC" });
+/** Older benchmark runs only know the day they ran ("2026-10-29"); don't invent a time. */
+const when = (startedAt: string) => (startedAt.length === 10 ? dayFormat.format(new Date(`${startedAt}T00:00:00Z`)) : dateFormat.format(new Date(startedAt)));
+const yesNo = (v: boolean | null | undefined) => (v === true ? "yes" : v === false ? "no" : "not measured");
+
+/** A benchmark run saved before timelines were kept: exactly what was recorded, nothing more. */
+function BenchmarkSummary({ record, onBack }: { record: RunRecord; onBack: () => void }) {
+  const b = record.benchmark!;
+  return (
+    <div className="box benchmark-summary">
+      <div className="box-header">
+        <h2 className="box-title">{record.title || `Issue #${record.issueNumber}`}</h2>
+        <button type="button" className="link-button" onClick={onBack}>
+          All runs
+        </button>
+      </div>
+      <div className="box-body">
+        <p className="muted">
+          <a className="link" href={record.issueUrl} target="_blank" rel="noopener noreferrer">
+            {record.repo}#{record.issueNumber}
+          </a>{" "}
+          · benchmark <span className="mono">{b.list}</span> · {when(record.startedAt)}
+        </p>
+        <dl className="summary-grid">
+          <div>
+            <dt>Result</dt>
+            <dd>{STATUS[record.status].label}</dd>
+          </div>
+          <div>
+            <dt>Fix proven by its tests</dt>
+            <dd>{yesNo(b.provesFix)}</dd>
+          </div>
+          <div>
+            <dt>Single-prompt draft proven</dt>
+            <dd>{yesNo(b.baselineProvesFix)}</dd>
+          </div>
+          <div>
+            <dt>Tests after</dt>
+            <dd className="mono">{b.tests ?? "—"}</dd>
+          </div>
+          <div>
+            <dt>Cost</dt>
+            <dd className="mono">${record.totalUSD.toFixed(3)}</dd>
+          </div>
+          <div>
+            <dt>Time</dt>
+            <dd className="mono">{Math.round(b.wallSeconds / 60)} min</dd>
+          </div>
+        </dl>
+        <p className="field-help">
+          Run from the benchmark script with {prettyModel(record.model)}; only this summary was saved, not the step-by-step timeline.
+          {b.seenBefore && " This issue was also used while ThePolisher was being built."}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -35,14 +99,16 @@ async function getJson<T>(url: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-function Replay({ id, onBack }: { id: string; onBack: () => void }) {
-  const [state, setState] = useState<{ view: MaintainerView; model: string } | { error: string } | null>(null);
+function Replay({ id, user, onBack }: { id: string; user: AuthUser | null; onBack: () => void }) {
+  const [state, setState] = useState<{ view: MaintainerView; model: string; owner: string | null; record: RunRecord; hasEvents: boolean } | { error: string } | null>(null);
+  const [pr, setPr] = useState<PrState>({ kind: "idle" });
 
   useEffect(() => {
     let isCurrent = true;
     getJson<{ record: RunRecord; events: Array<MaintainerEvent & { at: number }> }>(`/api/runs/${id}`)
       .then(({ record, events }) => {
-        if (isCurrent) setState({ view: events.reduce(maintainerReducer, initialView()), model: prettyModel(record.model) });
+        if (isCurrent)
+          setState({ view: events.reduce(maintainerReducer, initialView()), model: prettyModel(record.model), owner: record.user, record, hasEvents: events.length > 0 });
       })
       .catch((err: unknown) => isCurrent && setState({ error: err instanceof Error ? err.message : "Couldn't load that run." }));
     return () => {
@@ -58,19 +124,34 @@ function Replay({ id, onBack }: { id: string; onBack: () => void }) {
         <span>{state.error}</span>
       </p>
     );
+  if (state.record.benchmark && !state.hasEvents) return <BenchmarkSummary record={state.record} onBack={onBack} />;
+  // Your own saved run can still open its pull request (the server checks it's yours too).
+  const isMine = Boolean(user && state.owner === user.login);
   return (
     <RunView
       view={state.view}
       isSimulated={false}
       model={state.model}
       action={{ label: "All runs", onClick: onBack }}
-      mergeBox={<MergeBox view={state.view} isSimulated={false} prAccess="ready" pr={{ kind: "idle" }} onOpenPr={() => {}} isReplay />}
+      mergeBox={
+        <MergeBox
+          view={state.view}
+          isSimulated={false}
+          prAccess="ready"
+          pr={pr}
+          onOpenPr={() => {
+            setPr({ kind: "opening" });
+            void requestPullRequest(id).then(setPr);
+          }}
+          isReplay={!isMine}
+        />
+      }
     />
   );
 }
 
 /** Every saved run, newest first, each one replayable in full. */
-export function RunsPage() {
+export function RunsPage({ user }: { user: AuthUser | null }) {
   const [runs, setRuns] = useState<RunRecord[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -81,7 +162,7 @@ export function RunsPage() {
       .catch((err: unknown) => setError(err instanceof Error ? err.message : "Couldn't load the run history."));
   }, []);
 
-  if (selected) return <Replay id={selected} onBack={() => setSelected(null)} />;
+  if (selected) return <Replay id={selected} user={user} onBack={() => setSelected(null)} />;
 
   return (
     <div className="runs-page">
@@ -108,13 +189,14 @@ export function RunsPage() {
                 </span>
                 <span className="run-title">
                   <strong>{r.title || `Issue #${r.issueNumber}`}</strong>
+                  {r.source === "benchmark" && <span className="label">Benchmark</span>}
                   <span className="muted">
                     {r.repo}#{r.issueNumber}
                   </span>
                 </span>
                 <span className="run-meta muted">
                   <span className="mono">${r.totalUSD.toFixed(2)}</span>
-                  <time dateTime={r.startedAt}>{dateFormat.format(new Date(r.startedAt))}</time>
+                  <time dateTime={r.startedAt}>{when(r.startedAt)}</time>
                 </span>
               </button>
             </li>

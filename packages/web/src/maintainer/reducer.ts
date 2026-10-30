@@ -134,7 +134,11 @@ export function maintainerReducer(view: MaintainerView, event: MaintainerEvent):
     case "context": {
       const next = { ...view, context: { repo: event.repo, sha: event.sha, issue: event.issue, files: event.files, approach: event.approach } };
       return event.approach
-        ? pushFeed(next, event, { lane: null, tone: "neutral", text: `Plan: ${event.approach} (read ${event.files.length} files)` })
+        ? pushFeed(next, event, {
+            lane: null,
+            tone: "neutral",
+            text: `Plan: ${event.approach} (read ${event.files.length} files${event.images ? ` and ${event.images} screenshot${event.images === 1 ? "" : "s"} from the issue` : ""})`,
+          })
         : next;
     }
 

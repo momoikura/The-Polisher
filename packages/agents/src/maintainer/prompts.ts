@@ -8,9 +8,10 @@ import { SLOP_PHRASES } from "../slop/shared.js";
 import { COPY_RULEBOOK } from "../design/knowledge.js";
 import { diffFile, splitPr, type FileMap, type PrBundle, type RepoSnapshot, baseContent } from "./bundle.js";
 import { EXCERPT_CHARS, FileEditSchema, MAX_FILE_CHARS, changedLineNumbers, excerpt, isLarge } from "./large-files.js";
+import { playbookFor } from "./playbooks.js";
 import type { Validation } from "./sandbox.js";
 
-export const MAINTAINER_PROMPT_VERSION = "maintainer-v6";
+export const MAINTAINER_PROMPT_VERSION = "maintainer-v7";
 
 const MAX_TREE_PATHS = 1500;
 export { MAX_FILE_CHARS };
@@ -180,6 +181,7 @@ export function buildLaneEvaluationMessages(
       role: "system",
       content: `EVALUATOR MODE. You are ${role.name}, responsible for ${role.job} in a pull request that fixes a GitHub issue. ${UNTRUSTED}
 Look hard for: ${role.focus}.
+Review against your ${playbookFor(lane)}
 Score 0-100 where 85+ means an experienced maintainer would merge it as is. Every finding must quote evidence. "critical" only for things that make the PR wrong or unsafe to merge.
 ${EVALUATION_JSON_CONTRACT}`,
     },
@@ -215,6 +217,8 @@ Respond with ONLY a JSON object: {"files": {"path": "FULL new content"}, "edits"
       role: "system",
       content: `REPAIR MODE. You are ${role.name}, responsible for ${role.job}. ${UNTRUSTED}
 ${role.rules}
+Follow your ${playbookFor(lane)}${lane === "code" ? `
+SecurityPolish reviews your change against its ${playbookFor("security")}` : ""}
 Fix failing checks first, then findings by severity. Do not invent facts.
 ${contract}`,
     },

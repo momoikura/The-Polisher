@@ -42,7 +42,7 @@ export default function App() {
             <ExperiencePanel />
           </div>
         ) : page === "runs" ? (
-          <RunsPage />
+          <RunsPage user={auth.user} />
         ) : !runId ? (
           <IssueForm
             config={config}

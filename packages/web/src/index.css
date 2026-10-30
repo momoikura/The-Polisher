@@ -754,6 +754,36 @@ a {
   accent-color: var(--fg);
 }
 
+.benchmark-summary .box-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--s-2);
+  margin: var(--s-3) 0;
+}
+
+.summary-grid div {
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--radius);
+  background: var(--bg-subtle);
+}
+
+.summary-grid dt {
+  color: var(--fg-subtle);
+  font-size: var(--text-xs);
+}
+
+.summary-grid dd {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
 .free-runs {
   display: flex;
   gap: var(--s-2);

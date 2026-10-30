@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import type { MaintainerEvent } from "@thepolisher/agents";
 import { initialView, maintainerReducer, type MaintainerView } from "./reducer.js";
+import { requestPullRequest } from "./pull-request.js";
 
 export interface MaintainerConfig {
   provider: "simulated" | "anthropic" | "meta";
@@ -114,13 +115,7 @@ export function useMaintainer() {
   const openPr = useCallback(async () => {
     if (!runId) return;
     setPr({ kind: "opening" });
-    try {
-      const res = await fetch(`/api/maintainer/${runId}/pr`, { method: "POST" });
-      const data = (await res.json()) as { url?: string; error?: string };
-      setPr(res.ok && data.url ? { kind: "opened", url: data.url } : { kind: "error", message: data.error ?? `HTTP ${res.status}` });
-    } catch {
-      setPr({ kind: "error", message: "Couldn't reach the server." });
-    }
+    setPr(await requestPullRequest(runId));
   }, [runId]);
 
   const reset = useCallback(() => {

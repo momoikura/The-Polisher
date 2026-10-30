@@ -9,7 +9,7 @@ import { parseIssueUrl } from "@thepolisher/agents";
 import { sendJson } from "./http.js";
 import { runStore, type RunRecord, type RunStatus } from "./store/index.js";
 
-const LIST_LIMIT = 50;
+const LIST_LIMIT = 200;
 
 /** The summary saved when a run starts; title and status are filled in when it finishes. */
 export function startedRecord(id: string, issueUrl: string, model: string, user: string | null): RunRecord {

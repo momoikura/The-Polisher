@@ -189,3 +189,50 @@ describe("VerifiedMemory", () => {
     expect((await shared.list())[0].strategies[0].length).toBeLessThanOrEqual(240);
   });
 });
+
+describe("saved pull requests", () => {
+  const pr = {
+    owner: "o",
+    repo: "r",
+    defaultBranch: "main",
+    baseSha: "abc1234",
+    issueNumber: 7,
+    status: "verified" as const,
+    model: "muse-spark-1.3-contributor",
+    files: { "src/a.py": "x = 1\n".repeat(80_000), "tests/test_a.py": "def test(): pass\n" },
+    pr: "# Fix the bug\n\nFixes #7",
+  };
+
+  it("round-trip through the file store, kept apart from the run list", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "tp-pr-"));
+    try {
+      const store = new FileRunStore(dir);
+      await store.start(record());
+
+      await store.savePullRequest("run-1", pr);
+
+      expect(await store.getPullRequest("run-1")).toEqual(pr);
+      expect(await store.getPullRequest("run-2")).toBeNull();
+      expect(await store.list(10)).toHaveLength(1);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("are split into pages under DynamoDB's item limit and joined back in order", async () => {
+    const ddb = mockClient(DynamoDBDocumentClient);
+    const written: Array<Record<string, unknown>> = [];
+    ddb.on(BatchWriteCommand).callsFake((input) => {
+      for (const r of input.RequestItems.t) written.push(r.PutRequest.Item);
+      return {};
+    });
+    ddb.on(QueryCommand).callsFake(() => ({ Items: written }));
+    const store = new DynamoRunStore(ddb as unknown as DynamoDBDocumentClient, "t");
+
+    await store.savePullRequest("run-1", pr);
+
+    expect(written.length).toBeGreaterThan(1);
+    expect(written.every((i) => String(i.sk).startsWith("PR#") && String(i.data).length <= 300_000)).toBe(true);
+    expect(await store.getPullRequest("run-1")).toEqual(pr);
+  });
+});

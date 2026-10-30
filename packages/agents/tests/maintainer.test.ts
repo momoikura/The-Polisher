@@ -12,7 +12,7 @@ import { codeStaticChecks, docChecks, prChecks, uxChecks } from "../src/maintain
 import { ModalSandboxClient, summarizeValidation, validationChecks, validationFailureChecks, type Validation } from "../src/maintainer/sandbox.js";
 import { PrWorkspace, diffFile, discardNotes, ensureFilesListed, ownedFiles, serializeFiles, splitPr, wholeFileBlocked } from "../src/maintainer/bundle.js";
 import { MaintainerLaneAgent, ValidationBoard } from "../src/maintainer/lanes.js";
-import { FilesRepairSchema, buildBaselineMessages, buildLaneRepairMessages } from "../src/maintainer/prompts.js";
+import { FilesRepairSchema, buildBaselineMessages, buildLaneEvaluationMessages, buildLaneRepairMessages } from "../src/maintainer/prompts.js";
 import { RepairSchema } from "../src/schemas/agent-output.js";
 import { MemoryExperienceStore } from "../src/memory/experience.js";
 import type { MaintainerEvent } from "../src/maintainer/events.js";
@@ -784,5 +784,27 @@ describe("draftFailure", () => {
     const boom = new Error("boom");
 
     expect(draftFailure([boom, new ModelTimeoutError(1)])).toBe(boom);
+  });
+});
+
+describe("playbooks", () => {
+  const bundle = { code: { [SRC]: base[SRC] }, docs: {}, pr: "# x" };
+
+  it("each agent's critic reviews against its own playbook", () => {
+    const [codeSys] = buildLaneEvaluationMessages("code", DEMO_SNAPSHOT, bundle, null);
+    const [secSys] = buildLaneEvaluationMessages("security", DEMO_SNAPSHOT, bundle, null);
+
+    expect(String(codeSys.content)).toContain("Pin the bug first");
+    expect(String(secSys.content)).toContain("Fail closed");
+    expect(String(codeSys.content)).not.toContain("Fail closed");
+  });
+
+  it("CodePolish revises with its playbook and SecurityPolish's; WritePolish with its own", () => {
+    const [codeSys] = buildLaneRepairMessages("code", DEMO_SNAPSHOT, bundle, null, [], [], "");
+    const [writeSys] = buildLaneRepairMessages("write", DEMO_SNAPSHOT, bundle, null, [], [], "");
+
+    expect(String(codeSys.content)).toContain("Pin the bug first");
+    expect(String(codeSys.content)).toContain("Fail closed");
+    expect(String(writeSys.content)).toContain("stands on its own in a list of commits");
   });
 });

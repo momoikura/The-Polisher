@@ -54,6 +54,8 @@ export type MaintainerEvent = At &
         issue: { number: number; title: string; url: string };
         files: string[];
         approach?: string;
+        /** Screenshots from the issue shown to the model. */
+        images?: number;
       }
     | { type: "baseline"; diffs: FileDiff[]; pr: string; metrics: SideMetrics }
     | { type: "patch"; diffs: FileDiff[]; pr: string }

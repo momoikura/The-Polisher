@@ -40,6 +40,9 @@ async function runOne({ url, seenBefore }) {
   const sandbox = new A.ModalSandboxClient({ url: process.env.SANDBOX_URL, token: process.env.SANDBOX_TOKEN });
   const github = new A.GitHubClient({ token: process.env.GITHUB_TOKEN });
   const started = Date.now();
+  const runId = crypto.randomUUID();
+  const events = [];
+  let title = "";
   let comparison = null;
   let lastCost = 0;
   // Where the time goes: seconds per phase, and per lane per state (evaluating, validating, repairing...).
@@ -59,7 +62,12 @@ async function runOne({ url, seenBefore }) {
       laneState[e.lane] = { state: e.state, at };
     }
   };
-  const base = { issue: url, seenBefore: Boolean(seenBefore), model: new A.MetaModelClient().getModelId(), budgetUSD: settings.budgetUSD };
+  const base = { runId, issue: url, seenBefore: Boolean(seenBefore), model: new A.MetaModelClient().getModelId(), budgetUSD: settings.budgetUSD, startedAt: new Date(started).toISOString() };
+  // The full timeline, so the run can be imported into the app's run history with a complete replay.
+  const saveEvents = () => {
+    fs.mkdirSync(path.join(root, "benchmarks/results/events"), { recursive: true });
+    fs.writeFileSync(path.join(root, "benchmarks/results/events", `${runId}.json`), JSON.stringify(events));
+  };
   try {
     const result = await A.runMaintainer(
       { kind: "github", issueUrl: url, github },
@@ -69,15 +77,19 @@ async function runOne({ url, seenBefore }) {
         budgetUSD: settings.budgetUSD,
         provider: "meta",
         onEvent: (e) => {
+          events.push(e);
+          if (e.type === "context") title = e.issue.title;
           track(e);
           if (e.type === "comparison") comparison = e;
           if (e.type === "cost") lastCost = e.totalUSD;
         },
       }
     );
+    saveEvents();
     const files = result.snapshot && result.final ? A.diffBundle(result.snapshot, result.final).map((d) => d.path) : [];
     return {
       ...base,
+      title,
       status: result.status,
       provesFix: comparison?.after?.provesFix ?? false,
       baselineProvesFix: comparison?.before?.provesFix ?? false,
@@ -89,8 +101,10 @@ async function runOne({ url, seenBefore }) {
       error: null,
     };
   } catch (err) {
+    saveEvents();
     return {
       ...base,
+      title,
       status: "failed",
       provesFix: false,
       baselineProvesFix: comparison?.before?.provesFix ?? null,

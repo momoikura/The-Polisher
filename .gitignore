@@ -40,3 +40,6 @@ __pycache__/
 # Production server bundle
 dist-server/
 .wrangler/
+
+# Benchmark timelines (large; imported into the run history, not committed)
+benchmarks/results/events/
