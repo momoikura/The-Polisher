@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { randomBytes } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -199,7 +200,8 @@ describe("saved pull requests", () => {
     issueNumber: 7,
     status: "verified" as const,
     model: "muse-spark-1.3-contributor",
-    files: { "src/a.py": "x = 1\n".repeat(80_000), "tests/test_a.py": "def test(): pass\n" },
+    // Random (incompressible) content, so even compressed it needs several pages.
+    files: { "src/a.py": `DATA = "${randomBytes(400_000).toString("hex")}"\n`, "tests/test_a.py": "def test(): pass\n" },
     pr: "# Fix the bug\n\nFixes #7",
   };
 
@@ -234,5 +236,34 @@ describe("saved pull requests", () => {
     expect(written.length).toBeGreaterThan(1);
     expect(written.every((i) => String(i.sk).startsWith("PR#") && String(i.data).length <= 300_000)).toBe(true);
     expect(await store.getPullRequest("run-1")).toEqual(pr);
+  });
+});
+
+describe("compressed timelines (the free-tier table takes ~10 KB a second)", () => {
+  it("stores timeline pages gzip-compressed and reads them back, alongside older uncompressed pages", async () => {
+    const ddb = mockClient(DynamoDBDocumentClient);
+    const written: Array<Record<string, unknown>> = [];
+    ddb.on(PutCommand).callsFake((input) => {
+      written.push(input.Item);
+      return {};
+    });
+    ddb.on(BatchWriteCommand).callsFake((input) => {
+      for (const r of input.RequestItems.t) written.push(r.PutRequest.Item);
+      return {};
+    });
+    const store = new DynamoRunStore(ddb as unknown as DynamoDBDocumentClient, "t");
+    const events = Array.from({ length: 400 }, (_, i) => ({ type: "patch", at: i, diff: "same text repeated ".repeat(40) }));
+
+    await store.finish(record({ status: "clean" }), events);
+
+    const pages = written.filter((i) => String(i.sk).startsWith("EV#"));
+    expect(pages.every((p) => p.enc === "gzip")).toBe(true);
+    expect(pages.reduce((n, p) => n + String(p.data).length, 0)).toBeLessThan(JSON.stringify(events).length / 5);
+
+    const legacy = { pk: "RUN#run-1", sk: "EV#0099", data: JSON.stringify([{ type: "old", at: 1 }]) };
+    ddb.on(QueryCommand).callsFake(() => ({ Items: [...written.filter((i) => i.pk === "RUN#run-1"), legacy] }));
+    const saved = await store.get("run-1");
+    expect(saved?.events).toHaveLength(401);
+    expect(saved?.events.at(-1)).toEqual({ type: "old", at: 1 });
   });
 });

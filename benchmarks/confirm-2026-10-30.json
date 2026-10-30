@@ -1,0 +1,12 @@
+{
+  "chosen": "2026-10-30: the five issues the re-run showed were hurt by the targeted-run naming bug or the strict gate, re-run after fixing both (confirmation, not a benchmark)",
+  "budgetUSD": 0.5,
+  "concurrency": 3,
+  "issues": [
+    { "url": "https://github.com/Textualize/rich/issues/4239", "seenBefore": true },
+    { "url": "https://github.com/Textualize/rich/issues/4237", "seenBefore": true },
+    { "url": "https://github.com/tobymao/sqlglot/issues/8752", "seenBefore": true },
+    { "url": "https://github.com/Textualize/rich/issues/4244", "seenBefore": true },
+    { "url": "https://github.com/Textualize/rich/issues/4238", "seenBefore": true }
+  ]
+}

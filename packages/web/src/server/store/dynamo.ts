@@ -13,6 +13,8 @@
  * Values are stored as a JSON string in `data`, so item sizes are predictable.
  */
 
+import { gzipSync, gunzipSync } from "node:zlib";
+import { ProvisionedThroughputExceededException } from "@aws-sdk/client-dynamodb";
 import { BatchWriteCommand, PutCommand, QueryCommand, type DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import type { Experience, ExperienceStore } from "@thepolisher/agents";
 import { splitIntoPages, splitString, type RunRecord, type RunStore, type SavedPullRequest, type SavedRun } from "./types.js";
@@ -20,12 +22,18 @@ import { splitIntoPages, splitString, type RunRecord, type RunStore, type SavedP
 /** Comfortably under DynamoDB's 400 KB item limit. */
 const PAGE_CHARS = 300_000;
 const BATCH_SIZE = 25;
-const BATCH_RETRIES = 5;
+const BATCH_RETRIES = 10;
+const MAX_BACKOFF_MS = 10_000;
 /** Recall runs every revision round; one read per minute keeps it inside the free read capacity. */
 const MEMORY_CACHE_MS = 60_000;
 const MAX_MEMORY_ITEMS = 5_000;
 
-type Item = { pk: string; sk: string; data: string; pages?: number };
+type Item = { pk: string; sk: string; data: string; pages?: number; enc?: "gzip" };
+
+// Timelines and saved PRs are stored gzip-compressed (base64): event JSON shrinks ~5-10x,
+// which keeps a long run's save inside the free-tier table's ~10 KB/s of write capacity.
+const pack = (json: string) => ({ data: gzipSync(json).toString("base64"), enc: "gzip" as const });
+const unpack = (item: Pick<Item, "data" | "enc">) => (item.enc === "gzip" ? gunzipSync(Buffer.from(item.data, "base64")).toString("utf8") : item.data);
 
 const pageKey = (n: number) => `EV#${String(n).padStart(4, "0")}`;
 const prKey = (n: number) => `PR#${String(n).padStart(4, "0")}`;
@@ -51,15 +59,22 @@ async function queryAll(ddb: DynamoDBDocumentClient, table: string, pk: string, 
   return items;
 }
 
-/** Write items in batches of 25, retrying whatever DynamoDB couldn't take under its throughput limit. */
+/**
+ * Write items in batches of 25, retrying whatever DynamoDB couldn't take under its
+ * throughput limit, including when it refuses the whole batch, with growing waits.
+ */
 async function batchPut(ddb: DynamoDBDocumentClient, table: string, items: Item[]): Promise<void> {
   for (let i = 0; i < items.length; i += BATCH_SIZE) {
     let requests = items.slice(i, i + BATCH_SIZE).map((Item) => ({ PutRequest: { Item } }));
     for (let attempt = 0; requests.length > 0; attempt++) {
       if (attempt > BATCH_RETRIES) throw new Error("DynamoDB kept throttling the run history write.");
-      const res = await ddb.send(new BatchWriteCommand({ RequestItems: { [table]: requests } }));
-      requests = (res.UnprocessedItems?.[table] ?? []) as typeof requests;
-      if (requests.length > 0) await sleep(200 * 2 ** attempt);
+      try {
+        const res = await ddb.send(new BatchWriteCommand({ RequestItems: { [table]: requests } }));
+        requests = (res.UnprocessedItems?.[table] ?? []) as typeof requests;
+      } catch (err) {
+        if (!(err instanceof ProvisionedThroughputExceededException)) throw err;
+      }
+      if (requests.length > 0) await sleep(Math.min(200 * 2 ** attempt, MAX_BACKOFF_MS));
     }
   }
 }
@@ -105,7 +120,7 @@ export class DynamoRunStore implements RunStore {
     const pages = splitIntoPages(events, PAGE_CHARS).map((page, i) => ({
       pk: `RUN#${record.id}`,
       sk: pageKey(i + 1),
-      data: JSON.stringify(page),
+      ...pack(JSON.stringify(page)),
     }));
     await batchPut(this.ddb, this.table, pages);
   }
@@ -117,7 +132,7 @@ export class DynamoRunStore implements RunStore {
     const events = items
       .filter((i) => i.sk.startsWith("EV#"))
       .sort((a, b) => a.sk.localeCompare(b.sk))
-      .flatMap((i) => JSON.parse(i.data) as unknown[]);
+      .flatMap((i) => JSON.parse(unpack(i)) as unknown[]);
     return { record: JSON.parse(meta.data) as RunRecord, events };
   }
 
@@ -129,11 +144,11 @@ export class DynamoRunStore implements RunStore {
   async savePullRequest(id: string, pr: SavedPullRequest): Promise<void> {
     // Every page says how many pages this version has, so a shorter rewrite
     // (e.g. after adding prUrl) never picks up a leftover page from before.
-    const pieces = splitString(JSON.stringify(pr), PAGE_CHARS);
+    const pieces = splitString(pack(JSON.stringify(pr)).data, PAGE_CHARS);
     await batchPut(
       this.ddb,
       this.table,
-      pieces.map((data, i) => ({ pk: `RUN#${id}`, sk: prKey(i + 1), data, pages: pieces.length }))
+      pieces.map((data, i) => ({ pk: `RUN#${id}`, sk: prKey(i + 1), data, pages: pieces.length, enc: "gzip" as const }))
     );
   }
 
@@ -143,7 +158,8 @@ export class DynamoRunStore implements RunStore {
       .sort((a, b) => a.sk.localeCompare(b.sk));
     if (items.length === 0) return null;
     const pages = items[0].pages ?? items.length;
-    return JSON.parse(items.slice(0, pages).map((i) => i.data).join("")) as SavedPullRequest;
+    const joined = items.slice(0, pages).map((i) => i.data).join("");
+    return JSON.parse(unpack({ data: joined, enc: items[0].enc })) as SavedPullRequest;
   }
 }
 

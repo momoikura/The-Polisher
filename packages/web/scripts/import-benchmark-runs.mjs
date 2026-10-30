@@ -12,6 +12,7 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { gzipSync } from "node:zlib";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { BatchWriteCommand, DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 
@@ -62,15 +63,22 @@ function pages(events) {
   return out;
 }
 
+// Compressed like the app's own pages (dynamo.ts), so each write fits the free tier.
+const pack = (json) => ({ data: gzipSync(json).toString("base64"), enc: "gzip" });
+
+/** One item at a time, waiting out the free-tier table's write limit instead of failing. */
 async function put(items) {
-  for (let i = 0; i < items.length; i += 25) {
-    let requests = items.slice(i, i + 25).map((Item) => ({ PutRequest: { Item } }));
-    for (let attempt = 0; requests.length && attempt < 5; attempt++) {
-      const res = await ddb.send(new BatchWriteCommand({ RequestItems: { [table]: requests } }));
-      requests = res.UnprocessedItems?.[table] ?? [];
-      if (requests.length) await new Promise((r) => setTimeout(r, 200 * 2 ** attempt));
+  for (const Item of items) {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const res = await ddb.send(new BatchWriteCommand({ RequestItems: { [table]: [{ PutRequest: { Item } }] } }));
+        if (!res.UnprocessedItems?.[table]?.length) break;
+      } catch (err) {
+        if (err.name !== "ProvisionedThroughputExceededException") throw err;
+      }
+      if (attempt >= 20) throw new Error("DynamoDB kept refusing writes; try again in a few minutes.");
+      await new Promise((r) => setTimeout(r, Math.min(500 * 2 ** attempt, 15_000)));
     }
-    if (requests.length) throw new Error("DynamoDB kept refusing some writes; try again in a minute.");
   }
 }
 
@@ -130,7 +138,7 @@ for (const file of files) {
     await put([
       { pk: `RUN#${id}`, sk: "META", data },
       { pk: "FEED", sk: `${startedAt}#${id}`, data },
-      ...pages(events).map((p, i) => ({ pk: `RUN#${id}`, sk: `EV#${String(i + 1).padStart(4, "0")}`, data: JSON.stringify(p) })),
+      ...pages(events).map((p, i) => ({ pk: `RUN#${id}`, sk: `EV#${String(i + 1).padStart(4, "0")}`, ...pack(JSON.stringify(p)) })),
     ]);
     imported++;
     console.log(`imported ${r.issue} (${list}${events.length ? ", with timeline" : ", summary only"})`);
