@@ -120,11 +120,15 @@ export class ModalSandboxClient implements SandboxClient {
 
 // ─── Checks ───────────────────────────────────────────────────────────────
 
+/** Failing tests that pass on the original code; failures that also happen there aren't the patch's doing. */
+export function newFailing(v: Validation): number {
+  return Math.max(v.tests.failed + v.tests.errors - (v.tests.preexistingCount ?? 0), 0);
+}
+
 export function validationChecks(v: Validation): TestCheck[] {
   const tests = v.tests;
-  // Failures that also happen on the original code aren't the patch's doing.
   const preexisting = tests.preexistingCount ?? 0;
-  const newFailing = Math.max(tests.failed + tests.errors - preexisting, 0);
+  const failingNow = newFailing(v);
   // A failed install only matters if the tests couldn't run; an optional dev tool failing doesn't.
   const testProblems = !tests.ran
     ? [!v.install.ok ? `dependencies failed to install: ${v.install.logTail.split("\n").slice(-2).join(" ")}` : "pytest did not run"]
@@ -132,7 +136,7 @@ export function validationChecks(v: Validation): TestCheck[] {
       ? ["no tests were collected"]
       : [
           ...tests.failures.slice(0, 5).map((f) => `${f.test}: ${f.message.slice(0, 160)}`),
-          ...(newFailing > tests.failures.length ? [`${newFailing} failing in total`] : []),
+          ...(failingNow > tests.failures.length ? [`${failingNow} failing in total`] : []),
         ];
   const testsPassMessage = preexisting
     ? `No new failures (${preexisting} tests already failed on the original code).`

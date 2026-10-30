@@ -11,8 +11,8 @@ type Props = { proof: Proof; diffs: readonly FileDiff[] };
  */
 export function ProofCard({ proof, diffs }: Props) {
   const reproducesBug = proof.failedOnBase && (proof.reproduced > 0 || proof.missingCode === 0);
-  const otherFailures = proof.testsTotal - proof.testsPassed - proof.preexisting;
-  const suitePasses = otherFailures <= 0;
+  const otherFailures = proof.newFailing ?? 0;
+  const suitePasses = otherFailures === 0;
   const testCode = diffs
     .filter((d) => proof.newTests.includes(d.path))
     .map((d) => ({ path: d.path, lines: d.lines.filter((l) => l.type === "added").map((l) => l.text) }))
@@ -66,7 +66,7 @@ export function ProofCard({ proof, diffs }: Props) {
             <span className="muted">
               {proof.fullSuite ? " in the repo's whole suite" : " in the related tests"}
               {proof.preexisting > 0 && `; ${proof.preexisting} already failed on the original code and aren't caused by the fix`}
-              {!suitePasses && `; ${otherFailures} fail because of the patch`}.
+              {!suitePasses && `; ${otherFailures} newly ${otherFailures === 1 ? "fails" : "fail"} with the patch`}.
             </span>
           </div>
         </li>

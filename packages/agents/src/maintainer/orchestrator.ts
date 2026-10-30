@@ -162,18 +162,25 @@ export function draftFailure(reasons: readonly unknown[]): Error {
 
 /** Keep only what each lane may own; anything else the baseline produced is dropped. */
 const AGENT_NAMES: Record<LaneId, string> = { code: "CodePolish", security: "SecurityPolish", doc: "DocPolish", write: "WritePolish" };
+const MAX_FAILURES_NAMED = 3;
+
+function nameFailures(tests: readonly string[]): string {
+  const shown = tests.slice(0, MAX_FAILURES_NAMED).join(", ");
+  const rest = tests.length - MAX_FAILURES_NAMED;
+  return rest > 0 ? `${shown} and ${rest} more are` : `${shown} ${tests.length === 1 ? "is" : "are"}`;
+}
 
 /**
  * The run's outcome. "verified" is reported separately from "clean" so a fix the
  * sandbox proves is never presented as failed just because a critic wants polish,
  * and never presented as approved when a critic hasn't signed off.
  */
-export function verdict(input: { approved: readonly LaneId[]; objectivelyPassing: boolean; budgetHit: boolean; timeHit?: boolean }): {
+export function verdict(input: { approved: readonly LaneId[]; objectivelyPassing: boolean; budgetHit: boolean; timeHit?: boolean; newFailures?: readonly string[] }): {
   status: MaintainerStatus;
   message: string;
 } {
   const pending = LANES.filter((l) => !input.approved.includes(l)).map((l) => AGENT_NAMES[l]);
-  if (pending.length === 0) {
+  if (input.objectivelyPassing && pending.length === 0) {
     return { status: "clean", message: "Every check passes, the new tests prove the fix in the sandbox, and all four agents signed off." };
   }
   if (input.objectivelyPassing) {
@@ -181,6 +188,9 @@ export function verdict(input: { approved: readonly LaneId[]; objectivelyPassing
       status: "verified",
       message: `Every check passes and the new tests prove the fix in the sandbox. ${pending.join(" and ")} still ${pending.length === 1 ? "wants" : "want"} more polish before signing off.`,
     };
+  }
+  if (input.newFailures?.length) {
+    return { status: "not_clean", message: `In the whole test suite, ${nameFailures(input.newFailures)} now failing with this patch, though the tests run while polishing passed. The best version of each part is kept.` };
   }
   return {
     status: "not_clean",
@@ -215,7 +225,8 @@ function sanitizeBaseline(
 
 const tally = (checks: TestCheck[]) => ({ passed: checks.filter((c) => c.passed).length, total: checks.length });
 
-function metricsFor(snapshot: RepoSnapshot, bundle: PrBundle, validation: Validation | null, scores: Record<LaneId, number | null>): SideMetrics {
+/** `described` is the run the PR's text was written from, which may be a targeted one. */
+function metricsFor(snapshot: RepoSnapshot, bundle: PrBundle, validation: Validation | null, scores: Record<LaneId, number | null>, described: Validation | null = validation): SideMetrics {
   const v = summarizeValidation(validation);
   const diffs = diffBundle(snapshot, bundle);
   return {
@@ -227,7 +238,7 @@ function metricsFor(snapshot: RepoSnapshot, bundle: PrBundle, validation: Valida
       code: tally(codeStaticChecks(bundle.code, snapshot)),
       security: tally(securityChecks(validation)),
       doc: tally(docChecks(bundle.docs, bundle, snapshot)),
-      write: tally(prChecks(bundle.pr, bundle, snapshot, validation)),
+      write: tally(prChecks(bundle.pr, bundle, snapshot, described)),
     },
     scores,
     files: diffs.length,
@@ -406,11 +417,12 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     if (proof) emit({ type: "proof", proof });
     emit({
       type: "comparison",
-      before: metricsFor(snap, baseline, baselineValidation, firstScore),
-      after: metricsFor(snap, final, finalValidation, bestScore),
+      before: metricsFor(snap, baseline, baselineValidation, firstScore, board.forCode(baseline.code) ?? baselineValidation),
+      after: metricsFor(snap, final, finalValidation, bestScore, board.forCode(final.code) ?? finalValidation),
     });
 
-    const lanes = summarize(snap, ws);
+    const newFailures = finalValidation?.tests.failures.map((f) => f.test) ?? [];
+    const lanes = summarize(snap, ws, newFailures);
     const objectivelyPassing =
       finalValidation !== null &&
       validationChecks(finalValidation).every((c) => c.passed) &&
@@ -421,6 +433,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
       objectivelyPassing,
       budgetHit: totalSpent() >= cfg.budgetUSD * 0.98,
       timeHit: stopAll.signal.aborted || OWNER_LANES.some((l) => lastStatus[l] === "time_limited"),
+      newFailures,
     });
     return finish(v.status, v.message, lanes);
   } catch (err) {
@@ -507,7 +520,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     return checks.filter((c) => !c.passed).map((c) => `${c.testType}: ${c.message}`);
   }
 
-  function summarize(snap: RepoSnapshot, ws: PrWorkspace): Record<LaneId, LaneSummary> {
+  function summarize(snap: RepoSnapshot, ws: PrWorkspace, newFailures: readonly string[]): Record<LaneId, LaneSummary> {
     const b = ws.get();
     const cost = (l: LaneId) => (l === "security" ? 0 : laneCost[l].done + laneCost[l].current);
     const entry = (lane: LaneId, clean: boolean, status: string, remaining: string[]): [LaneId, LaneSummary] => {
@@ -515,7 +528,8 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
       return [lane, { clean, status, rounds: rounds[lane], costUSD: cost(lane), remaining }];
     };
     const owner = (lane: OwnerLane) => {
-      const f = failing(lane, snap, ws);
+      // The whole suite ran after the lanes finished, so only the code lane's summary can show it.
+      const f = [...failing(lane, snap, ws), ...(lane === "code" ? newFailures.map((t) => `new failure in the whole test suite: ${t}`) : [])];
       const clean = lastStatus[lane] === "accepted" && f.length === 0;
       return entry(lane, clean, lastStatus[lane], lastStatus[lane] === "accepted" ? f : [`stopped: ${lastStatus[lane]}`, ...f]);
     };

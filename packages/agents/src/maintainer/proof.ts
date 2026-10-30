@@ -4,7 +4,7 @@
  * and the rest of the suite still passes. Shown as the run's Proof card.
  */
 
-import { summarizeValidation, type Validation } from "./sandbox.js";
+import { newFailing, summarizeValidation, type Validation } from "./sandbox.js";
 
 export interface Proof {
   /** The sandbox's verdict: new tests fail on the original for the right reason and pass with the fix. */
@@ -21,6 +21,8 @@ export interface Proof {
   testsTotal: number;
   /** Failing tests that also fail on the original code (not caused by the patch). */
   preexisting: number;
+  /** Failing tests that pass on the original code. Saved runs from before this field don't have it. */
+  newFailing?: number;
   fullSuite: boolean;
 }
 
@@ -38,6 +40,7 @@ export function proofFrom(v: Validation | null): Proof | null {
     testsPassed: v.tests.passed,
     testsTotal: v.tests.total,
     preexisting: v.tests.preexistingCount ?? 0,
+    newFailing: newFailing(v),
     fullSuite: v.tests.scope !== "targeted",
   };
 }
