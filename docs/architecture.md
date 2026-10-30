@@ -33,6 +33,7 @@ flowchart TD
 | Polish | Each of the four agents works in its own lane. CodePolish owns the code and tests, and SecurityPolish reviews it. DocPolish owns the docs, and WritePolish owns the PR title and description. Each agent follows a playbook of principles. | `maintainer/lanes.ts`, `maintainer/playbooks.ts` |
 | Gate | Every revision is checked against the best version so far, and kept only if it improves things. A revision that breaks a passing check is rejected. The one exception is a minor check (lint, debug leftovers, message style), which may break if the revision fixes more checks than it breaks. | `core/controller/best-version-gate.ts` |
 | Reconcile + verify | These run in parallel. Reconcile brings the docs and the PR description in line with the final code. Verify runs the whole test suite on the final patch and on the first draft. | `maintainer/orchestrator.ts` |
+| Whole-suite repair | Only if verify finds a failure the related tests never showed, and another whole-suite run fits in the time and budget left. CodePolish gets up to two revisions, each tested on the whole suite, then reconcile runs again. | `maintainer/orchestrator.ts` |
 | Proof | Records which new tests failed on the base commit and pass after the fix. The Proof card on the run page shows this. | `maintainer/proof.ts`, `web/components/ProofCard.tsx` |
 
 ### Limits on every run

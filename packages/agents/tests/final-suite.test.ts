@@ -5,7 +5,10 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { runMaintainer, verdict } from "../src/maintainer/orchestrator.js";
+import { runMaintainer, unseenFailures, verdict } from "../src/maintainer/orchestrator.js";
+import { SUITE_REPAIR_NOTE } from "../src/maintainer/lanes.js";
+import type { ChatClient } from "../src/llm/chat-client.js";
+import type { ChatMessage } from "../src/llm/meta-client.js";
 import { DEMO_SNAPSHOT, createSimulatedMaintainerClient, createSimulatedSandbox } from "../src/maintainer/simulated.js";
 import { prChecks } from "../src/maintainer/checks.js";
 import { proofFrom } from "../src/maintainer/proof.js";
@@ -14,6 +17,7 @@ import type { MaintainerEvent } from "../src/maintainer/events.js";
 
 const fast = { min: 0, max: 0 };
 const NEW_FAILURE = "tests.test_panel::test_render_size";
+const TESTS = "tests/test_slugify.py";
 
 /** The simulated sandbox, with the whole-suite runs changed; targeted runs stay as they are. */
 function withFullSuite(change: (v: Validation) => Validation): SandboxClient {
@@ -66,6 +70,90 @@ describe("a new failure in the final whole-suite run", () => {
     expect(result.lanes.code.clean).toBe(false);
     expect(result.lanes.code.remaining.join(" ")).toContain(NEW_FAILURE);
     expect(events.at(-1)).toMatchObject({ type: "complete", status: "not_clean" });
+  });
+});
+
+describe("repairing a failure only the whole suite found", () => {
+  const MARKER = "# keeps later tests isolated";
+  const isRepairForSuite = (messages: readonly ChatMessage[]) => JSON.stringify(messages).includes(SUITE_REPAIR_NOTE.slice(0, 40));
+
+  /** The suite fails until a patch carries MARKER; repairs asked for by the note can add it. */
+  function scenario(options: { canFix: boolean; durationMs?: number }) {
+    const inner = createSimulatedMaintainerClient(fast);
+    const sandbox = createSimulatedSandbox(fast);
+    const seen = { repairs: 0, fullRuns: 0, code: {} as Record<string, string> };
+    const client: ChatClient = {
+      complete: async (messages, opts) => {
+        if (!isRepairForSuite(messages)) return inner.complete(messages, opts);
+        seen.repairs += 1;
+        const files = options.canFix ? { [TESTS]: `${seen.code[TESTS]}\n${MARKER}\n` } : {};
+        return { text: JSON.stringify({ files, changesMade: ["Kept the new tests from leaking state"], addressedFindingIds: [], unresolvedIssues: [] }), model: "simulated", promptTokens: 0, completionTokens: 0 };
+      },
+    };
+    const validating: SandboxClient = {
+      validate: async (req) => {
+        const clean = Object.fromEntries(Object.entries(req.changes).map(([p, c]) => [p, c.replace(`\n${MARKER}\n`, "")]));
+        const v = await sandbox.validate({ ...req, changes: clean });
+        if (req.scope !== "full" || !v.failToPass?.failedOnBase) return v;
+        seen.fullRuns += 1;
+        seen.code = req.changes;
+        const fixed = Object.values(req.changes).some((c) => c.includes(MARKER));
+        return { ...(fixed ? v : addNewFailure(v)), durationMs: options.durationMs ?? v.durationMs };
+      },
+    };
+    return { client, validating, seen };
+  }
+
+  const run = async (s: ReturnType<typeof scenario>, extra: { budgetUSD?: number } = {}) => {
+    const events: MaintainerEvent[] = [];
+    const result = await runMaintainer(
+      { kind: "snapshot", snapshot: DEMO_SNAPSHOT },
+      { client: s.client, sandbox: s.validating, onEvent: (e) => events.push(e), provider: "simulated", ...extra }
+    );
+    return { result, events };
+  };
+
+  it("gives CodePolish the failure and proves the repair on the whole suite", async () => {
+    const s = scenario({ canFix: true });
+    const { result, events } = await run(s);
+
+    expect(s.seen.repairs).toBe(1);
+    expect(result.final!.code[TESTS]).toContain(MARKER);
+    expect(result.status).toBe("clean");
+    expect(result.lanes.code.remaining).toEqual([]);
+    const proof = events.find((e) => e.type === "proof");
+    expect(proof?.type === "proof" && proof.proof.newFailing).toBe(0);
+    // The proof and the comparison are of the repaired patch, and come once.
+    expect(events.filter((e) => e.type === "proof")).toHaveLength(1);
+    expect(events.filter((e) => e.type === "comparison")).toHaveLength(1);
+  });
+
+  it("stops after a bounded number of tries and still names the failure", async () => {
+    const s = scenario({ canFix: false });
+    const { result } = await run(s);
+
+    expect(s.seen.repairs).toBeGreaterThan(0);
+    expect(s.seen.repairs).toBeLessThanOrEqual(2);
+    expect(result.status).toBe("not_clean");
+    expect(result.message).toContain(NEW_FAILURE);
+    expect(result.final!.code[TESTS]).not.toContain(MARKER);
+  });
+
+  it("doesn't start when another whole-suite run wouldn't fit in the time limit", async () => {
+    const s = scenario({ canFix: true, durationMs: 60 * 60_000 });
+    const { result } = await run(s);
+
+    expect(s.seen.repairs).toBe(0);
+    expect(result.status).toBe("not_clean");
+    expect(result.message).toContain(NEW_FAILURE);
+  });
+
+  it("only applies to failures the targeted runs never showed", () => {
+    const failing = (...tests: string[]) => ({ tests: { failures: tests.map((test) => ({ test, message: "" })) } }) as Validation;
+    expect(unseenFailures(failing("a", "b"), failing("a"))).toEqual(["b"]);
+    expect(unseenFailures(failing("a"), failing("a"))).toEqual([]);
+    expect(unseenFailures(failing("a"), null)).toEqual(["a"]);
+    expect(unseenFailures(null, null)).toEqual([]);
   });
 });
 
