@@ -33,6 +33,7 @@ import os
 import re
 import shlex
 import xml.etree.ElementTree as ET
+from typing import Literal
 
 import modal
 
@@ -209,7 +210,7 @@ def save_deps(sb: "modal.Sandbox", path: str) -> None:
 
 
 def prune_cache() -> None:
-    """Keep the newest MAX_CACHE_ENTRIES environments."""
+    """Keep the newest MAX_CACHE_ENTRIES environments (and their base-failure lists)."""
     entries = sorted(
         (e for e in os.scandir(CACHE_DIR) if e.name.endswith(".tar.gz")),
         key=lambda e: e.stat().st_mtime,
@@ -217,6 +218,106 @@ def prune_cache() -> None:
     )
     for e in entries[MAX_CACHE_ENTRIES:]:
         os.remove(e.path)
+        base = base_failures_path(e.path)
+        if os.path.exists(base):
+            os.remove(base)
+
+
+# ─── The original code's failing tests, once per commit ───────────────────
+
+
+def base_failures_path(deps_path: str) -> str:
+    return deps_path.removesuffix(".tar.gz") + ".base-failures.json"
+
+
+def load_base_failures(deps_path: str) -> set[str] | None:
+    try:
+        with open(base_failures_path(deps_path), encoding="utf-8") as f:
+            return set(json.load(f))
+    except Exception:
+        return None
+
+
+def compute_base_failures(sb: "modal.Sandbox") -> set[str] | None:
+    """Run the whole suite on the ORIGINAL code. Must run before any patch or new test
+    touches the sandbox, since the result is cached for every later run on this commit."""
+    run(sb, "python -m pytest -q -p no:cacheprovider --junitxml=/tmp/base_full.xml", timeout=TEST_TIMEOUT_S)
+    try:
+        return failing_ids(sb.filesystem.read_text("/tmp/base_full.xml"))
+    except Exception:
+        return None  # suite didn't finish; checks fall back to re-running the original code
+
+
+def save_base_failures(deps_path: str, failing: set[str]) -> None:
+    try:
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        path = base_failures_path(deps_path)
+        with open(f"{path}.partial", "w", encoding="utf-8") as f:
+            json.dump(sorted(failing)[:MAX_FAILURES_KEPT], f)
+        os.replace(f"{path}.partial", path)
+        deps_volume.commit()
+    except Exception:
+        pass
+
+
+# ─── Targeted tests ───────────────────────────────────────────────────────
+
+MAX_TARGET_FILES = 40
+
+# Runs inside the sandbox. argv: JSON list of changed source paths, JSON list of test files
+# in the patch. Prints the test files to run: those in the patch, plus existing ones named
+# after or importing a changed module. Prints null when nothing related is found or the
+# selection is too big to be worth it (run the whole suite then).
+SELECT_TESTS_SCRIPT = f'''
+import json, os, re, sys
+changed, explicit = json.loads(sys.argv[1]), json.loads(sys.argv[2])
+SKIP = {{".git", "node_modules", ".venv", "venv", "build", "dist", ".tox", ".nox"}}
+tests = []
+for root, dirs, files in os.walk("."):
+    dirs[:] = [d for d in dirs if d not in SKIP]
+    for f in files:
+        if f.endswith(".py") and (f.startswith("test_") or f.endswith("_test.py")):
+            tests.append(os.path.relpath(os.path.join(root, f)).replace(os.sep, "/"))
+mods = []
+for p in changed:
+    dotted = p[:-3].replace("/", ".")
+    if dotted.startswith("src."):
+        dotted = dotted[4:]
+    if dotted.endswith(".__init__"):
+        dotted = dotted[: -len(".__init__")]
+    mods.append((dotted.rsplit(".", 1)[-1], dotted))
+picked = set(explicit)
+for t in tests:
+    name = os.path.basename(t)[:-3].removeprefix("test_").removesuffix("_test")
+    try:
+        text = open(t, encoding="utf-8", errors="ignore").read()
+    except OSError:
+        continue
+    for leaf, dotted in mods:
+        parent = dotted.rpartition(".")[0]
+        imports = re.search(
+            rf"import\\s+{{re.escape(dotted)}}\\b|from\\s+{{re.escape(dotted)}}\\s+import"
+            + (rf"|from\\s+{{re.escape(parent)}}\\s+import\\s[^\\n]*\\b{{re.escape(leaf)}}\\b" if parent else ""),
+            text,
+        )
+        if leaf in name or imports:
+            picked.add(t)
+related = picked - set(explicit)
+print(json.dumps(sorted(picked) if related and len(picked) <= {MAX_TARGET_FILES} else None))
+'''
+
+
+def select_tests(sb: "modal.Sandbox", sources: list[str], patch_tests: list[str]) -> list[str] | None:
+    """Test files for a targeted run, or None to run the whole suite."""
+    sb.filesystem.write_text(SELECT_TESTS_SCRIPT, "/tmp/select_tests.py")
+    code, out, _ = run(sb, f"python /tmp/select_tests.py {shlex.quote(json.dumps(sources))} {shlex.quote(json.dumps(patch_tests))}")
+    if code != 0:
+        return None
+    try:
+        picked = json.loads(out.strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        return None
+    return [p for p in picked if SAFE_PATH.match(p)] if isinstance(picked, list) else None
 
 
 TEST_PATH = re.compile(r"(^|/)(tests?/|test_[^/]*\.py$|[^/]*_test\.py$|conftest\.py$)")
@@ -334,7 +435,7 @@ def parse_junit(xml_text: str, new_test_modules: list[str]) -> dict:
     }
 
 
-def validate_patch(repo: str, sha: str, changes: dict[str, str], new_tests: list[str]) -> dict:
+def validate_patch(repo: str, sha: str, changes: dict[str, str], new_tests: list[str], scope: str = "full") -> dict:
     import time
 
     started = time.time()
@@ -363,6 +464,15 @@ def validate_patch(repo: str, sha: str, changes: dict[str, str], new_tests: list
             install_ok, install_log = install_deps(sb)
             if install_ok:
                 save_deps(sb, cached)
+
+        # The original code's failing tests: worked out once per commit while this sandbox is
+        # still pristine (no patch, no new tests), then cached, so no later check re-runs the
+        # whole suite just to tell old failures from new ones.
+        base_failing = load_base_failures(cached)
+        if base_failing is None and install_ok:
+            base_failing = compute_base_failures(sb)
+            if base_failing is not None:
+                save_base_failures(cached, base_failing)
 
         # Fail-to-pass, part 1: only the new/changed tests on the ORIGINAL code.
         fail_to_pass = None
@@ -421,7 +531,11 @@ def validate_patch(repo: str, sha: str, changes: dict[str, str], new_tests: list
             fresh = [f for f in new_findings(security_before, security_after) if f["severity"] in SECURITY_SEVERITIES]
             security = {"ran": True, "newIssues": fresh[:20]}
 
-        tcode, tout, terr = run(sb, f"python -m pytest -q -p no:cacheprovider --junitxml=/tmp/junit.xml", timeout=TEST_TIMEOUT_S)
+        # Targeted: only the patch's tests and the test files for the changed modules (fast);
+        # full: the whole suite. Falls back to the whole suite when nothing related is found.
+        targets = select_tests(sb, sources, [p for p in changes if TEST_PATH.search(p)]) if scope == "targeted" else None
+        target_args = " ".join(shlex.quote(t) for t in targets) if targets else ""
+        tcode, tout, terr = run(sb, f"python -m pytest -q -p no:cacheprovider --junitxml=/tmp/junit.xml {target_args}", timeout=TEST_TIMEOUT_S)
         junit_text = None
         try:
             junit_text = sb.filesystem.read_text("/tmp/junit.xml")
@@ -432,15 +546,18 @@ def validate_patch(repo: str, sha: str, changes: dict[str, str], new_tests: list
             # Failures that also happen on the original code (a flaky or environment-dependent test,
             # an upstream dependency change) aren't the patch's doing. Only checked when something failed.
             preexisting: list[str] = []
-            if j["failures"]:
+            if j["failures"] and base_failing is not None:
+                preexisting = sorted(f["test"] for f in j["failures"] if f["test"] in base_failing)
+            elif j["failures"]:
+                # No cached list (the original suite didn't finish): re-run the same tests on the original code.
                 for path, original in originals.items():
                     if original is None:
                         run(sb, f"rm -f {shlex.quote(path)}")
                     else:
                         write_file(sb, path, original)
-                run(sb, "python -m pytest -q -p no:cacheprovider --junitxml=/tmp/base_full.xml", timeout=TEST_TIMEOUT_S)
+                run(sb, f"python -m pytest -q -p no:cacheprovider --junitxml=/tmp/base_rerun.xml {target_args}", timeout=TEST_TIMEOUT_S)
                 try:
-                    on_base = failing_ids(sb.filesystem.read_text("/tmp/base_full.xml"))
+                    on_base = failing_ids(sb.filesystem.read_text("/tmp/base_rerun.xml"))
                     preexisting = sorted(f["test"] for f in j["failures"] if f["test"] in on_base)
                 except Exception:
                     preexisting = []
@@ -456,6 +573,8 @@ def validate_patch(repo: str, sha: str, changes: dict[str, str], new_tests: list
                 "preexisting": preexisting[:50],
                 "preexistingCount": len(preexisting),
                 "outputTail": tail(tout + terr),
+                "scope": "targeted" if targets else "full",
+                "selectedFiles": len(targets) if targets else None,
             }
             if fail_to_pass is not None:
                 fail_to_pass["passedAfter"] = j["new_tests_passed"]
@@ -480,7 +599,8 @@ def validate_patch(repo: str, sha: str, changes: dict[str, str], new_tests: list
     secrets=[modal.Secret.from_name("thepolisher-sandbox")],
     volumes={CACHE_DIR: deps_volume},
     timeout=900,
-    max_containers=4,
+    # Each request mostly waits on its own Sandbox; a run checks 3 drafts at once.
+    max_containers=10,
 )
 @modal.asgi_app()
 def web():
@@ -494,6 +614,7 @@ def web():
         sha: str = Field(pattern=r"^[0-9a-f]{7,40}$")
         changes: dict[str, str]
         newTests: list[str] = Field(default_factory=list, max_length=MAX_FILES)
+        testScope: Literal["targeted", "full"] = "full"
 
         @field_validator("changes")
         @classmethod
@@ -515,7 +636,7 @@ def web():
         if not hmac.compare_digest(token.credentials.encode(), os.environ["SANDBOX_TOKEN"].encode()):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
         try:
-            return validate_patch(req.repo, req.sha, req.changes, req.newTests)
+            return validate_patch(req.repo, req.sha, req.changes, req.newTests, req.testScope)
         except RuntimeError as exc:
             raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
 

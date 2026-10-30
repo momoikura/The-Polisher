@@ -196,6 +196,8 @@ interface RunContext {
   pendingChanges: string[] | null;
   /** Whether the one extra revision for a major finding has been spent. */
   revisedForMajor: boolean;
+  /** Revisions started while every objective check already passed. */
+  polishRounds: number;
 }
 
 const majorCount = (best: BestState) => best.evaluation.issues.filter((i) => i.severity === "major").length;
@@ -219,6 +221,7 @@ export class LoopController {
       attempts: [],
       pendingChanges: null,
       revisedForMajor: false,
+      polishRounds: 0,
     };
 
     this.deps.runStore.updateRun(run.id, { status: "running" });
@@ -253,6 +256,14 @@ export class LoopController {
         const stopBeforeRepair = this.checkLimits(ctx, "repair");
         if (stopBeforeRepair) {
           return this.terminate(ctx,stopBeforeRepair.status, stopBeforeRepair.message, best.version);
+        }
+
+        // Once every objective check passes, only the critic wants more: cap those rounds.
+        if (ctx.config.maxPolishRounds !== undefined && best.tests.allObjectivesPassed) {
+          if (ctx.polishRounds >= ctx.config.maxPolishRounds) {
+            return this.terminate(ctx, "iteration_limited", "Every objective check passes; the polish rounds are used up.", best.version);
+          }
+          ctx.polishRounds++;
         }
 
         current = await this.repairFromBest(ctx, best);

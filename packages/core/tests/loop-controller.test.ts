@@ -213,6 +213,25 @@ describe("LoopController", () => {
     expect(result.bestVersionId).toBe("v0");
   });
 
+  it("allows only maxPolishRounds revisions once every objective check passes", async () => {
+    // Objectives pass from the start; the critic keeps wanting a bit more.
+    const { controller, repairer } = setup(["score:7.6|fail:0", "score:7.7|fail:0", "score:7.8|fail:0"]);
+
+    const result = await controller.execute(run("score:7.5|fail:0", { maxPolishRounds: 1, progressEpsilon: 0.05, maxConsecutiveRejections: 5 }));
+
+    expect(repairer.sources).toHaveLength(1);
+    expect(result.status).toBe("iteration_limited");
+  });
+
+  it("doesn't count revisions made while an objective check still fails", async () => {
+    const { controller, repairer } = setup(["score:6|fail:1", "score:7|fail:0", "score:7.6|fail:0", "score:7.7|fail:0"]);
+
+    await controller.execute(run("score:5|fail:2", { maxPolishRounds: 1, maxConsecutiveRejections: 5 }));
+
+    // two revisions to make the objectives pass, then one polish round
+    expect(repairer.sources).toHaveLength(3);
+  });
+
   it("stops as time_limited once the deadline passes, keeping the best version found", async () => {
     const { controller, repairer } = setup(["score:6|fail:1", "score:7|fail:1"]);
 

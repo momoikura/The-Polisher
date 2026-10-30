@@ -87,6 +87,7 @@ const PHASE_TEXT: Record<MaintainerPhase, string> = {
   baseline: "Writing a single-prompt first draft (kept for comparison)",
   polishing: "All four agents are working in parallel",
   reconciling: "Re-checking docs and description against the final code",
+  verifying: "Running the whole test suite on the final patch and on the first draft",
   done: "Run finished",
 };
 

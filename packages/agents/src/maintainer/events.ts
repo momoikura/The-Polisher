@@ -3,7 +3,7 @@
 import type { LaneId } from "../lanes.js";
 import type { FileDiff } from "./bundle.js";
 
-export type MaintainerPhase = "fetching" | "planning" | "baseline" | "polishing" | "reconciling" | "done";
+export type MaintainerPhase = "fetching" | "planning" | "baseline" | "polishing" | "reconciling" | "verifying" | "done";
 export type LaneState = "waiting" | "evaluating" | "testing" | "validating" | "repairing" | "reviewing" | "clean" | "not_clean" | "failed";
 /**
  * clean: every check passes and every critic approved.

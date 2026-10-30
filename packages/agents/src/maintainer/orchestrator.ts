@@ -356,8 +356,8 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
 
     // ── 6. Verdict + before/after ──────────────────────────────────────────
     const final = ws.get();
-    const finalValidation = board.forCode(final.code);
-    const baselineValidation = board.forCode(baseline.code);
+    // Polishing ran only the related tests; the final patch and the first draft get the whole suite.
+    const [finalValidation, baselineValidation] = await fullValidations([final, baseline], snap);
     emit({
       type: "comparison",
       before: metricsFor(snap, baseline, baselineValidation, firstScore),
@@ -385,6 +385,32 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
 
   // ── helpers ──────────────────────────────────────────────────────────────
 
+  /**
+   * The whole test suite, for the verdict and the comparison. Falls back to the targeted
+   * result if the sandbox can't run it, so a hiccup never hides what was already shown.
+   */
+  async function fullValidations(bundles: PrBundle[], snap: RepoSnapshot): Promise<Array<Validation | null>> {
+    const sandbox = options.sandbox;
+    if (!sandbox) return bundles.map((b) => board.forCode(b.code));
+    emit({ type: "phase", phase: "verifying" });
+    return Promise.all(
+      bundles.map(async (b) => {
+        if (Object.keys(b.code).length === 0) return board.forCode(b.code);
+        try {
+          return await sandbox.validate({
+            repo: `${snap.owner}/${snap.repo}`,
+            sha: snap.sha,
+            changes: { ...b.code },
+            newTests: Object.keys(b.code).filter(isTestPath),
+            scope: "full",
+          });
+        } catch {
+          return board.forCode(b.code);
+        }
+      })
+    );
+  }
+
   /** Test every draft in the sandbox at once and keep the one the tests rank best. */
   async function pickCandidate(bundles: PrBundle[], snap: RepoSnapshot, sandbox: SandboxClient): Promise<PrBundle> {
     const scored = await Promise.all(
@@ -396,6 +422,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
             sha: snap.sha,
             changes: { ...b.code },
             newTests: Object.keys(b.code).filter(isTestPath),
+            scope: "targeted",
           });
           board.record(b.code, v);
         } catch {
@@ -573,6 +600,8 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
         maxIterations: cfg.maxRoundsPerLane,
         maxCostUSD: Math.max(budgetUSD, 0.0001),
         deadlineAt,
+        // Once every objective check passes (the fix is proven), one more round for the critic at most.
+        maxPolishRounds: 1,
         // Room for the narrowed, smallest-edit strategy (after 2 rejections) to get two tries.
         maxConsecutiveRejections: 4,
         progressEpsilon: 0.1,

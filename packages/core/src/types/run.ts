@@ -78,6 +78,8 @@ export const RunConfigSchema = z.object({
   maxCostUSD: z.number().positive().default(2.0),
   /** Wall-clock deadline (epoch ms): after it, no new repair starts and the best version is kept. */
   deadlineAt: z.number().int().positive().optional(),
+  /** Revisions allowed once every objective check passes (critic-only polish). Unset = no cap. */
+  maxPolishRounds: z.number().int().min(0).optional(),
   /** How many consecutive non-improving iterations before stagnation stop (default: 2). */
   maxConsecutiveRejections: z.number().int().min(1).default(2),
   /** Minimum score progress epsilon to count as meaningful progress (default: 0.05). */

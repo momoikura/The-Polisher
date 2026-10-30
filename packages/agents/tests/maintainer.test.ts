@@ -524,6 +524,25 @@ describe("ModalSandboxClient", () => {
 
     expect(Object.keys(sent.changes)).toEqual(["src/a.py"]);
   });
+
+  it("asks for the whole suite unless told to run only the related tests, and caches the two separately", async () => {
+    const scopes: string[] = [];
+    const fetchFn = (async (_url: string, init: RequestInit) => {
+      scopes.push(JSON.parse(String(init.body)).testScope);
+      return new Response(
+        JSON.stringify({ install: { ok: true, logTail: "" }, compile: { ok: true, errors: [] }, lint: { issues: [] }, tests: { ran: false, total: 0, passed: 0, failed: 0, errors: 0, skipped: 0, failures: [], outputTail: "" }, failToPass: null, durationMs: 1 }),
+        { status: 200 }
+      );
+    }) as unknown as typeof fetch;
+    const sandbox = new ModalSandboxClient({ url: "https://sandbox.test/validate", token: "t", fetchFn });
+    const req = { repo: "o/r", sha: "abc1234", changes: { "src/a.py": "x = 1\n" }, newTests: [] };
+
+    await sandbox.validate(req);
+    await sandbox.validate({ ...req, scope: "targeted" });
+    await sandbox.validate({ ...req, scope: "targeted" });
+
+    expect(scopes).toEqual(["full", "targeted"]);
+  });
 });
 
 describe("verdict", () => {

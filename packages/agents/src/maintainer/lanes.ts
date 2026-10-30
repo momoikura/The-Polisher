@@ -107,6 +107,8 @@ export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, Teste
       sha: snap.sha,
       changes: { ...code },
       newTests: Object.keys(code).filter(isTestPath),
+      // While polishing, only the related tests; the final patch gets the whole suite.
+      scope: "targeted",
     });
     this.o.board.record(code, v);
     return v;

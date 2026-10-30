@@ -24,6 +24,9 @@ export const ValidationSchema = z.object({
     preexisting: z.array(z.string()).optional(),
     preexistingCount: z.number().optional(),
     outputTail: z.string(),
+    /** "targeted": only the patch's tests and the test files for the changed modules. */
+    scope: z.enum(["targeted", "full"]).optional(),
+    selectedFiles: z.number().nullable().optional(),
   }),
   failToPass: z
     .object({
@@ -54,6 +57,8 @@ export interface ValidateRequest {
   changes: Record<string, string>;
   /** Test files the PR adds or changes; checked for fail-to-pass. */
   newTests: string[];
+  /** "targeted" (fast, while polishing) or "full" (the whole suite; the default). */
+  scope?: "targeted" | "full";
 }
 
 export interface SandboxClient {
@@ -80,18 +85,25 @@ export class ModalSandboxClient implements SandboxClient {
   }
 
   validate(req: ValidateRequest): Promise<Validation> {
-    const key = createHash("sha256").update(JSON.stringify([req.repo, req.sha, Object.entries(req.changes).sort(), [...req.newTests].sort()])).digest("hex");
+    const scope = req.scope ?? "full";
+    const key = createHash("sha256").update(JSON.stringify([req.repo, req.sha, Object.entries(req.changes).sort(), [...req.newTests].sort(), scope])).digest("hex");
     const cached = this.cache.get(key);
     if (cached) return cached;
     // The sandbox only runs Python; docs in the patch don't affect tests and would be refused.
-    const pending = this.post({ ...req, changes: Object.fromEntries(Object.entries(req.changes).filter(([p]) => /\.py$/.test(p))) });
+    const pending = this.post({
+      repo: req.repo,
+      sha: req.sha,
+      newTests: req.newTests,
+      testScope: scope,
+      changes: Object.fromEntries(Object.entries(req.changes).filter(([p]) => /\.py$/.test(p))),
+    });
     this.cache.set(key, pending);
     pending.catch(() => this.cache.delete(key));
     if (this.cache.size > CACHE_SIZE) this.cache.delete(this.cache.keys().next().value as string);
     return pending;
   }
 
-  private async post(req: ValidateRequest): Promise<Validation> {
+  private async post(req: Omit<ValidateRequest, "scope"> & { testScope: "targeted" | "full" }): Promise<Validation> {
     const res = await this.fetchFn(this.cfg.url, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${this.cfg.token}` },

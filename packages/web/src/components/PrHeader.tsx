@@ -8,6 +8,7 @@ const PHASES = [
   { id: "baseline", label: "Draft" },
   { id: "polishing", label: "Review" },
   { id: "reconciling", label: "Reconcile" },
+  { id: "verifying", label: "Verify" },
   { id: "done", label: "Done" },
 ] as const;
 
