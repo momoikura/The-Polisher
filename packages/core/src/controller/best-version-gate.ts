@@ -6,7 +6,8 @@
  *
  * Decision logic:
  * 1. If no current best exists → accept if all objective tests pass
- * 2. If current best exists → reject if ANY previously-passing test now fails (regression)
+ * 2. If current best exists → reject if ANY previously-passing test now fails (regression),
+ *    except checks marked minor, when the candidate fixes strictly more checks than it breaks
  * 3. If no regression → accept if objective failures decreased
  * 4. If objective failures are equal → compare individual problem counts
  *    inside the failing checks; more is rejected, fewer is accepted
@@ -40,6 +41,7 @@ export type GateReason =
   | "score_improvement"
   | "no_improvement"
   | "regression_detected"
+  | "net_improvement"
   | "more_failures";
 
 /** Independent evaluator scores (0-10), consulted only when objective results tie. */
@@ -61,7 +63,8 @@ export interface ScoreComparison {
 export function evaluateCandidate(
   candidateResults: AggregatedTestResults,
   bestResults: AggregatedTestResults | null,
-  scores?: ScoreComparison
+  scores?: ScoreComparison,
+  options?: { minorChecks?: readonly TestType[] }
 ): GateDecision {
   // ── Case 1: First version (no current best) ──────────────────────────────
   if (bestResults === null) {
@@ -90,6 +93,19 @@ export function evaluateCandidate(
 
   // ── Case 2: Regression check ──────────────────────────────────────────────
   const regressions = detectRegressions(candidateResults, bestResults);
+  // A minor check (lint, style) may break if the candidate fixes strictly more checks than it
+  // breaks: e.g. a revision that finally proves the fix but leaves an unused import, which the
+  // next round removes. Anything else breaking is still a regression.
+  const minor = new Set<TestType>(options?.minorChecks ?? []);
+  const fixed = candidateResults.passingTestTypes.filter((t) => !bestResults.passingTestTypes.includes(t)).length;
+  if (regressions.length > 0 && regressions.every((t) => minor.has(t)) && fixed > regressions.length) {
+    return {
+      accepted: true,
+      reason: "net_improvement",
+      explanation: `Net improvement: fixed ${fixed} check(s) at the cost of minor ${regressions.length === 1 ? "check" : "checks"} [${regressions.join(", ")}], left for the next round.`,
+      regressions,
+    };
+  }
   if (regressions.length > 0) {
     return {
       accepted: false,

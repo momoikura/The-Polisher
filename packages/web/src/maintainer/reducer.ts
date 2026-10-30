@@ -93,6 +93,7 @@ const PHASE_TEXT: Record<MaintainerPhase, string> = {
 
 const REASON_TEXT: Record<string, string> = {
   first_version_accepted: "baseline recorded",
+  net_improvement: "fixed more checks than it broke; a minor one is left for the next round",
   improvement: "fewer failing checks",
   fewer_problems: "fewer problems",
   more_problems: "added problems",

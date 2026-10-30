@@ -331,7 +331,7 @@ export class LoopController {
       candidate: evalResult.output.scores.overall,
       best: best?.evaluation.scores.overall ?? null,
       epsilon: config.progressEpsilon,
-    });
+    }, { minorChecks: config.minorChecks as TestType[] | undefined });
     this.emit({ type: "gate_decision", decision, versionId: candidate.id });
     limiter.recordIteration();
     if (ctx.pendingChanges) {

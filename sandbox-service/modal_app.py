@@ -45,6 +45,10 @@ TEST_TIMEOUT_S = 300
 MAX_FILES = 40
 MAX_FILE_CHARS = 200_000
 TAIL_CHARS = 2_000
+# pytest names tests relative to its root folder; given specific files it may pick tests/ as the root,
+# which renames every test (test_cells vs tests.test_cells). Pinning the root keeps names stable
+# across targeted and whole-suite runs, so new tests and old failures are always recognised.
+PYTEST = f"python -m pytest -q -p no:cacheprovider --rootdir={REPO_DIR}"
 LINT_RULES = "E9,F63,F7,F82,F401,F811,F841"
 # The repo's dependencies go into this venv; it sees the image's pytest/ruff/bandit.
 VENV = "/opt/venv"
@@ -241,7 +245,7 @@ def load_base_failures(deps_path: str) -> set[str] | None:
 def compute_base_failures(sb: "modal.Sandbox") -> set[str] | None:
     """Run the whole suite on the ORIGINAL code. Must run before any patch or new test
     touches the sandbox, since the result is cached for every later run on this commit."""
-    run(sb, "python -m pytest -q -p no:cacheprovider --junitxml=/tmp/base_full.xml", timeout=TEST_TIMEOUT_S)
+    run(sb, f"{PYTEST} --junitxml=/tmp/base_full.xml", timeout=TEST_TIMEOUT_S)
     try:
         return failing_ids(sb.filesystem.read_text("/tmp/base_full.xml"))
     except Exception:
@@ -483,7 +487,7 @@ def validate_patch(repo: str, sha: str, changes: dict[str, str], new_tests: list
                 write_file(sb, t, changes[t])
             bcode, _, _ = run(
                 sb,
-                f"python -m pytest -q -p no:cacheprovider --junitxml=/tmp/base.xml {' '.join(shlex.quote(t) for t in tests)}",
+                f"{PYTEST} --junitxml=/tmp/base.xml {' '.join(shlex.quote(t) for t in tests)}",
                 timeout=TEST_TIMEOUT_S,
             )
             failed_on_base = bcode != 0
@@ -535,7 +539,7 @@ def validate_patch(repo: str, sha: str, changes: dict[str, str], new_tests: list
         # full: the whole suite. Falls back to the whole suite when nothing related is found.
         targets = select_tests(sb, sources, [p for p in changes if TEST_PATH.search(p)]) if scope == "targeted" else None
         target_args = " ".join(shlex.quote(t) for t in targets) if targets else ""
-        tcode, tout, terr = run(sb, f"python -m pytest -q -p no:cacheprovider --junitxml=/tmp/junit.xml {target_args}", timeout=TEST_TIMEOUT_S)
+        tcode, tout, terr = run(sb, f"{PYTEST} --junitxml=/tmp/junit.xml {target_args}", timeout=TEST_TIMEOUT_S)
         junit_text = None
         try:
             junit_text = sb.filesystem.read_text("/tmp/junit.xml")
@@ -555,7 +559,7 @@ def validate_patch(repo: str, sha: str, changes: dict[str, str], new_tests: list
                         run(sb, f"rm -f {shlex.quote(path)}")
                     else:
                         write_file(sb, path, original)
-                run(sb, f"python -m pytest -q -p no:cacheprovider --junitxml=/tmp/base_rerun.xml {target_args}", timeout=TEST_TIMEOUT_S)
+                run(sb, f"{PYTEST} --junitxml=/tmp/base_rerun.xml {target_args}", timeout=TEST_TIMEOUT_S)
                 try:
                     on_base = failing_ids(sb.filesystem.read_text("/tmp/base_rerun.xml"))
                     preexisting = sorted(f["test"] for f in j["failures"] if f["test"] in on_base)

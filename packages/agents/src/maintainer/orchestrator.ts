@@ -630,6 +630,9 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
         // Once every objective check passes: CodePolish gets one more round for its critic (the fix
         // itself); DocPolish and WritePolish stop there rather than polishing wording.
         maxPolishRounds: lane === "code" ? 1 : 0,
+        // A revision that fixes more than it breaks may leave lint or wording for the next round
+        // (sqlglot#8752 lost a proven fix over one unused import). Tests, the proof and security never.
+        minorChecks: ["py_lint", "debug_leftovers", "ux_messages"],
         // Room for the narrowed, smallest-edit strategy (after 2 rejections) to get two tries.
         maxConsecutiveRejections: 4,
         progressEpsilon: 0.1,

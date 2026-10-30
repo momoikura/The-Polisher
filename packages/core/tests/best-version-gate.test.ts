@@ -281,3 +281,33 @@ describe("Best-Version Gate", () => {
     });
   });
 });
+
+describe("minor regressions (sqlglot#8752: a revision that proved the fix left one unused import)", () => {
+  const best = makeResults([failingCheck("tests_included"), failingCheck("ux_messages"), failingCheck("fail_to_pass"), passingCheck("py_lint"), passingCheck("py_tests")]);
+  const candidate = makeResults([passingCheck("tests_included"), passingCheck("ux_messages"), passingCheck("fail_to_pass"), failingCheck("py_lint"), passingCheck("py_tests")]);
+  const minor = { minorChecks: ["py_lint", "ux_messages", "debug_leftovers"] as const };
+
+  it("still rejects any regression when no checks are marked minor", () => {
+    expect(evaluateCandidate(candidate, best).reason).toBe("regression_detected");
+  });
+
+  it("accepts a revision that fixes more checks than it breaks when everything it breaks is minor", () => {
+    const decision = evaluateCandidate(candidate, best, undefined, minor);
+
+    expect(decision.accepted).toBe(true);
+    expect(decision.reason).toBe("net_improvement");
+    expect(decision.regressions).toEqual(["py_lint"]);
+  });
+
+  it("never lets a revision break a check that isn't minor, however much it fixes", () => {
+    const breaksTests = makeResults([passingCheck("tests_included"), passingCheck("ux_messages"), passingCheck("fail_to_pass"), passingCheck("py_lint"), failingCheck("py_tests")]);
+
+    expect(evaluateCandidate(breaksTests, best, undefined, minor).reason).toBe("regression_detected");
+  });
+
+  it("rejects a minor regression that isn't paid for by fixing more", () => {
+    const oneForOne = makeResults([passingCheck("tests_included"), failingCheck("ux_messages"), failingCheck("fail_to_pass"), failingCheck("py_lint"), passingCheck("py_tests")]);
+
+    expect(evaluateCandidate(oneForOne, best, undefined, minor).accepted).toBe(false);
+  });
+});

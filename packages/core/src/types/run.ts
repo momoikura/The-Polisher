@@ -80,6 +80,8 @@ export const RunConfigSchema = z.object({
   deadlineAt: z.number().int().positive().optional(),
   /** Revisions allowed once every objective check passes (critic-only polish). Unset = no cap. */
   maxPolishRounds: z.number().int().min(0).optional(),
+  /** Checks a revision may break if it fixes strictly more than it breaks (e.g. lint). */
+  minorChecks: z.array(z.string()).optional(),
   /** How many consecutive non-improving iterations before stagnation stop (default: 2). */
   maxConsecutiveRejections: z.number().int().min(1).default(2),
   /** Minimum score progress epsilon to count as meaningful progress (default: 0.05). */
