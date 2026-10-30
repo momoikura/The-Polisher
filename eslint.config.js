@@ -5,6 +5,7 @@ export default [
       "**/node_modules/**",
       "**/.system_generated/**",
       "**/data/**",
+      "video/**",
     ],
   },
 ];

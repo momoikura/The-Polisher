@@ -10,12 +10,13 @@ const lint = (m: SideMetrics) => (m.lintIssues === null ? "not run" : String(m.l
 const checks = (m: SideMetrics, l: LaneId) => `${m.checks[l].passed}/${m.checks[l].total}`;
 const score = (m: SideMetrics, l: LaneId) => (m.scores[l] === null ? "—" : String(m.scores[l]));
 
-function rows(before: SideMetrics, after: SideMetrics): Row[] {
+export function rows(before: SideMetrics, after: SideMetrics): Row[] {
   const cmp = (b: number | null, a: number | null, higherIsBetter = true) =>
     b === null || a === null || a === b ? null : higherIsBetter ? a > b : a < b;
-  const ratio = (m: SideMetrics) => (m.testsTotal ? (m.testsPassed ?? 0) / m.testsTotal : null);
+  // Tests not passing, not the pass rate: one fewer new test isn't worse when no more of them fail.
+  const notPassing = (m: SideMetrics) => (m.testsTotal === null ? null : m.testsTotal - (m.testsPassed ?? 0));
   return [
-    { label: "Tests", before: tests(before), after: tests(after), better: cmp(ratio(before), ratio(after)) },
+    { label: "Tests", before: tests(before), after: tests(after), better: cmp(notPassing(before), notPassing(after), false) },
     { label: "New tests prove the fix", before: proves(before), after: proves(after), better: before.provesFix === after.provesFix ? null : Boolean(after.provesFix) },
     { label: "Lint issues", before: lint(before), after: lint(after), better: cmp(before.lintIssues, after.lintIssues, false) },
     ...LANE_IDS.flatMap((l): Row[] => [
