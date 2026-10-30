@@ -63,6 +63,8 @@ Full list, method and limits: [benchmarks/results/issues-2026-10-29.md](benchmar
 
 A re-run the next day found two bugs. After fixing both, the five issues they had hurt were all proven, and the Rich issues took 3 to 5 minutes instead of 12 to 22. See [issues-2026-10-30.md](benchmarks/results/issues-2026-10-30.md).
 
+After the fixes, the same 16 issues took a median of 5.5 minutes (down from 15), with 12 of 16 proven and no proven draft made worse. See [rerun-2026-10-30.md](benchmarks/results/rerun-2026-10-30.md).
+
 ## Screenshots
 
 **The proof.** The new tests fail on the original code, pass with the fix, and the whole suite still passes. This run on more-itertools#1336 took 148 seconds and cost $0.014.
