@@ -90,6 +90,8 @@ After every keep-or-reject decision, the agent records what it tried and the out
 
 ## Development
 
+How a run flows, where each part is deployed, and what is stored: [docs/architecture.md](docs/architecture.md).
+
 ```bash
 pnpm test
 pnpm typecheck
