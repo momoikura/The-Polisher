@@ -12,8 +12,8 @@
     "Did it break something else?",
     "Are the tests real?",
     "Is the pull request description true?",
-    "That checking is the slow part.",
-    "ThePolisher does it for you, with Meta's Muse Spark."
+    "Maintainers are flooded with AI pull requests, and they can't tell which ones work without checking each one.",
+    "ThePolisher is a verifiable agent on Meta's Muse Spark. Its pull requests come with proof."
   ]},
   { "id": "paste", "lines": [
     "Paste an issue from a public Python repository.",
@@ -42,7 +42,7 @@
     "The numbers come from the sandbox, not from the model grading itself."
   ]},
   { "id": "results", "lines": [
-    "It was tested on seventeen real, open issues from nine popular Python projects, with the list committed before any run.",
+    "It was tested on seventeen real, open issues, in nine popular projects we don't control, with the list committed before any run.",
     "ThePolisher proved fourteen fixes.",
     "A single prompt with the same model proved seven.",
     "All seventeen cost sixty six cents.",

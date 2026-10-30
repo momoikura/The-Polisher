@@ -34,7 +34,7 @@ export const Results: React.FC = () => {
   const f = useCurrentFrame();
   return (
     <AbsoluteFill style={{ background: "#fff", color: INK, fontFamily: SANS, padding: "60px 110px" }}>
-      <div style={{ font: `700 64px ${SANS}`, letterSpacing: -1.5 }}>17 real open issues. 9 popular projects.</div>
+      <div style={{ font: `700 64px ${SANS}`, letterSpacing: -1.5 }}>17 real open issues. 9 projects we don't control.</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 20 }}>
         {PROJECTS.map((p, i) => (
           <Reveal key={p} at={4 + i * 5} y={10} style={{ padding: "8px 20px", borderRadius: 30, border: "1.5px solid #bbb", font: `500 27px ${MONO}` }}>

@@ -25,7 +25,7 @@
   ]
  },
  "problem": {
-  "seconds": 21.324999999999996,
+  "seconds": 28.75,
   "lines": [
    {
     "text": "AI can write a fix in seconds.",
@@ -58,14 +58,14 @@
     "end": 14.25
    },
    {
-    "text": "That checking is the slow part.",
+    "text": "Maintainers are flooded with AI pull requests, and they can't tell which ones work without checking each one.",
     "start": 14.549999999999999,
-    "end": 16.875
+    "end": 21.349999999999998
    },
    {
-    "text": "ThePolisher does it for you, with Meta's Muse Spark.",
-    "start": 17.174999999999997,
-    "end": 20.775
+    "text": "ThePolisher is a verifiable agent on Meta's Muse Spark. Its pull requests come with proof.",
+    "start": 21.65,
+    "end": 28.2
    }
   ]
  },
@@ -175,42 +175,42 @@
   ]
  },
  "results": {
-  "seconds": 30.924999999999997,
+  "seconds": 31.525,
   "lines": [
    {
-    "text": "It was tested on seventeen real, open issues from nine popular Python projects, with the list committed before any run.",
+    "text": "It was tested on seventeen real, open issues, in nine popular projects we don't control, with the list committed before any run.",
     "start": 0,
-    "end": 8.475
+    "end": 9.075
    },
    {
     "text": "ThePolisher proved fourteen fixes.",
-    "start": 8.775,
-    "end": 11.4
+    "start": 9.375,
+    "end": 12
    },
    {
     "text": "A single prompt with the same model proved seven.",
-    "start": 11.7,
-    "end": 15.2
+    "start": 12.3,
+    "end": 15.8
    },
    {
     "text": "All seventeen cost sixty six cents.",
-    "start": 15.5,
-    "end": 18.275
+    "start": 16.1,
+    "end": 18.875
    },
    {
     "text": "When it can't prove a fix, it says so.",
-    "start": 18.575,
-    "end": 21.175
+    "start": 19.175,
+    "end": 21.775000000000002
    },
    {
     "text": "Three issues have never been proven, and they are in the published results.",
-    "start": 21.474999999999998,
-    "end": 25.924999999999997
+    "start": 22.075,
+    "end": 26.525
    },
    {
     "text": "In the latest full run, the median was five and a half minutes.",
-    "start": 26.224999999999998,
-    "end": 30.375
+    "start": 26.825,
+    "end": 30.975
    }
   ]
  },

@@ -22,7 +22,7 @@ export const Problem: React.FC = () => {
           ))}
         </div>
         <Reveal at={lineAt("problem", 6)} style={{ font: `700 56px ${SANS}`, marginTop: 30 }}>
-          That checking is the slow part.
+          Maintainers can't tell which AI pull requests work.
         </Reveal>
       </div>
       <AbsoluteFill style={{ background: "#000", opacity: flip, justifyContent: "center", alignItems: "center", color: "#fff" }}>
@@ -30,7 +30,7 @@ export const Problem: React.FC = () => {
           <Logo size={130} />
           <div>
             <div style={{ font: `700 112px ${SANS}`, letterSpacing: -3 }}>ThePolisher</div>
-            <div style={{ font: `500 46px ${SANS}`, color: "#a3a3a3" }}>with Meta's Muse Spark</div>
+            <div style={{ font: `500 46px ${SANS}`, color: "#a3a3a3" }}>A verifiable agent on Meta's Muse Spark</div>
           </div>
         </div>
       </AbsoluteFill>
