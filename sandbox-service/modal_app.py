@@ -381,11 +381,14 @@ MISSING_CODE = re.compile(
 
 MAX_EXAMPLE_LINES = 4
 MAX_EXAMPLE_CHARS = 300
+# pytest's advice about its own output, not part of the failure.
+PYTEST_HINT = re.compile(r"^(Use -v to get|Full diff:|\.\.\.Full output truncated)")
 
 
 def reproduced_example(bad: ET.Element) -> str:
     """pytest's own explanation of a failure: its `E` lines, else the failure message."""
-    explained = [l.strip()[1:].strip() for l in (bad.text or "").splitlines() if l.strip().startswith("E ")]
+    lines = [l.strip()[1:].strip() for l in (bad.text or "").splitlines() if l.strip().startswith("E ")]
+    explained = [l for l in lines if not PYTEST_HINT.match(l)]
     text = "\n".join(l for l in explained if l)[:MAX_EXAMPLE_CHARS] if explained else (bad.get("message") or "")
     return "\n".join(text.splitlines()[:MAX_EXAMPLE_LINES])
 

@@ -30,6 +30,12 @@ def test_a_reproducing_failure_gives_its_assertion_as_the_example():
     assert result["example"] == "AssertionError: assert [None] == []\nLeft contains one more item: None"
 
 
+def test_pytest_hints_are_left_out_of_the_example():
+    case = ASSERTION.replace("Left contains one more item: None", "Left contains one more item: None\nE         Use -v to get more diff")
+
+    assert classify_base_failures(junit(case))["example"] == "AssertionError: assert [None] == []\nLeft contains one more item: None"
+
+
 def test_a_reproducing_failure_is_preferred_over_missing_code():
     result = classify_base_failures(junit(MISSING, ASSERTION))
 

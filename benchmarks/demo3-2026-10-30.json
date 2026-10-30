@@ -1,0 +1,8 @@
+{
+  "chosen": "2026-10-30: re-run for the README Proof card screenshot after the sandbox also dropped pytest hints from the failure output (a demo, not a benchmark)",
+  "budgetUSD": 0.5,
+  "concurrency": 1,
+  "issues": [
+    { "url": "https://github.com/more-itertools/more-itertools/issues/1336", "seenBefore": true }
+  ]
+}

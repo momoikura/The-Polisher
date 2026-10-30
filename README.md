@@ -65,9 +65,9 @@ A re-run the next day found two bugs. After fixing both, the five issues they ha
 
 ## Screenshots
 
-**The proof.** The new tests fail on the original code, pass with the fix, and the whole suite still passes. This run on more-itertools#1336 took 158 seconds and cost $0.009.
+**The proof.** The new tests fail on the original code, pass with the fix, and the whole suite still passes. This run on more-itertools#1336 took 148 seconds and cost $0.014.
 
-<img src="assets/screenshot-proof.png" alt="Proof card for more-itertools#1336: the new tests fail on the original code, pass with the fix, and 769 of 769 tests pass" width="100%">
+<img src="assets/screenshot-proof.png" alt="Proof card for more-itertools#1336: the new tests fail on the original code, pass with the fix, and 768 of 768 tests pass" width="100%">
 
 **A finished run.** Every step, every check and every agent's verdict, live as it happens.
 
