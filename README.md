@@ -10,7 +10,7 @@
 ![target](https://img.shields.io/badge/fixes-Python_%2B_pytest-3776ab)
 ![stack](https://img.shields.io/badge/TypeScript-React_19-3178c6)
 ![hosting](https://img.shields.io/badge/hosting-Cloudflare_Pages-f38020)
-![tests](https://img.shields.io/badge/tests-292_passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-337_passing-brightgreen)
 
 **Paste a GitHub issue. Get a pull request whose tests prove the fix.**
 
@@ -65,15 +65,17 @@ A re-run the next day found two bugs. After fixing both, the five issues they ha
 
 After the fixes, the same 16 issues took a median of 5.5 minutes (down from 15), with 12 of 16 proven and no proven draft made worse. See [rerun-2026-10-30.md](benchmarks/results/rerun-2026-10-30.md).
 
+"Proven" means the new tests fail on the original code and pass with the fix. It does not by itself mean nothing else broke. A later check found that the rich#4244 fix also broke two other tests, which those runs had reported as already failing. ThePolisher now compares the whole suite against the original code, reports new failures, and tries to repair them.
+
 ## Screenshots
 
-**The proof.** The new tests fail on the original code, pass with the fix, and the whole suite still passes. This run on more-itertools#1336 took 148 seconds and cost $0.014.
+**The proof.** The new tests fail on the original code and pass with the fix, and no test in the whole suite newly fails. This run on Textualize/rich#4237 took 3 min 19 s and cost $0.018.
 
-<img src="assets/screenshot-proof.png" alt="Proof card for more-itertools#1336: the new tests fail on the original code, pass with the fix, and 768 of 768 tests pass" width="100%">
+<img src="assets/screenshot-proof.png" alt="Proof card for Textualize/rich#4237: the new tests fail on the original code, pass with the fix, and 950 of 983 tests pass, with 8 failures already on the original code" width="100%">
 
 **A finished run.** Every step, every check and every agent's verdict, live as it happens.
 
-<img src="assets/screenshot-run.png" alt="Run view for Textualize/rich#4244 with the timeline and four approving reviewers" width="100%">
+<img src="assets/screenshot-run.png" alt="Run view for Textualize/rich#4237 with the timeline and the reviewers, marked Verified by tests" width="100%">
 
 **First draft vs. result.** Same issue, same model. The numbers come from the sandbox.
 
@@ -81,7 +83,7 @@ After the fixes, the same 16 issues took a median of 5.5 minutes (down from 15),
 
 **The diff you would merge.**
 
-<img src="assets/screenshot-files.png" alt="Files changed view showing the CHANGELOG and rich/ansi.py diff" width="100%">
+<img src="assets/screenshot-files.png" alt="Files changed view showing the CHANGELOG and rich/text.py diff" width="100%">
 
 <details>
 <summary><b>The home page</b></summary>
