@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 380" width="1200" height="380" font-family="ui-sans-serif,-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif">
+  <rect x="1" y="1" width="1198" height="378" rx="14" fill="#ffffff" stroke="#d4d4d4"/>
+
+  <text x="40" y="52" fill="#161616" font-size="22" font-weight="700">Fixes proven by their own new tests</text>
+  <text x="40" y="78" fill="#5c5c5c" font-size="15">17 real open issues from 9 popular Python projects. Same model, issues picked before any run.</text>
+
+  <!-- legend -->
+  <g font-size="14" fill="#161616">
+    <rect x="820" y="40" width="14" height="14" rx="3" fill="#000"/><text x="842" y="52">ThePolisher</text>
+    <rect x="960" y="40" width="14" height="14" rx="3" fill="#c4c4c4"/><text x="982" y="52">Single prompt</text>
+  </g>
+
+  <!-- scale: 760px = 100% -->
+  <g font-size="15">
+    <text x="40" y="140" fill="#161616" font-weight="600">All 17 issues</text>
+    <rect x="300" y="118" width="623" height="30" rx="5" fill="#000"/>
+    <text x="935" y="139" fill="#161616" font-weight="700">14 of 17  (82%)</text>
+    <rect x="300" y="154" width="313" height="30" rx="5" fill="#c4c4c4"/>
+    <text x="625" y="175" fill="#5c5c5c">7 of 17  (41%)</text>
+
+    <text x="40" y="236" fill="#161616" font-weight="600">12 issues never seen</text>
+    <text x="40" y="256" fill="#5c5c5c" font-size="13">while building it</text>
+    <rect x="300" y="214" width="633" height="30" rx="5" fill="#000"/>
+    <text x="945" y="235" fill="#161616" font-weight="700">10 of 12  (83%)</text>
+    <rect x="300" y="250" width="317" height="30" rx="5" fill="#c4c4c4"/>
+    <text x="629" y="271" fill="#5c5c5c">5 of 12  (42%)</text>
+  </g>
+
+  <line x1="40" y1="312" x2="1160" y2="312" stroke="#e8e8e8"/>
+  <g font-size="15" fill="#161616">
+    <text x="40" y="346"><tspan font-weight="700">$0.66</tspan><tspan fill="#5c5c5c"> for all 17 issues</tspan></text>
+    <text x="330" y="346"><tspan font-weight="700">7</tspan><tspan fill="#5c5c5c"> unproven drafts turned into proven fixes</tspan></text>
+    <text x="760" y="346"><tspan font-weight="700">0</tspan><tspan fill="#5c5c5c"> proven drafts made worse</tspan></text>
+  </g>
+</svg>

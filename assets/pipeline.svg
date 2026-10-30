@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 430" width="1200" height="430" font-family="ui-sans-serif,-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#767676"/>
+    </marker>
+  </defs>
+  <rect x="1" y="1" width="1198" height="428" rx="14" fill="#ffffff" stroke="#d4d4d4"/>
+
+  <text x="40" y="52" fill="#161616" font-size="22" font-weight="700">How a run works</text>
+  <text x="40" y="78" fill="#5c5c5c" font-size="15">A few cents per issue (median $0.04). The tests decide, not the model.</text>
+
+  <!-- step numbers -->
+  <g font-size="13" font-weight="700" fill="#fff" text-anchor="middle">
+    <circle cx="96" cy="130" r="13" fill="#000"/><text x="96" y="135">1</text>
+    <circle cx="276" cy="130" r="13" fill="#000"/><text x="276" y="135">2</text>
+    <circle cx="466" cy="130" r="13" fill="#000"/><text x="466" y="135">3</text>
+    <circle cx="700" cy="130" r="13" fill="#000"/><text x="700" y="135">4</text>
+    <circle cx="924" cy="130" r="13" fill="#000"/><text x="924" y="135">5</text>
+    <circle cx="1098" cy="130" r="13" fill="#000"/><text x="1098" y="135">6</text>
+  </g>
+
+  <g font-size="14">
+    <!-- 1 issue -->
+    <rect x="36" y="160" width="120" height="150" rx="10" fill="#f6f6f6" stroke="#d4d4d4"/>
+    <circle cx="58" cy="184" r="7" fill="none" stroke="#1a7f37" stroke-width="2"/><circle cx="58" cy="184" r="2" fill="#1a7f37"/>
+    <text x="72" y="189" fill="#161616" font-weight="700">Issue</text>
+    <rect x="50" y="204" width="92" height="6" rx="3" fill="#d4d4d4"/>
+    <rect x="50" y="218" width="70" height="6" rx="3" fill="#d4d4d4"/>
+    <rect x="50" y="238" width="92" height="52" rx="4" fill="#fff" stroke="#d4d4d4"/>
+    <path d="M56 282l18-20 14 12 12-8 36 16z" fill="#e8e8e8"/>
+    <text x="96" y="340" fill="#161616" font-weight="600" text-anchor="middle">Read</text>
+    <text x="96" y="360" fill="#5c5c5c" font-size="13" text-anchor="middle">text, code and</text>
+    <text x="96" y="377" fill="#5c5c5c" font-size="13" text-anchor="middle">screenshots</text>
+
+    <path d="M162 235H202" stroke="#767676" stroke-width="1.5" marker-end="url(#a)"/>
+
+    <!-- 2 plan -->
+    <rect x="208" y="190" width="136" height="90" rx="10" fill="#000"/>
+    <text x="276" y="226" fill="#fff" font-weight="700" text-anchor="middle">Muse Spark</text>
+    <text x="276" y="248" fill="#a3a3a3" font-size="13" text-anchor="middle">picks the files</text>
+    <text x="276" y="340" fill="#161616" font-weight="600" text-anchor="middle">Plan</text>
+    <text x="276" y="360" fill="#5c5c5c" font-size="13" text-anchor="middle">what to read</text>
+    <text x="276" y="377" fill="#5c5c5c" font-size="13" text-anchor="middle">and change</text>
+
+    <path d="M350 235H390" stroke="#767676" stroke-width="1.5" marker-end="url(#a)"/>
+
+    <!-- 3 drafts -->
+    <rect x="396" y="160" width="140" height="150" rx="10" fill="none" stroke="#767676" stroke-dasharray="5 4"/>
+    <text x="466" y="178" fill="#767676" font-size="11" text-anchor="middle" font-weight="600">MODAL SANDBOX</text>
+    <rect x="410" y="188" width="112" height="30" rx="7" fill="#f6f6f6" stroke="#d4d4d4"/>
+    <text x="466" y="208" fill="#5c5c5c" text-anchor="middle">Draft 1</text>
+    <rect x="410" y="226" width="112" height="30" rx="7" fill="#000"/>
+    <text x="466" y="246" fill="#fff" text-anchor="middle" font-weight="700">Draft 2 ✓</text>
+    <rect x="410" y="264" width="112" height="30" rx="7" fill="#f6f6f6" stroke="#d4d4d4"/>
+    <text x="466" y="284" fill="#5c5c5c" text-anchor="middle">Draft 3</text>
+    <text x="466" y="340" fill="#161616" font-weight="600" text-anchor="middle">Test 3 drafts</text>
+    <text x="466" y="360" fill="#5c5c5c" font-size="13" text-anchor="middle">at once; the tests</text>
+    <text x="466" y="377" fill="#5c5c5c" font-size="13" text-anchor="middle">pick the best</text>
+
+    <path d="M542 235H582" stroke="#767676" stroke-width="1.5" marker-end="url(#a)"/>
+
+    <!-- 4 agents -->
+    <g font-size="13" font-weight="600" text-anchor="middle">
+      <rect x="588" y="168" width="108" height="56" rx="8" fill="#fff" stroke="#161616"/>
+      <text x="642" y="193" fill="#161616">CodePolish</text>
+      <text x="642" y="211" fill="#5c5c5c" font-weight="400" font-size="12">fix + tests</text>
+      <rect x="704" y="168" width="108" height="56" rx="8" fill="#fff" stroke="#161616"/>
+      <text x="758" y="193" fill="#161616">SecurityPolish</text>
+      <text x="758" y="211" fill="#5c5c5c" font-weight="400" font-size="12">reviews the fix</text>
+      <rect x="588" y="232" width="108" height="56" rx="8" fill="#fff" stroke="#161616"/>
+      <text x="642" y="257" fill="#161616">DocPolish</text>
+      <text x="642" y="275" fill="#5c5c5c" font-weight="400" font-size="12">docs</text>
+      <rect x="704" y="232" width="108" height="56" rx="8" fill="#fff" stroke="#161616"/>
+      <text x="758" y="257" fill="#161616">WritePolish</text>
+      <text x="758" y="275" fill="#5c5c5c" font-weight="400" font-size="12">PR description</text>
+    </g>
+    <text x="700" y="340" fill="#161616" font-weight="600" text-anchor="middle">Polish in parallel</text>
+    <text x="700" y="360" fill="#5c5c5c" font-size="13" text-anchor="middle">a revision is kept only if</text>
+    <text x="700" y="377" fill="#5c5c5c" font-size="13" text-anchor="middle">it breaks nothing</text>
+
+    <path d="M818 235H858" stroke="#767676" stroke-width="1.5" marker-end="url(#a)"/>
+
+    <!-- 5 verify -->
+    <rect x="864" y="190" width="120" height="90" rx="10" fill="#f6f6f6" stroke="#d4d4d4"/>
+    <g fill="#1a7f37">
+      <rect x="880" y="208" width="12" height="12" rx="2"/><rect x="896" y="208" width="12" height="12" rx="2"/><rect x="912" y="208" width="12" height="12" rx="2"/><rect x="928" y="208" width="12" height="12" rx="2"/><rect x="944" y="208" width="12" height="12" rx="2"/><rect x="960" y="208" width="12" height="12" rx="2"/>
+      <rect x="880" y="224" width="12" height="12" rx="2"/><rect x="896" y="224" width="12" height="12" rx="2"/><rect x="912" y="224" width="12" height="12" rx="2"/><rect x="928" y="224" width="12" height="12" rx="2"/><rect x="944" y="224" width="12" height="12" rx="2"/><rect x="960" y="224" width="12" height="12" rx="2"/>
+    </g>
+    <text x="924" y="262" fill="#161616" font-size="13" font-weight="600" text-anchor="middle">pytest + bandit</text>
+    <text x="924" y="340" fill="#161616" font-weight="600" text-anchor="middle">Verify</text>
+    <text x="924" y="360" fill="#5c5c5c" font-size="13" text-anchor="middle">new tests fail before</text>
+    <text x="924" y="377" fill="#5c5c5c" font-size="13" text-anchor="middle">the fix, pass after</text>
+
+    <path d="M990 235H1030" stroke="#767676" stroke-width="1.5" marker-end="url(#a)"/>
+
+    <!-- 6 PR -->
+    <rect x="1036" y="190" width="124" height="90" rx="10" fill="#dafbe1" stroke="#1a7f37"/>
+    <g transform="translate(1078 206)" fill="none" stroke="#1a7f37" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="6" cy="5" r="4"/><circle cx="6" cy="33" r="4"/><circle cx="34" cy="33" r="4"/>
+      <path d="M6 9v20"/><path d="M34 29V18a6 6 0 0 0-6-6h-9"/><path d="M23 7l-5 5 5 5"/>
+    </g>
+    <text x="1098" y="340" fill="#161616" font-weight="600" text-anchor="middle">Pull request</text>
+    <text x="1098" y="360" fill="#5c5c5c" font-size="13" text-anchor="middle">opens only when</text>
+    <text x="1098" y="377" fill="#5c5c5c" font-size="13" text-anchor="middle">you click</text>
+  </g>
+</svg>

@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" width="1200" height="400" font-family="ui-sans-serif,-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#000000"/>
+      <stop offset="100%" stop-color="#111111"/>
+    </linearGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#ffffff" stroke-opacity="0.05" stroke-width="1"/>
+    </pattern>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#8a8a8a"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="400" rx="16" fill="url(#bg)"/>
+  <rect width="1200" height="400" rx="16" fill="url(#grid)"/>
+
+  <!-- logo: two arrows in a circle, like the app header -->
+  <g transform="translate(64 92)">
+    <circle cx="26" cy="26" r="25" fill="none" stroke="#ffffff" stroke-opacity="0.35" stroke-width="1.5"/>
+    <path d="M15 22a12 12 0 0 1 21-5" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="M37 11v7h-7" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M37 30a12 12 0 0 1-21 5" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="M15 41v-7h7" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="132" y="130" fill="#ffffff" font-size="40" font-weight="700" letter-spacing="-0.5">ThePolisher</text>
+
+  <text x="64" y="206" fill="#ffffff" font-size="34" font-weight="600" letter-spacing="-0.4">GitHub issue in.</text>
+  <text x="64" y="248" fill="#ffffff" font-size="34" font-weight="600" letter-spacing="-0.4">Tested pull request out.</text>
+  <text x="64" y="292" fill="#a3a3a3" font-size="18">Four AI agents on Meta's Muse Spark. Every fix tested in a sandbox.</text>
+
+  <g font-size="14" font-weight="600">
+    <rect x="64" y="322" width="150" height="32" rx="16" fill="#ffffff"/>
+    <text x="139" y="343" fill="#000" text-anchor="middle">14 of 17 proven</text>
+    <rect x="226" y="322" width="176" height="32" rx="16" fill="none" stroke="#ffffff" stroke-opacity="0.4"/>
+    <text x="314" y="343" fill="#fff" text-anchor="middle">7 with a single prompt</text>
+    <rect x="414" y="322" width="140" height="32" rx="16" fill="none" stroke="#ffffff" stroke-opacity="0.4"/>
+    <text x="484" y="343" fill="#fff" text-anchor="middle">$0.66 for all 17</text>
+  </g>
+
+  <!-- the flow: issue, three drafts, four agents, PR -->
+  <g transform="translate(676 70)" font-size="13">
+    <!-- issue card -->
+    <rect x="0" y="96" width="112" height="76" rx="10" fill="#1a1a1a" stroke="#3a3a3a"/>
+    <circle cx="20" cy="118" r="7" fill="none" stroke="#3fb950" stroke-width="2"/>
+    <circle cx="20" cy="118" r="2" fill="#3fb950"/>
+    <text x="34" y="122" fill="#fff" font-weight="600">Issue</text>
+    <rect x="14" y="136" width="84" height="6" rx="3" fill="#444"/>
+    <rect x="14" y="150" width="60" height="6" rx="3" fill="#444"/>
+
+    <path d="M116 134H146" stroke="#8a8a8a" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <!-- three drafts -->
+    <g>
+      <rect x="152" y="70" width="86" height="34" rx="8" fill="#1a1a1a" stroke="#3a3a3a"/>
+      <text x="195" y="92" fill="#a3a3a3" text-anchor="middle">Draft 1</text>
+      <rect x="152" y="117" width="86" height="34" rx="8" fill="#ffffff"/>
+      <text x="195" y="139" fill="#000" text-anchor="middle" font-weight="700">Draft 2 ✓</text>
+      <rect x="152" y="164" width="86" height="34" rx="8" fill="#1a1a1a" stroke="#3a3a3a"/>
+      <text x="195" y="186" fill="#a3a3a3" text-anchor="middle">Draft 3</text>
+    </g>
+    <text x="195" y="222" fill="#8a8a8a" text-anchor="middle" font-size="11">tests pick one</text>
+
+    <path d="M242 134H272" stroke="#8a8a8a" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <!-- four agents -->
+    <g font-size="12" font-weight="600">
+      <rect x="278" y="58" width="112" height="30" rx="15" fill="#1a1a1a" stroke="#555"/>
+      <text x="334" y="78" fill="#fff" text-anchor="middle">CodePolish</text>
+      <rect x="278" y="98" width="112" height="30" rx="15" fill="#1a1a1a" stroke="#555"/>
+      <text x="334" y="118" fill="#fff" text-anchor="middle">SecurityPolish</text>
+      <rect x="278" y="138" width="112" height="30" rx="15" fill="#1a1a1a" stroke="#555"/>
+      <text x="334" y="158" fill="#fff" text-anchor="middle">DocPolish</text>
+      <rect x="278" y="178" width="112" height="30" rx="15" fill="#1a1a1a" stroke="#555"/>
+      <text x="334" y="198" fill="#fff" text-anchor="middle">WritePolish</text>
+    </g>
+
+    <path d="M394 134H424" stroke="#8a8a8a" stroke-width="1.5" marker-end="url(#arrow)"/>
+  </g>
+  <g transform="translate(1106 166)" font-size="13">
+    <rect x="-6" y="0" width="64" height="76" rx="10" fill="#3fb950" fill-opacity="0.12" stroke="#3fb950"/>
+    <path d="M10 24v28M10 24a5 5 0 1 0 0-.1M10 52a5 5 0 1 0 0-.1M42 52a5 5 0 1 0 0-.1M42 47V34a8 8 0 0 0-8-8h-8" fill="none" stroke="#3fb950" stroke-width="2.2" stroke-linecap="round"/>
+    <text x="26" y="70" fill="#3fb950" text-anchor="middle" font-weight="700" font-size="12">PR</text>
+  </g>
+</svg>
