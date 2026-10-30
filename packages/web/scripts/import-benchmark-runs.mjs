@@ -74,6 +74,20 @@ async function put(items) {
   }
 }
 
+/** Older results didn't record the issue title; look it up (public API, GITHUB_TOKEN if set). */
+const titles = new Map();
+async function titleOf(owner, repo, number) {
+  const key = `${owner}/${repo}#${number}`;
+  if (!titles.has(key)) {
+    const token = process.env.GITHUB_TOKEN?.trim();
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${number}`, {
+      headers: { Accept: "application/vnd.github+json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    });
+    titles.set(key, res.ok ? ((await res.json()).title ?? "") : "");
+  }
+  return titles.get(key);
+}
+
 let imported = 0;
 for (const file of files) {
   const list = path.basename(file, ".jsonl");
@@ -94,7 +108,7 @@ for (const file of files) {
       issueUrl: r.issue,
       repo: m[1],
       issueNumber: Number(m[2]),
-      title: r.title ?? "",
+      title: r.title || (await titleOf(...m[1].split("/"), Number(m[2]))),
       status: r.status,
       totalUSD: r.costUSD,
       model: r.model,

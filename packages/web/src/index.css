@@ -754,6 +754,11 @@ a {
   accent-color: var(--fg);
 }
 
+/* .run-title is a grid: keep the label its own width. */
+.run-title .label {
+  justify-self: start;
+}
+
 .benchmark-summary .box-header {
   display: flex;
   align-items: center;
