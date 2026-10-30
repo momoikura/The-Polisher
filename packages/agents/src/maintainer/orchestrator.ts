@@ -7,7 +7,7 @@
  * budgets and experience memory are the same tested machinery throughout.
  */
 
-import { CostTracker, DEFAULT_RUN_CONFIG, LoopController, type ArtifactMode, type LoopEvent, type TestCheck } from "@thepolisher/core";
+import { CostTracker, DEFAULT_RUN_CONFIG, LoopController, isTimeLimit, type ArtifactMode, type LoopEvent, type TestCheck } from "@thepolisher/core";
 import { completeStructured, StructuredOutputError, type ChatClient } from "../llm/chat-client.js";
 import { ModelServiceError, ModelTimeoutError } from "../llm/meta-client.js";
 import { LaneArtifactStore, LaneRunStore } from "../loop/stores.js";
@@ -30,6 +30,7 @@ import { EFFORT } from "./effort.js";
 import { proofFrom } from "./proof.js";
 import { issueImages, withImages, withoutRefusedImage } from "./issue-images.js";
 import { settleWithGrace } from "./settle.js";
+import { clientUntil, sandboxUntil } from "./deadline.js";
 import { codeStaticChecks, docChecks, prChecks, uxChecks } from "./checks.js";
 import type { CandidateSummary, LaneSummary, MaintainerEvent, MaintainerEventInput, MaintainerStatus, SideMetrics } from "./events.js";
 import { GitHubClient, parseIssueUrl } from "./github.js";
@@ -47,7 +48,7 @@ export interface MaintainerOptions {
   onEvent: (event: MaintainerEvent) => void;
   sandbox?: SandboxClient;
   budgetUSD?: number;
-  /** Wall-clock limit for the whole run; after it no new revision starts (default 20 min). */
+  /** Wall-clock limit for the whole run, hard: work still in flight stops at it (default 20 min). */
   timeLimitMs?: number;
   maxRoundsPerLane?: number;
   /** Independent first drafts to test in parallel when a sandbox can choose between them (default 3). */
@@ -74,6 +75,8 @@ const BUDGET_SHARE: Record<OwnerLane, number> = { code: 0.6, doc: 0.2, write: 0.
 const CLEAN_SCORE = 85;
 /** After the first usable draft, how long to wait for the others (pyparsing#693: two drafts took 5 more minutes). */
 const DRAFT_GRACE_MS = 60_000;
+/** Share of the time limit kept for the final whole-suite run and reconcile (pygments#3247's took 5.5 min). */
+const FINAL_SHARE = 0.25;
 // A file of at most this many bytes has at most that many characters: the sandbox's per-file limit.
 // Files over MAX_FILE_CHARS are shown as excerpts and changed through edits (large-files.ts).
 const MAX_FILE_BYTES = MAX_LARGE_FILE_CHARS;
@@ -239,6 +242,15 @@ function securityChecks(validation: Validation | null): TestCheck[] {
 export async function runMaintainer(source: MaintainerSource, options: MaintainerOptions): Promise<MaintainerResult> {
   const cfg = { ...DEFAULTS, ...options };
   const deadlineAt = Date.now() + cfg.timeLimitMs;
+  // The limit is hard: model and sandbox calls still in flight stop at it. Polishing stops
+  // earlier, so the final whole-suite run and reconcile still fit before it.
+  const polishUntil = deadlineAt - cfg.timeLimitMs * FINAL_SHARE;
+  const stopAll = new AbortController();
+  const stopPolish = new AbortController();
+  const timers = [setTimeout(() => stopAll.abort(), cfg.timeLimitMs), setTimeout(() => stopPolish.abort(), polishUntil - Date.now())];
+  const polishSignal = AbortSignal.any([stopAll.signal, stopPolish.signal]);
+  const client = clientUntil(options.client, stopAll.signal);
+  const sandbox = options.sandbox && sandboxUntil(options.sandbox, stopAll.signal);
   const provider = options.provider ?? "default";
   const emit = (e: MaintainerEventInput) => {
     try {
@@ -329,7 +341,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     const images = issueImages(snap0.issue.body);
     imagesUsed = images;
     const plan = await withImageFallback(images, (imgs) =>
-      setupCall(options.client, withImages(buildPlanMessages(snap0, imgs.length), imgs), PlanSchema, { temperature: 0, reasoningEffort: EFFORT.plan })
+      setupCall(client, withImages(buildPlanMessages(snap0, imgs.length), imgs), PlanSchema, { temperature: 0, reasoningEffort: EFFORT.plan })
     );
     chargeSetup(plan, "planner");
     if (source.kind === "github") {
@@ -347,11 +359,11 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     // ── 3. First drafts. The first is the single-prompt baseline kept for the comparison;
     //       with a sandbox, several are drafted in parallel and the tests pick which to polish.
     emit({ type: "phase", phase: "baseline" });
-    const count = options.sandbox ? Math.max(1, cfg.candidates) : 1;
+    const count = sandbox ? Math.max(1, cfg.candidates) : 1;
     // Each draft is charged when it arrives, including one that finishes after the run moved on.
     const calls = Array.from({ length: count }, () =>
       withImageFallback(imagesUsed, (imgs) =>
-        setupCall(options.client, withImages(buildBaselineMessages(snap), imgs), BaselineSchema, { temperature: 0.7, reasoningEffort: EFFORT.draft })
+        setupCall(client, withImages(buildBaselineMessages(snap), imgs), BaselineSchema, { temperature: 0.7, reasoningEffort: EFFORT.draft })
       ).then((r) => {
         chargeSetup(r, "baseline");
         return r;
@@ -363,7 +375,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     if (written.length === 0) throw draftFailure(drafts.map((d) => (d.status === "rejected" ? d.reason : null)));
     const bundles = written.map((r) => sanitizeBaseline(r.data, snap));
     baseline = bundles[0];
-    const start = bundles.length > 1 && options.sandbox ? await pickCandidate(bundles, snap, options.sandbox) : baseline;
+    const start = bundles.length > 1 && sandbox ? await pickCandidate(bundles, snap, sandbox) : baseline;
     workspace = new PrWorkspace(snap, start);
     const ws = workspace;
     emit({ type: "baseline", diffs: diffBundle(snap, baseline), pr: baseline.pr, metrics: metricsFor(snap, baseline, null, firstScore) });
@@ -371,7 +383,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     // ── 4. Polish all lanes in parallel ────────────────────────────────────
     emit({ type: "phase", phase: "polishing" });
     const available = Math.max(cfg.budgetUSD - totalSpent(), 0);
-    await Promise.all(OWNER_LANES.map((lane) => runLane(lane, available * BUDGET_SHARE[lane], snap, ws)));
+    await Promise.all(OWNER_LANES.map((lane) => runLane(lane, available * BUDGET_SHARE[lane], snap, ws, polishSignal, polishUntil)));
 
     // ── 5 + 6. The code is final now: run the whole suite while docs/PR are reconciled ──
     // Reconcile only fixes objective failures (e.g. a changed file the PR doesn't mention), not a
@@ -384,7 +396,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     // Reconcile can't change the code (DocPolish and WritePolish don't own code files).
     const [[finalValidation, baselineValidation]] = await Promise.all([
       fullValidations([ws.get(), baseline], snap),
-      reconcile ? Promise.all(stale.map((lane) => runLane(lane, left / stale.length, snap, ws))) : Promise.resolve([]),
+      reconcile ? Promise.all(stale.map((lane) => runLane(lane, left / stale.length, snap, ws, stopAll.signal, deadlineAt))) : Promise.resolve([]),
     ]);
     const final = ws.get();
     const proof = proofFrom(finalValidation);
@@ -405,11 +417,16 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
       approved: LANES.filter((l) => lanes[l].clean),
       objectivelyPassing,
       budgetHit: totalSpent() >= cfg.budgetUSD * 0.98,
-      timeHit: Date.now() >= deadlineAt,
+      timeHit: stopAll.signal.aborted || OWNER_LANES.some((l) => lastStatus[l] === "time_limited"),
     });
     return finish(v.status, v.message, lanes);
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    // Only planning and the first drafts can be stopped here; later stops keep the best version.
+    const message = isTimeLimit(err)
+      ? "The time limit was reached before any first draft was ready. Try again, or pick an issue in a smaller part of the codebase."
+      : err instanceof Error
+        ? err.message
+        : String(err);
     emit({ type: "error", message });
     return finish("failed", message, null);
   }
@@ -418,10 +435,10 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
 
   /**
    * The whole test suite, for the verdict and the comparison. Falls back to the targeted
-   * result if the sandbox can't run it, so a hiccup never hides what was already shown.
+   * result if the sandbox can't run it or the time limit cuts it short, so a hiccup never
+   * hides what was already shown.
    */
   async function fullValidations(bundles: PrBundle[], snap: RepoSnapshot): Promise<Array<Validation | null>> {
-    const sandbox = options.sandbox;
     if (!sandbox) return bundles.map((b) => board.forCode(b.code));
     return Promise.all(
       bundles.map(async (b) => {
@@ -515,6 +532,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
   }
 
   function finish(status: MaintainerStatus, message: string, lanes: Record<LaneId, LaneSummary> | null): MaintainerResult {
+    for (const t of timers) clearTimeout(t);
     const summary =
       lanes ??
       (Object.fromEntries(LANES.map((l) => [l, { clean: false, status: "failed", rounds: 0, costUSD: 0, remaining: [message] }])) as Record<LaneId, LaneSummary>);
@@ -540,7 +558,8 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     return formatLessons(lessons);
   }
 
-  async function runLane(lane: OwnerLane, budgetUSD: number, snap: RepoSnapshot, ws: PrWorkspace): Promise<void> {
+  /** `stop` ends the lane's calls in flight; no new round starts after `until`. */
+  async function runLane(lane: OwnerLane, budgetUSD: number, snap: RepoSnapshot, ws: PrWorkspace, stop: AbortSignal, until: number): Promise<void> {
     laneCost[lane] = { done: laneCost[lane].done + laneCost[lane].current, current: 0 };
     let pending: { info: RepairInfo; scoreAfter: number | null; after: CheckSnapshot[] | null } | null = null;
 
@@ -557,10 +576,10 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     });
     const agent = new MaintainerLaneAgent({
       lane,
-      client: options.client,
+      client: clientUntil(options.client, stop),
       workspace: ws,
       board,
-      sandbox: options.sandbox,
+      sandbox: options.sandbox && sandboxUntil(options.sandbox, stop),
       onActivity: (state) => emit({ type: "lane_state", lane, state, round: rounds[lane] }),
       recall: (f) => recall(lane, f),
       onAdapt: (s) => emit({ type: "adapt", lane, round: rounds[lane], mode: s.mode, label: s.label ?? "" }),
@@ -629,7 +648,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
       config: {
         maxIterations: cfg.maxRoundsPerLane,
         maxCostUSD: Math.max(budgetUSD, 0.0001),
-        deadlineAt,
+        deadlineAt: until,
         // Once every objective check passes: CodePolish gets one more round for its critic (the fix
         // itself); DocPolish and WritePolish stop there rather than polishing wording.
         maxPolishRounds: lane === "code" ? 1 : 0,

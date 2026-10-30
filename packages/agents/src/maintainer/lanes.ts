@@ -17,6 +17,7 @@ import type {
   TestResult,
   TesterAgent,
 } from "@thepolisher/core";
+import { isTimeLimit } from "@thepolisher/core";
 import { StructuredOutputError, completeStructured, type ChatClient } from "../llm/chat-client.js";
 import { ModelTimeoutError } from "../llm/meta-client.js";
 import { EFFORT } from "./effort.js";
@@ -121,7 +122,8 @@ export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, Teste
     let validation: Validation | null = null;
     try {
       validation = this.o.lane === "code" ? await this.validate(bundle.code) : this.o.board.forCode(bundle.code);
-    } catch {
+    } catch (err) {
+      if (isTimeLimit(err)) throw err;
       validation = null; // the tester reports it as "not verified"
     }
 
@@ -175,9 +177,11 @@ export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, Teste
       // A sandbox hiccup is not the agent's fault: retry once before it counts against the code.
       const attempt = () => this.validate(bundle.code);
       try {
-        const v = await attempt().catch(attempt);
+        const v = await attempt().catch((err: unknown) => (isTimeLimit(err) ? Promise.reject(err) : attempt()));
         sandboxChecks = v ? validationChecks(v) : validationFailureChecks("no result");
       } catch (err) {
+        // Cut short by the time limit, the run never finished: failing checks here would mislead the gate.
+        if (isTimeLimit(err)) throw err;
         sandboxChecks = validationFailureChecks(err instanceof Error ? err.message : String(err));
       }
     }

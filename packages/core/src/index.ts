@@ -109,6 +109,8 @@ export {
   type LimitCheckResult,
 } from "./controller/iteration-limiter.js";
 
+export { TimeLimitError, isTimeLimit } from "./controller/time-limit.js";
+
 // ─── Utilities ───────────────────────────────────────────────────────────────
 export { sha256 } from "./utils/hash.js";
 export {

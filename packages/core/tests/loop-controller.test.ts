@@ -9,6 +9,7 @@ import {
   type RunStore,
   type TesterAgent,
 } from "../src/controller/loop-controller.js";
+import { TimeLimitError } from "../src/controller/time-limit.js";
 import { DEFAULT_RUN_CONFIG, type CreateRunInput, type Run } from "../src/types/run.js";
 import type { ArtifactVersion } from "../src/types/artifact.js";
 import type { EvaluatorOutput } from "../src/types/evaluation.js";
@@ -240,6 +241,22 @@ describe("LoopController", () => {
     expect(result.status).toBe("time_limited");
     expect(result.bestVersionId).toBe("v0");
     expect(repairer.sources).toHaveLength(0);
+  });
+
+  it("stops as time_limited when the time limit cuts a round short, keeping the best version", async () => {
+    const cutShort: EvaluatorAgent = {
+      async evaluate(r, artifact, content) {
+        if (content !== "score:5|fail:2") throw new TimeLimitError();
+        return evaluator.evaluate(r, artifact, content);
+      },
+    };
+    const { controller } = setup(["score:6|fail:1"], cutShort);
+
+    const result = await controller.execute(run("score:5|fail:2"));
+
+    expect(result.status).toBe("time_limited");
+    expect(result.bestVersionId).toBe("v0");
+    expect(result.errorMessage).toBeNull();
   });
 
   it("stops at the iteration limit and returns the best version found", async () => {

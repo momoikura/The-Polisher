@@ -317,6 +317,36 @@ describe("runMaintainer on the demo repo", () => {
   });
 });
 
+describe("the time limit", () => {
+  const slowRun = (limitMs: number, delayMs: number) => {
+    const events: MaintainerEvent[] = [];
+    const startedAt = Date.now();
+    const delay = { min: delayMs, max: delayMs };
+    return runMaintainer(
+      { kind: "snapshot", snapshot: DEMO_SNAPSHOT },
+      { client: createSimulatedMaintainerClient(delay), sandbox: createSimulatedSandbox(delay), onEvent: (e) => events.push(e), timeLimitMs: limitMs }
+    ).then((result) => ({ result, events, elapsedMs: Date.now() - startedAt }));
+  };
+
+  it("ends the run at the limit even with calls in flight, keeping the best version so far", async () => {
+    const { result, events, elapsedMs } = await slowRun(600, 120);
+
+    expect(elapsedMs).toBeLessThan(600 + 80);
+    expect(result.status).not.toBe("failed");
+    expect(result.final!.code[SRC]).toBeDefined();
+    expect(events.filter((e) => e.type === "error")).toEqual([]);
+    expect(events.at(-1)).toMatchObject({ type: "complete", message: expect.stringContaining("Time limit") });
+  });
+
+  it("says so plainly when the limit passes before any first draft is ready", async () => {
+    const { result, elapsedMs } = await slowRun(150, 120);
+
+    expect(elapsedMs).toBeLessThan(150 + 80);
+    expect(result.status).toBe("failed");
+    expect(result.message).toMatch(/time limit .* before any first draft/i);
+  });
+});
+
 describe("GitHubClient.createPullRequest", () => {
   it("creates blobs, a tree, a commit, a branch and the PR, in that order", async () => {
     const calls: string[] = [];

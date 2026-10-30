@@ -20,6 +20,7 @@ import { aggregateTestResults } from "../types/test.js";
 import { CostTracker } from "./cost-tracker.js";
 import { IterationLimiter } from "./iteration-limiter.js";
 import { evaluateCandidate, type GateDecision } from "./best-version-gate.js";
+import { isTimeLimit } from "./time-limit.js";
 
 // ─── Agent Interfaces ────────────────────────────────────────────────────────
 
@@ -272,6 +273,8 @@ export class LoopController {
       const errorMessage = error instanceof Error ? error.message : String(error);
       const usage = usageOf(error);
       if (usage) ctx.cost.recordCall("failed_call", usage.model, usage.promptTokens, usage.completionTokens);
+      // The time limit stopped a round midway: not a failure, the best version so far stands.
+      if (isTimeLimit(error)) return this.terminate(ctx, "time_limited", errorMessage, best?.version ?? null);
       this.emit({ type: "run_error", error: errorMessage });
       return this.terminate(ctx,"failed", errorMessage, best?.version ?? null);
     }

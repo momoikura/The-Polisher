@@ -10,6 +10,7 @@
  */
 
 import { z } from "zod";
+import { TimeLimitError } from "@thepolisher/core";
 
 // ─── Environment & Configuration ─────────────────────────────────────────────
 
@@ -241,7 +242,8 @@ export class MetaModelClient {
    * Send a chat completion request to the Meta Model API.
    */
   public async createChatCompletion(
-    request: Partial<MetaChatCompletionRequest> & { messages: ChatMessage[] }
+    request: Partial<MetaChatCompletionRequest> & { messages: ChatMessage[] },
+    options: { signal?: AbortSignal } = {}
   ): Promise<MetaChatCompletionResponse> {
     if (!this.isConfigured()) {
       throw new ModelAuthError("Meta Model API key is not configured. Set MODEL_API_KEY or META_API_KEY.");
@@ -269,7 +271,7 @@ export class MetaModelClient {
 
     for (let attempt = 0; ; attempt++) {
       try {
-        return await this.post(validationResult.data);
+        return await this.post(validationResult.data, options.signal);
       } catch (error: unknown) {
         if (!(error instanceof ModelRateLimitError) || attempt >= RATE_LIMIT_RETRIES) throw error;
         const waitMs = error.retryAfterMs ?? this.config.rateLimitDelayMs * 2 ** attempt;
@@ -279,12 +281,15 @@ export class MetaModelClient {
   }
 
   /** One request to /chat/completions, with errors mapped to the typed errors above. */
-  private async post(body: MetaChatCompletionRequest): Promise<MetaChatCompletionResponse> {
+  private async post(body: MetaChatCompletionRequest, signal?: AbortSignal): Promise<MetaChatCompletionResponse> {
+    if (signal?.aborted) throw new TimeLimitError();
     const url = `${this.config.baseUrl}/chat/completions`;
     const controller = new AbortController();
     const timeoutHandle = setTimeout(() => {
       controller.abort();
     }, this.config.timeoutMs);
+    const cancel = () => controller.abort();
+    signal?.addEventListener("abort", cancel, { once: true });
 
     try {
       const response = await this.config.fetchFn(url, {
@@ -337,11 +342,15 @@ export class MetaModelClient {
       }
 
       if (error instanceof Error && error.name === "AbortError") {
+        // Cancelled by the run's time limit, not slow: the caller keeps its best version.
+        if (signal?.aborted) throw new TimeLimitError();
         throw new ModelTimeoutError(this.config.timeoutMs);
       }
 
       const errorMessage = error instanceof Error ? error.message : String(error);
       throw new ModelServiceError(`Failed to connect to Meta Model API: ${sanitizeMessage(errorMessage)}`);
+    } finally {
+      signal?.removeEventListener("abort", cancel);
     }
   }
 
