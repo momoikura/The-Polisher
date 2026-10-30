@@ -1,0 +1,1 @@
+{ "chosen": "2026-10-31: footage for the demo video (not a benchmark)", "budgetUSD": 0.5, "concurrency": 1, "issues": [ { "url": "https://github.com/gpustack/gpustack/issues/6619", "seenBefore": true } ] }

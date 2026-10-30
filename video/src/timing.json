@@ -1,0 +1,267 @@
+{
+ "hook": {
+  "seconds": 17.95,
+  "lines": [
+   {
+    "text": "This test fails on the original code.",
+    "start": 0,
+    "end": 2.75
+   },
+   {
+    "text": "It passes with the fix.",
+    "start": 3.05,
+    "end": 5.05
+   },
+   {
+    "text": "An AI wrote that fix, for a real bug in Rich, a Python library with fifty seven thousand stars.",
+    "start": 5.35,
+    "end": 12.55
+   },
+   {
+    "text": "ThePolisher proved it works, in about three minutes, for about two cents.",
+    "start": 12.85,
+    "end": 17.4
+   }
+  ]
+ },
+ "problem": {
+  "seconds": 21.324999999999996,
+  "lines": [
+   {
+    "text": "AI can write a fix in seconds.",
+    "start": 0,
+    "end": 2.525
+   },
+   {
+    "text": "Then someone has to check it.",
+    "start": 2.8249999999999997,
+    "end": 5.025
+   },
+   {
+    "text": "Does it fix the bug?",
+    "start": 5.324999999999999,
+    "end": 7.074999999999999
+   },
+   {
+    "text": "Did it break something else?",
+    "start": 7.374999999999999,
+    "end": 9.274999999999999
+   },
+   {
+    "text": "Are the tests real?",
+    "start": 9.575,
+    "end": 11.25
+   },
+   {
+    "text": "Is the pull request description true?",
+    "start": 11.549999999999999,
+    "end": 14.25
+   },
+   {
+    "text": "That checking is the slow part.",
+    "start": 14.549999999999999,
+    "end": 16.875
+   },
+   {
+    "text": "ThePolisher does it for you, with Meta's Muse Spark.",
+    "start": 17.174999999999997,
+    "end": 20.775
+   }
+  ]
+ },
+ "paste": {
+  "seconds": 15.549999999999999,
+  "lines": [
+   {
+    "text": "Paste an issue from a public Python repository.",
+    "start": 0,
+    "end": 3.65
+   },
+   {
+    "text": "Muse Spark reads the issue and the code, and writes three fixes at once.",
+    "start": 3.9499999999999997,
+    "end": 8.75
+   },
+   {
+    "text": "Each one runs in its own Modal sandbox, and the tests pick the best one, not the model.",
+    "start": 9.049999999999999,
+    "end": 15
+   }
+  ]
+ },
+ "agents": {
+  "seconds": 25.874999999999996,
+  "lines": [
+   {
+    "text": "Then four agents work in parallel.",
+    "start": 0,
+    "end": 2.65
+   },
+   {
+    "text": "CodePolish owns the fix and its tests.",
+    "start": 2.9499999999999997,
+    "end": 5.925
+   },
+   {
+    "text": "SecurityPolish reviews it, and a security scan must find nothing new.",
+    "start": 6.225,
+    "end": 10.975
+   },
+   {
+    "text": "DocPolish updates the docs.",
+    "start": 11.274999999999999,
+    "end": 13.674999999999999
+   },
+   {
+    "text": "WritePolish writes the pull request, and fills in the project's own template.",
+    "start": 13.974999999999998,
+    "end": 18.799999999999997
+   },
+   {
+    "text": "Every revision goes through a gate.",
+    "start": 19.099999999999998,
+    "end": 21.549999999999997
+   },
+   {
+    "text": "If it breaks something that used to pass, it is thrown out.",
+    "start": 21.849999999999998,
+    "end": 25.325
+   }
+  ]
+ },
+ "vision": {
+  "seconds": 6.675,
+  "lines": [
+   {
+    "text": "Muse Spark is multimodal, so it reads the screenshots in an issue too, and says what it saw.",
+    "start": 0,
+    "end": 6.125
+   }
+  ]
+ },
+ "proof": {
+  "seconds": 12.274999999999999,
+  "lines": [
+   {
+    "text": "At the end, the whole test suite runs on a fresh copy of the repo.",
+    "start": 0,
+    "end": 4.45
+   },
+   {
+    "text": "The proof card shows the new test failing on the original code because of the bug, then passing with the fix.",
+    "start": 4.75,
+    "end": 11.725
+   }
+  ]
+ },
+ "compare": {
+  "seconds": 11.774999999999999,
+  "lines": [
+   {
+    "text": "The first draft is kept, so you can see what the agents added.",
+    "start": 0,
+    "end": 4
+   },
+   {
+    "text": "Same issue, same model.",
+    "start": 4.3,
+    "end": 6.475
+   },
+   {
+    "text": "The numbers come from the sandbox, not from the model grading itself.",
+    "start": 6.7749999999999995,
+    "end": 11.225
+   }
+  ]
+ },
+ "results": {
+  "seconds": 30.924999999999997,
+  "lines": [
+   {
+    "text": "It was tested on seventeen real, open issues from nine popular Python projects, with the list committed before any run.",
+    "start": 0,
+    "end": 8.475
+   },
+   {
+    "text": "ThePolisher proved fourteen fixes.",
+    "start": 8.775,
+    "end": 11.4
+   },
+   {
+    "text": "A single prompt with the same model proved seven.",
+    "start": 11.7,
+    "end": 15.2
+   },
+   {
+    "text": "All seventeen cost sixty six cents.",
+    "start": 15.5,
+    "end": 18.275
+   },
+   {
+    "text": "When it can't prove a fix, it says so.",
+    "start": 18.575,
+    "end": 21.175
+   },
+   {
+    "text": "Three issues have never been proven, and they are in the published results.",
+    "start": 21.474999999999998,
+    "end": 25.924999999999997
+   },
+   {
+    "text": "In the latest full run, the median was five and a half minutes.",
+    "start": 26.224999999999998,
+    "end": 30.375
+   }
+  ]
+ },
+ "safety": {
+  "seconds": 20.375,
+  "lines": [
+   {
+    "text": "Repository code only runs in sandboxes with no secrets.",
+    "start": 0,
+    "end": 4.775
+   },
+   {
+    "text": "Issue text is treated as untrusted data.",
+    "start": 5.075,
+    "end": 8.2
+   },
+   {
+    "text": "Agents learn from past runs, but only from runs the tests verified.",
+    "start": 8.5,
+    "end": 13.425
+   },
+   {
+    "text": "And nothing is pushed for you.",
+    "start": 13.725,
+    "end": 15.774999999999999
+   },
+   {
+    "text": "The pull request opens only when you click, and confirm.",
+    "start": 16.075,
+    "end": 19.825
+   }
+  ]
+ },
+ "close": {
+  "seconds": 10.125,
+  "lines": [
+   {
+    "text": "Everything you saw was built during this hackathon, starting October twenty seventh.",
+    "start": 0,
+    "end": 5.1
+   },
+   {
+    "text": "AI writes fixes.",
+    "start": 5.3999999999999995,
+    "end": 7.299999999999999
+   },
+   {
+    "text": "ThePolisher proves them.",
+    "start": 7.6,
+    "end": 9.575
+   }
+  ]
+ }
+}

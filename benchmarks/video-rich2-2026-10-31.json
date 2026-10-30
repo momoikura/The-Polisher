@@ -1,0 +1,5 @@
+{ "chosen": "2026-10-31: Rich candidates for the demo video on the build with the whole-suite repair (not a benchmark)", "budgetUSD": 0.5, "concurrency": 3, "issues": [
+  { "url": "https://github.com/Textualize/rich/issues/4239", "seenBefore": true },
+  { "url": "https://github.com/Textualize/rich/issues/4237", "seenBefore": true },
+  { "url": "https://github.com/Textualize/rich/issues/4242", "seenBefore": true }
+] }

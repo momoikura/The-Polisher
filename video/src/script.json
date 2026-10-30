@@ -1,0 +1,65 @@
+[
+  { "id": "hook", "lines": [
+    "This test fails on the original code.",
+    "It passes with the fix.",
+    "An AI wrote that fix, for a real bug in Rich, a Python library with fifty seven thousand stars.",
+    "ThePolisher proved it works, in about three minutes, for about two cents."
+  ]},
+  { "id": "problem", "lines": [
+    "AI can write a fix in seconds.",
+    "Then someone has to check it.",
+    "Does it fix the bug?",
+    "Did it break something else?",
+    "Are the tests real?",
+    "Is the pull request description true?",
+    "That checking is the slow part.",
+    "ThePolisher does it for you, with Meta's Muse Spark."
+  ]},
+  { "id": "paste", "lines": [
+    "Paste an issue from a public Python repository.",
+    "Muse Spark reads the issue and the code, and writes three fixes at once.",
+    "Each one runs in its own Modal sandbox, and the tests pick the best one, not the model."
+  ]},
+  { "id": "agents", "lines": [
+    "Then four agents work in parallel.",
+    "CodePolish owns the fix and its tests.",
+    "SecurityPolish reviews it, and a security scan must find nothing new.",
+    "DocPolish updates the docs.",
+    "WritePolish writes the pull request, and fills in the project's own template.",
+    "Every revision goes through a gate.",
+    "If it breaks something that used to pass, it is thrown out."
+  ]},
+  { "id": "vision", "lines": [
+    "Muse Spark is multimodal, so it reads the screenshots in an issue too, and says what it saw."
+  ]},
+  { "id": "proof", "lines": [
+    "At the end, the whole test suite runs on a fresh copy of the repo.",
+    "The proof card shows the new test failing on the original code because of the bug, then passing with the fix."
+  ]},
+  { "id": "compare", "lines": [
+    "The first draft is kept, so you can see what the agents added.",
+    "Same issue, same model.",
+    "The numbers come from the sandbox, not from the model grading itself."
+  ]},
+  { "id": "results", "lines": [
+    "It was tested on seventeen real, open issues from nine popular Python projects, with the list committed before any run.",
+    "ThePolisher proved fourteen fixes.",
+    "A single prompt with the same model proved seven.",
+    "All seventeen cost sixty six cents.",
+    "When it can't prove a fix, it says so.",
+    "Three issues have never been proven, and they are in the published results.",
+    "In the latest full run, the median was five and a half minutes."
+  ]},
+  { "id": "safety", "lines": [
+    "Repository code only runs in sandboxes with no secrets.",
+    "Issue text is treated as untrusted data.",
+    "Agents learn from past runs, but only from runs the tests verified.",
+    "And nothing is pushed for you.",
+    "The pull request opens only when you click, and confirm."
+  ]},
+  { "id": "close", "lines": [
+    "Everything you saw was built during this hackathon, starting October twenty seventh.",
+    "AI writes fixes.",
+    "ThePolisher proves them."
+  ]}
+]
