@@ -80,6 +80,11 @@ export function ExperiencePanel() {
                   {agent}
                 </h3>
                 <div className="box-body">
+                {/* SecurityPolish only reviews CodePolish's work, so it never has a repair to remember. */}
+                {lane.lane === "security" ? (
+                  <p className="muted">Reviews CodePolish's work and makes no repairs of its own, so it has nothing to remember here.</p>
+                ) : (
+                <>
                 <p className="mono experience-tally">
                   {lane.attempts} attempts: {lane.kept} kept, {lane.rejected} rejected
                 </p>
@@ -96,6 +101,8 @@ export function ExperiencePanel() {
                   </ul>
                 ) : (
                   <p className="muted">No proven strategies yet.</p>
+                )}
+                </>
                 )}
                 </div>
               </article>
