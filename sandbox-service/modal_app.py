@@ -379,10 +379,24 @@ MISSING_CODE = re.compile(
 )
 
 
+MAX_EXAMPLE_LINES = 4
+MAX_EXAMPLE_CHARS = 300
+
+
+def reproduced_example(bad: ET.Element) -> str:
+    """pytest's own explanation of a failure: its `E` lines, else the failure message."""
+    explained = [l.strip()[1:].strip() for l in (bad.text or "").splitlines() if l.strip().startswith("E ")]
+    text = "\n".join(l for l in explained if l)[:MAX_EXAMPLE_CHARS] if explained else (bad.get("message") or "")
+    return "\n".join(text.splitlines()[:MAX_EXAMPLE_LINES])
+
+
 def classify_base_failures(xml_text: str) -> dict:
-    """How the new tests failed on the original code: reproducing the bug, or only missing new code."""
+    """
+    How the new tests failed on the original code: reproducing the bug, or only missing new code.
+    The example is a reproducing failure when there is one (what the Proof card shows), else what's missing.
+    """
     root = ET.fromstring(xml_text)
-    reproduced, missing, example = 0, 0, ""
+    reproduced, missing, missing_example, reproduced_text = 0, 0, "", ""
     for case in root.iter("testcase"):
         bad = case.find("failure") if case.find("failure") is not None else case.find("error")
         if bad is None:
@@ -393,10 +407,11 @@ def classify_base_failures(xml_text: str) -> dict:
             # The line that names what's missing, not pytest's generic "collection failure".
             lines = [l.strip().removeprefix("E").strip() for l in detail.splitlines() if MISSING_CODE.search(l)]
             specific = [l for l in lines if l != "collection failure"]
-            example = example or (specific or lines or [""])[-1][:200]
+            missing_example = missing_example or (specific or lines or [""])[-1][:200]
         else:
             reproduced += 1
-    return {"reproduced": reproduced, "missingCode": missing, "example": example}
+            reproduced_text = reproduced_text or reproduced_example(bad)
+    return {"reproduced": reproduced, "missingCode": missing, "example": reproduced_text or missing_example}
 
 
 MAX_FAILURES_KEPT = 2000
