@@ -7,6 +7,7 @@ import type {
   MaintainerLaneSummary,
   MaintainerPhase,
   MaintainerStatus,
+  Proof,
   SideMetrics,
 } from "@thepolisher/agents";
 
@@ -45,6 +46,8 @@ export interface MaintainerView {
   baseline: (Side & { metrics: SideMetrics }) | null;
   current: Side | null;
   comparison: { before: SideMetrics; after: SideMetrics } | null;
+  /** Do the new tests prove the fix? From the final whole-suite run. */
+  proof: Proof | null;
   costUSD: number;
   budgetUSD: number;
   feed: FeedItem[];
@@ -73,6 +76,7 @@ export const initialView = (): MaintainerView => ({
   baseline: null,
   current: null,
   comparison: null,
+  proof: null,
   costUSD: 0,
   budgetUSD: 0,
   feed: [],
@@ -232,6 +236,9 @@ export function maintainerReducer(view: MaintainerView, event: MaintainerEvent):
 
     case "comparison":
       return { ...view, comparison: { before: event.before, after: event.after } };
+
+    case "proof":
+      return { ...view, proof: event.proof };
 
     case "complete":
       return pushFeed(

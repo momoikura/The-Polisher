@@ -30,6 +30,13 @@ describe("maintainerReducer", () => {
     for (const lane of ["code", "security", "doc", "write"] as const) expect(view.lanes[lane].state).toBe("clean");
   });
 
+  it("keeps the proof from the final run, which the Proof card shows", async () => {
+    const view = (await recordRun()).reduce(maintainerReducer, initialView());
+
+    expect(view.proof).toMatchObject({ proven: true, failedOnBase: true, passedAfter: true });
+    expect(view.proof?.newTests.length).toBeGreaterThan(0);
+  });
+
   it("shows SecurityPolish correcting CodePolish in the feed", async () => {
     const view = (await recordRun()).reduce(maintainerReducer, initialView());
     expect(view.feed.some((f) => f.lane === "security" && f.text.startsWith("→ CodePolish"))).toBe(true);

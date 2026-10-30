@@ -1,6 +1,7 @@
 /** Live events from an Auto-Maintainer run. Every value comes from a real step. */
 
 import type { LaneId } from "../lanes.js";
+import type { Proof } from "./proof.js";
 import type { FileDiff } from "./bundle.js";
 
 export type MaintainerPhase = "fetching" | "planning" | "baseline" | "polishing" | "reconciling" | "verifying" | "done";
@@ -74,6 +75,8 @@ export type MaintainerEvent = At &
     | { type: "cost"; totalUSD: number; budgetUSD: number }
     | { type: "error"; lane?: LaneId; message: string }
     | { type: "comparison"; before: SideMetrics; after: SideMetrics }
+    /** From the final whole-suite run: do the new tests prove the fix? (the Proof card) */
+    | { type: "proof"; proof: Proof }
     | { type: "complete"; status: MaintainerStatus; message: string; lanes: Record<LaneId, LaneSummary>; totalUSD: number; canOpenPr: boolean }
   );
 

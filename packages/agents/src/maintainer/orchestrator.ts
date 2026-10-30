@@ -27,6 +27,7 @@ import {
 } from "./bundle.js";
 import { chooseCandidate } from "./candidates.js";
 import { EFFORT } from "./effort.js";
+import { proofFrom } from "./proof.js";
 import { issueImages, withImages, withoutRefusedImage } from "./issue-images.js";
 import { settleWithGrace } from "./settle.js";
 import { codeStaticChecks, docChecks, prChecks, uxChecks } from "./checks.js";
@@ -386,6 +387,8 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
       reconcile ? Promise.all(stale.map((lane) => runLane(lane, left / stale.length, snap, ws))) : Promise.resolve([]),
     ]);
     const final = ws.get();
+    const proof = proofFrom(finalValidation);
+    if (proof) emit({ type: "proof", proof });
     emit({
       type: "comparison",
       before: metricsFor(snap, baseline, baselineValidation, firstScore),

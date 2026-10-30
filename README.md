@@ -19,7 +19,7 @@ Each owning agent runs the keep-or-reject loop. A revision is kept only if it do
 
 ## Results
 
-On **17 real, open issues from 10 popular Python repos** (Rich, jsonschema, sqlglot, urllib3, Pygments, astroid, pyparsing, more-itertools, humanize), chosen and committed before any run:
+On **17 real, open issues from 9 popular Python projects** (Rich, jsonschema, sqlglot, urllib3, Pygments, astroid, pyparsing, more-itertools, humanize), chosen and committed before any run:
 
 | | ThePolisher | Single prompt (same model) |
 |---|---|---|

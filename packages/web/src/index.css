@@ -759,6 +759,177 @@ a {
   justify-self: start;
 }
 
+/* ---------- Evidence on the issue form ---------- */
+
+.evidence {
+  display: grid;
+  grid-template-columns: auto auto auto minmax(0, 1fr);
+  gap: var(--s-2) var(--s-4);
+  align-items: center;
+  margin-top: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  color: var(--fg);
+  text-decoration: none;
+  transition: border-color var(--fast) var(--ease);
+}
+
+.evidence:hover {
+  border-color: var(--fg);
+}
+
+.evidence:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.evidence-stat {
+  display: grid;
+  line-height: 1.1;
+}
+
+.evidence-stat strong {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+}
+
+.evidence-stat span {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+
+.evidence-stat.is-muted strong {
+  color: var(--fg-subtle);
+}
+
+.evidence-vs {
+  color: var(--fg-subtle);
+  font-size: var(--text-sm);
+}
+
+.evidence-note {
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+}
+
+.evidence-note .icon {
+  margin-left: 2px;
+  vertical-align: -1px;
+}
+
+@media (max-width: 640px) {
+  .evidence {
+    grid-template-columns: auto auto auto;
+  }
+
+  .evidence-note {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ---------- Proof card ---------- */
+
+.proof-card {
+  margin-bottom: var(--s-5);
+  padding: var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+}
+
+.proof-card.is-proven {
+  border: 2px solid var(--fg);
+}
+
+.proof-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--s-3);
+  align-items: start;
+}
+
+.proof-head h2 {
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.proof-head p {
+  margin-top: var(--s-1);
+  font-size: var(--text-sm);
+}
+
+.proof-steps {
+  display: grid;
+  gap: var(--s-3);
+  margin: var(--s-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.proof-steps li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: var(--s-3);
+  align-items: start;
+  font-size: var(--text-sm);
+}
+
+.proof-step-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  font-weight: 700;
+}
+
+/* The bug showing on the original code is the good outcome of step 1, so steps that
+   behave as they should are filled in; ones that don't stay outlined. */
+.proof-steps li.is-pass .proof-step-icon {
+  border-color: var(--bg-inverse);
+  background: var(--bg-inverse);
+  color: var(--fg-inverse);
+}
+
+.proof-steps li.is-fail strong {
+  text-decoration: underline;
+  text-decoration-style: wavy;
+  text-underline-offset: 4px;
+}
+
+.proof-output,
+.proof-code {
+  margin-top: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  max-height: 320px;
+  overflow: auto;
+  border-radius: var(--radius);
+  background: var(--bg-subtle);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.proof-test {
+  margin-top: var(--s-4);
+  border-top: 1px solid var(--border-muted);
+  padding-top: var(--s-3);
+}
+
+.proof-test summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 36px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .benchmark-summary .box-header {
   display: flex;
   align-items: center;

@@ -3,6 +3,7 @@ import type { AuthUser } from "../maintainer/useAuth.js";
 import type { MaintainerConfig } from "../maintainer/useMaintainer.js";
 import { LANE_IDS } from "../maintainer/reducer.js";
 import { LANE_META } from "../maintainer/lanes.js";
+import { EVIDENCE } from "../maintainer/evidence.js";
 import { prettyModel } from "../maintainer/model-label.js";
 import { Button } from "./Button.js";
 import { Icon } from "./Icon.js";
@@ -64,6 +65,22 @@ export function IssueForm({ config, user, isStarting, error, onStart, onForgetKe
       <div className="new-head">
         <h1 className="page-title">Fix an issue</h1>
         <p className="page-lede">Paste a GitHub issue from a Python repository. You get a pull request whose tests prove the fix.</p>
+        <a className="evidence" href={EVIDENCE.url} target="_blank" rel="noopener noreferrer">
+          <span className="evidence-stat">
+            <strong>{EVIDENCE.proven}</strong>
+            <span>of {EVIDENCE.issues} fixes proven</span>
+          </span>
+          <span className="evidence-vs">vs</span>
+          <span className="evidence-stat is-muted">
+            <strong>{EVIDENCE.singlePrompt}</strong>
+            <span>with a single prompt</span>
+          </span>
+          <span className="evidence-note">
+            On {EVIDENCE.issues} real open issues from {EVIDENCE.projects} popular Python projects, same model, issues chosen before running. ${EVIDENCE.totalUSD.toFixed(2)} for all of them.{" "}
+            <span className="link">See every issue</span>
+            <Icon name="external" size={12} />
+          </span>
+        </a>
       </div>
 
       <div className="new-grid">

@@ -5,6 +5,7 @@ import { Comparison } from "./Comparison.js";
 import { FilesChanged } from "./FilesChanged.js";
 import { Icon, type IconName } from "./Icon.js";
 import { PrHeader } from "./PrHeader.js";
+import { ProofCard } from "./ProofCard.js";
 import { Timeline } from "./Timeline.js";
 
 type Tab = "conversation" | "files" | "comparison";
@@ -58,6 +59,7 @@ export function RunView({ view, isSimulated, model, action, notice, mergeBox }: 
       {tab === "conversation" && (
         <div className="pr-layout">
           <div className="pr-main">
+            {view.proof && <ProofCard proof={view.proof} diffs={view.current?.diffs ?? view.baseline?.diffs ?? []} />}
             <Timeline items={view.feed} isLive={!view.result} />
             {mergeBox}
           </div>
