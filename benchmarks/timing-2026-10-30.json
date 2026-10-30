@@ -1,0 +1,9 @@
+{
+  "chosen": "2026-10-30: timing breakdown on the slowest issue and a medium one, caches warm (diagnosis, not a benchmark)",
+  "budgetUSD": 0.5,
+  "concurrency": 2,
+  "issues": [
+    { "url": "https://github.com/Textualize/rich/issues/4238", "seenBefore": true },
+    { "url": "https://github.com/urllib3/urllib3/issues/5164", "seenBefore": true }
+  ]
+}

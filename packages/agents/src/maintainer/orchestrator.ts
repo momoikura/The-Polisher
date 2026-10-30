@@ -346,18 +346,20 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     const available = Math.max(cfg.budgetUSD - totalSpent(), 0);
     await Promise.all(OWNER_LANES.map((lane) => runLane(lane, available * BUDGET_SHARE[lane], snap, ws)));
 
-    // ── 5. Reconcile docs/PR against the final code ────────────────────────
-    const stale = (["doc", "write"] as const).filter((l) => lastStatus[l] !== "accepted" || failing(l, snap, ws).length > 0);
+    // ── 5 + 6. The code is final now: run the whole suite while docs/PR are reconciled ──
+    // Reconcile only fixes objective failures (e.g. a changed file the PR doesn't mention), not a
+    // critic wanting nicer wording, and never past the time limit.
+    const stale = (["doc", "write"] as const).filter((l) => failing(l, snap, ws).length > 0);
     const left = cfg.budgetUSD - totalSpent();
-    if (stale.length && left > 0.02) {
-      emit({ type: "phase", phase: "reconciling" });
-      await Promise.all(stale.map((lane) => runLane(lane, left / stale.length, snap, ws)));
-    }
-
-    // ── 6. Verdict + before/after ──────────────────────────────────────────
-    const final = ws.get();
+    const reconcile = stale.length > 0 && left > 0.02 && Date.now() < deadlineAt;
+    emit({ type: "phase", phase: reconcile ? "reconciling" : "verifying" });
     // Polishing ran only the related tests; the final patch and the first draft get the whole suite.
-    const [finalValidation, baselineValidation] = await fullValidations([final, baseline], snap);
+    // Reconcile can't change the code (DocPolish and WritePolish don't own code files).
+    const [[finalValidation, baselineValidation]] = await Promise.all([
+      fullValidations([ws.get(), baseline], snap),
+      reconcile ? Promise.all(stale.map((lane) => runLane(lane, left / stale.length, snap, ws))) : Promise.resolve([]),
+    ]);
+    const final = ws.get();
     emit({
       type: "comparison",
       before: metricsFor(snap, baseline, baselineValidation, firstScore),
@@ -392,7 +394,6 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
   async function fullValidations(bundles: PrBundle[], snap: RepoSnapshot): Promise<Array<Validation | null>> {
     const sandbox = options.sandbox;
     if (!sandbox) return bundles.map((b) => board.forCode(b.code));
-    emit({ type: "phase", phase: "verifying" });
     return Promise.all(
       bundles.map(async (b) => {
         if (Object.keys(b.code).length === 0) return board.forCode(b.code);
@@ -600,8 +601,9 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
         maxIterations: cfg.maxRoundsPerLane,
         maxCostUSD: Math.max(budgetUSD, 0.0001),
         deadlineAt,
-        // Once every objective check passes (the fix is proven), one more round for the critic at most.
-        maxPolishRounds: 1,
+        // Once every objective check passes: CodePolish gets one more round for its critic (the fix
+        // itself); DocPolish and WritePolish stop there rather than polishing wording.
+        maxPolishRounds: lane === "code" ? 1 : 0,
         // Room for the narrowed, smallest-edit strategy (after 2 rejections) to get two tries.
         maxConsecutiveRejections: 4,
         progressEpsilon: 0.1,

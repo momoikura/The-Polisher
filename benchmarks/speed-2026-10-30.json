@@ -1,0 +1,11 @@
+{
+  "chosen": "2026-10-30: four big-repo issues that were slow in the 2026-10-29 benchmark, to measure the speed changes (not a new benchmark)",
+  "budgetUSD": 0.5,
+  "concurrency": 2,
+  "issues": [
+    { "url": "https://github.com/python-jsonschema/jsonschema/issues/1588", "seenBefore": true },
+    { "url": "https://github.com/Textualize/rich/issues/4238", "seenBefore": true },
+    { "url": "https://github.com/tobymao/sqlglot/issues/8752", "seenBefore": true },
+    { "url": "https://github.com/urllib3/urllib3/issues/5164", "seenBefore": true }
+  ]
+}

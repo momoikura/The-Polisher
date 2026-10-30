@@ -42,6 +42,23 @@ async function runOne({ url, seenBefore }) {
   const started = Date.now();
   let comparison = null;
   let lastCost = 0;
+  // Where the time goes: seconds per phase, and per lane per state (evaluating, validating, repairing...).
+  const timing = { phases: {}, lanes: {} };
+  let phase = { name: null, at: started };
+  const laneState = {};
+  const add = (bucket, key, ms) => (bucket[key] = Math.round(((bucket[key] ?? 0) + ms / 1000) * 10) / 10);
+  const track = (e) => {
+    const at = e.at ?? Date.now();
+    if (e.type === "phase") {
+      if (phase.name) add(timing.phases, phase.name, at - phase.at);
+      phase = { name: e.phase, at };
+    }
+    if (e.type === "lane_state") {
+      const prev = laneState[e.lane];
+      if (prev) add((timing.lanes[e.lane] ??= {}), prev.state, at - prev.at);
+      laneState[e.lane] = { state: e.state, at };
+    }
+  };
   const base = { issue: url, seenBefore: Boolean(seenBefore), model: new A.MetaModelClient().getModelId(), budgetUSD: settings.budgetUSD };
   try {
     const result = await A.runMaintainer(
@@ -52,6 +69,7 @@ async function runOne({ url, seenBefore }) {
         budgetUSD: settings.budgetUSD,
         provider: "meta",
         onEvent: (e) => {
+          track(e);
           if (e.type === "comparison") comparison = e;
           if (e.type === "cost") lastCost = e.totalUSD;
         },
@@ -67,6 +85,7 @@ async function runOne({ url, seenBefore }) {
       costUSD: Number(result.totalUSD.toFixed(4)),
       wallSeconds: Math.round((Date.now() - started) / 1000),
       files,
+      timing,
       error: null,
     };
   } catch (err) {
@@ -79,6 +98,7 @@ async function runOne({ url, seenBefore }) {
       costUSD: Number(lastCost.toFixed(4)),
       wallSeconds: Math.round((Date.now() - started) / 1000),
       files: [],
+      timing,
       error: err instanceof Error ? err.message.slice(0, 300) : String(err),
     };
   }
