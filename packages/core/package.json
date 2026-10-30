@@ -15,8 +15,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
-    "clean": "rimraf dist",
-    "db:migrate": "tsx src/db/migrate.ts"
+    "clean": "rimraf dist"
   },
   "dependencies": {
     "ulid": "^2.3.0",

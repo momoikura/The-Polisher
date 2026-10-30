@@ -77,10 +77,6 @@ export {
   type Severity,
 } from "./schemas/agent-output.js";
 
-// ─── Specialist agents ───────────────────────────────────────────────────────
-export { WritePolish, taskContextFromRun, type WritePolishOptions } from "./agents/write-polish.js";
-export { WRITING_PROMPT_VERSION } from "./prompts/writing.js";
-
 // ─── Lanes and shared checks ─────────────────────────────────────────────────
 export { LANES, type LaneId } from "./lanes.js";
 export { findSlopPhrases, SLOP_PHRASES } from "./slop/shared.js";
@@ -126,5 +122,3 @@ export {
   createSimulatedSandbox,
 } from "./maintainer/simulated.js";
 
-// ─── Verification ────────────────────────────────────────────────────────────
-export { runWritingChecks, findRepetition, countWords } from "./verification/writing-checks.js";

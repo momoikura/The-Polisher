@@ -109,14 +109,6 @@ export {
   type LimitCheckResult,
 } from "./controller/iteration-limiter.js";
 
-// ─── Store ───────────────────────────────────────────────────────────────────
-export { FileArtifactStore } from "./store/artifact-store.js";
-
-// ─── Database ────────────────────────────────────────────────────────────────
-export { getDb, closeDb } from "./db/client.js";
-export { runMigrations } from "./db/migrate.js";
-export * as dbSchema from "./db/schema.js";
-
 // ─── Utilities ───────────────────────────────────────────────────────────────
 export { sha256 } from "./utils/hash.js";
 export {
