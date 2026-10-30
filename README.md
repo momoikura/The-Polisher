@@ -30,6 +30,8 @@ On **17 real, open issues from 10 popular Python repos** (Rich, jsonschema, sqlg
 
 Total model cost for all 17: **$0.66** (median $0.04 per issue, Muse Spark 1.3 Contributor). When it couldn't prove a fix, it said so instead of claiming one. Every issue, the method and the limits: [benchmarks/results/issues-2026-10-29.md](benchmarks/results/issues-2026-10-29.md).
 
+A day later the same issues were re-run after speed changes ([results](benchmarks/results/issues-2026-10-30.md)): 12 of 16 proven, and the run exposed two bugs (targeted test runs naming tests differently, and the gate rejecting a proven fix over a lint error). After fixing both, the five issues they had hurt were all proven, Rich ones in 3 to 5 minutes instead of 12 to 22.
+
 ## Built during the hackathon
 
 Everything in this repository was written during the building period (Oct 27 to Nov 4, 2026). The first file was created on Oct 27, and there is no earlier codebase. Git history starts on Oct 28, when the repo was created; the commits after that show the rest of the work.
