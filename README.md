@@ -4,6 +4,7 @@
 
 <br>
 
+[![CI](https://github.com/momoikura/The-Polisher/actions/workflows/ci.yml/badge.svg)](https://github.com/momoikura/The-Polisher/actions/workflows/ci.yml)
 ![license](https://img.shields.io/badge/license-MIT-blue)
 ![model](https://img.shields.io/badge/model-Muse_Spark_1.3-0866ff)
 ![sandbox](https://img.shields.io/badge/sandbox-Modal-7fee64)
@@ -26,9 +27,11 @@
 
 ## The problem
 
-AI can write a fix for an issue in seconds. You still have to check it. Does it fix the bug? Did it break something? Are there tests? Is the PR description true?
+Open source maintainers are being flooded with AI pull requests, and they can't tell which ones work without checking each one. On pydantic, one small bug drew at least five AI-style pull requests that were all closed. The requests project warns of a permanent ban for "DoS-by-slop". pytest calls unattended AI output "a denial-of-service on a volunteer team".
 
-ThePolisher does that checking for you. It runs the tests in a sandbox, keeps only changes that make things better, and tells you plainly when it could not prove a fix.
+Writing a fix is now the easy part. Checking it is the slow part: does it fix the bug, did it break something, are the tests real, is the description true?
+
+ThePolisher is a verifiable agent built for that gap. It's for maintainers and contributors who need a pull request someone can trust. It runs the tests in a sandbox, keeps only changes that make things better, and says plainly when it could not prove a fix. Its results are on real open issues in projects we don't control.
 
 ## What it does
 
