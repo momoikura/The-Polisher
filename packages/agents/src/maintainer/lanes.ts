@@ -19,7 +19,7 @@ import type {
 } from "@thepolisher/core";
 import { StructuredOutputError, completeStructured, type ChatClient } from "../llm/chat-client.js";
 import { ModelTimeoutError } from "../llm/meta-client.js";
-import { EFFORT, codeRepairEffort } from "./effort.js";
+import { EFFORT } from "./effort.js";
 import { applyEdits, isLarge } from "./large-files.js";
 import { EvaluationSchema, RepairSchema, toEvaluatorOutput } from "../schemas/agent-output.js";
 import type { CheckSnapshot } from "../memory/experience.js";
@@ -229,7 +229,7 @@ export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, Teste
       } else {
         const r = await completeStructured(this.o.client, messages, FilesRepairSchema, {
           temperature,
-          reasoningEffort: this.o.lane === "code" ? codeRepairEffort(strategy.mode) : EFFORT.otherRepair,
+          reasoningEffort: this.o.lane === "code" ? EFFORT.codeRepair : EFFORT.otherRepair,
         });
         ({ model, promptTokens, completionTokens } = r);
         const current = parseFiles(content);

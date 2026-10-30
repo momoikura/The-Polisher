@@ -1,0 +1,11 @@
+{
+  "chosen": "2026-10-30: re-measure after speed changes A-D on the same two issues, plus two demo candidates (diagnosis, not a benchmark)",
+  "budgetUSD": 0.5,
+  "concurrency": 2,
+  "issues": [
+    { "url": "https://github.com/urllib3/urllib3/issues/5164", "seenBefore": true },
+    { "url": "https://github.com/Textualize/rich/issues/4238", "seenBefore": true },
+    { "url": "https://github.com/more-itertools/more-itertools/issues/1336", "seenBefore": true },
+    { "url": "https://github.com/Textualize/rich/issues/4239", "seenBefore": true }
+  ]
+}
