@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { issueImages, withImages } from "../src/maintainer/issue-images.js";
+import { issueImages, withImages, withoutRefusedImage } from "../src/maintainer/issue-images.js";
 
 describe("issueImages", () => {
   it("finds GitHub-hosted screenshots in markdown and HTML, in order, without duplicates", () => {
@@ -26,6 +26,12 @@ describe("issueImages", () => {
     ].join("\n");
 
     expect(issueImages(body)).toEqual([]);
+  });
+
+  it("also finds bare GitHub attachment links, which GitHub's uploader inserts and renders inline", () => {
+    const body = "Steps to reproduce\n\nhttps://github.com/user-attachments/assets/93eb6766-fa00-4615-9e62-65fd503e00b3\n\nSee https://example.com/docs";
+
+    expect(issueImages(body)).toEqual(["https://github.com/user-attachments/assets/93eb6766-fa00-4615-9e62-65fd503e00b3"]);
   });
 
   it("keeps at most four", () => {
@@ -55,5 +61,19 @@ describe("withImages", () => {
     const messages = [{ role: "user" as const, content: "x" }];
 
     expect(withImages(messages, [])).toBe(messages);
+  });
+});
+
+describe("withoutRefusedImage", () => {
+  const imgs = ["https://github.com/user-attachments/assets/a", "https://github.com/user-attachments/assets/b"];
+
+  it("drops just the attachment the API refused (part 0 is the text)", () => {
+    const error = "Meta Model API responded with status 400: unsupported media type at messages[0].content[1]: `video/mp4`.";
+
+    expect(withoutRefusedImage(imgs, error)).toEqual(["https://github.com/user-attachments/assets/b"]);
+  });
+
+  it("drops all when the error doesn't say which", () => {
+    expect(withoutRefusedImage(imgs, "status 400: bad request")).toEqual([]);
   });
 });

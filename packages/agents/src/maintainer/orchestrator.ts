@@ -27,7 +27,7 @@ import {
 } from "./bundle.js";
 import { chooseCandidate } from "./candidates.js";
 import { EFFORT } from "./effort.js";
-import { issueImages, withImages } from "./issue-images.js";
+import { issueImages, withImages, withoutRefusedImage } from "./issue-images.js";
 import { settleWithGrace } from "./settle.js";
 import { codeStaticChecks, docChecks, prChecks, uxChecks } from "./checks.js";
 import type { CandidateSummary, LaneSummary, MaintainerEvent, MaintainerEventInput, MaintainerStatus, SideMetrics } from "./events.js";
@@ -291,16 +291,20 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
   const board = new ValidationBoard();
   let imagesUsed: string[] = [];
   /**
-   * A call with the issue's images; if the Meta API refuses them (e.g. it couldn't
-   * fetch one), the same call once more without, and later calls skip them too.
+   * A call with the issue's images. If the Meta API refuses one (a bare attachment
+   * link that's really a video, an image it couldn't fetch), that one is dropped and
+   * the call retried; if it doesn't say which, all are. Later calls use what's left.
    */
   const withImageFallback = async <T>(imgs: readonly string[], call: (imgs: readonly string[]) => Promise<T>): Promise<T> => {
-    try {
-      return await call(imgs);
-    } catch (err) {
-      if (imgs.length === 0 || !(err instanceof ModelServiceError) || (err.statusCode ?? 500) >= 500) throw err;
-      imagesUsed = [];
-      return call([]);
+    let current = [...imgs];
+    for (;;) {
+      try {
+        return await call(current);
+      } catch (err) {
+        if (current.length === 0 || !(err instanceof ModelServiceError) || (err.statusCode ?? 500) >= 500) throw err;
+        current = withoutRefusedImage(current, err.message);
+        imagesUsed = current;
+      }
     }
   };
 
