@@ -1,0 +1,8 @@
+{
+  "chosen": "2026-10-31: rich#4244 after giving CodePolish a repair round for failures only the whole suite finds; every earlier run of this issue left tests.test_panel::test_render_size failing (a check, not a benchmark)",
+  "budgetUSD": 0.5,
+  "concurrency": 1,
+  "issues": [
+    { "url": "https://github.com/Textualize/rich/issues/4244", "seenBefore": true }
+  ]
+}
