@@ -41,8 +41,8 @@ export function ProofCard({ proof, diffs }: Props) {
               {!proof.failedOnBase
                 ? " The new tests already pass without the fix, so they don't show the bug."
                 : reproducesBug
-                  ? " It reproduces the bug:"
-                  : " But only because it uses code the fix adds, which proves nothing about the bug:"}
+                  ? ` It reproduces the bug${proof.baseFailure ? ":" : "."}`
+                  : ` But only because it uses code the fix adds, which proves nothing about the bug${proof.baseFailure ? ":" : "."}`}
             </span>
             {proof.baseFailure && <pre className="proof-output">{proof.baseFailure}</pre>}
           </div>

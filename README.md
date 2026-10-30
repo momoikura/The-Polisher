@@ -65,6 +65,10 @@ A re-run the next day found two bugs. After fixing both, the five issues they ha
 
 ## Screenshots
 
+**The proof.** The new tests fail on the original code, pass with the fix, and the whole suite still passes. This run on more-itertools#1336 took 158 seconds and cost $0.009.
+
+<img src="assets/screenshot-proof.png" alt="Proof card for more-itertools#1336: the new tests fail on the original code, pass with the fix, and 769 of 769 tests pass" width="100%">
+
 **A finished run.** Every step, every check and every agent's verdict, live as it happens.
 
 <img src="assets/screenshot-run.png" alt="Run view for Textualize/rich#4244 with the timeline and four approving reviewers" width="100%">
