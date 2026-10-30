@@ -1,0 +1,8 @@
+{
+  "chosen": "2026-10-30: rich#4244 after adding PR template support to WritePolish, second check after telling WritePolish to tick only boxes that are fully true and not repeat tool claims from the issue (a check, not a benchmark)",
+  "budgetUSD": 0.5,
+  "concurrency": 1,
+  "issues": [
+    { "url": "https://github.com/Textualize/rich/issues/4244", "seenBefore": true }
+  ]
+}

@@ -31,6 +31,7 @@ import { proofFrom } from "./proof.js";
 import { issueImages, withImages, withoutRefusedImage } from "./issue-images.js";
 import { settleWithGrace } from "./settle.js";
 import { clientUntil, sandboxUntil } from "./deadline.js";
+import { loadPrTemplate } from "./pr-template.js";
 import { codeStaticChecks, docChecks, prChecks, uxChecks } from "./checks.js";
 import type { CandidateSummary, LaneSummary, MaintainerEvent, MaintainerEventInput, MaintainerStatus, SideMetrics } from "./events.js";
 import { GitHubClient, parseIssueUrl } from "./github.js";
@@ -101,6 +102,7 @@ async function loadFromGitHub(
   const { files } = await github.listFiles(ref.owner, ref.repo, repo.headSha);
   if (!files.some((f) => f.path.endsWith(".py"))) throw new Error("This repository has no Python files; only Python + pytest repos are supported.");
   const kept = files.filter((f) => !IGNORED_DIRS.test(f.path));
+  const tree = kept.map((f) => f.path);
   return {
     snapshot: {
       owner: ref.owner,
@@ -108,8 +110,9 @@ async function loadFromGitHub(
       defaultBranch: repo.defaultBranch,
       sha: repo.headSha,
       issue: { number: issue.number, title: issue.title, body: issue.body ?? "", url: issue.html_url },
-      tree: kept.map((f) => f.path),
+      tree,
       files: {},
+      prTemplate: await loadPrTemplate(github, ref.owner, ref.repo, repo.headSha, tree),
     },
     sizes: Object.fromEntries(kept.map((f) => [f.path, f.size])),
   };

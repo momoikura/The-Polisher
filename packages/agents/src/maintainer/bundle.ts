@@ -25,6 +25,8 @@ export interface RepoSnapshot {
   files: FileMap;
   /** Function/class names to show from large files: from the planner and the issue. */
   focus?: string[];
+  /** The repo's pull request template, if it has one: WritePolish fills it in (pr-template.ts). */
+  prTemplate?: string;
 }
 
 export interface PrBundle {

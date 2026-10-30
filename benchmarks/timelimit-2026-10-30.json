@@ -1,0 +1,8 @@
+{
+  "chosen": "2026-10-30: pygments#3247 (28 min in the second re-run) after making the 20-minute limit hard, to check it ends on time (a check, not a benchmark)",
+  "budgetUSD": 0.5,
+  "concurrency": 1,
+  "issues": [
+    { "url": "https://github.com/pygments/pygments/issues/3247", "seenBefore": true }
+  ]
+}

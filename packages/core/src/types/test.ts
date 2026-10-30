@@ -58,6 +58,8 @@ export type TestType =
   | "pr_links_issue"
   | "pr_files_listed"
   | "pr_honest_claims"
+  | "pr_template"
+  | "pr_ai_disclosed"
   // UI mode
   | "accessibility"
   | "html_validation"
