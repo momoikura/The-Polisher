@@ -30,6 +30,7 @@ describe("proofFrom", () => {
       testsPassed: 768,
       testsTotal: 770,
       preexisting: 2,
+      newFailing: 0,
       fullSuite: true,
     });
   });

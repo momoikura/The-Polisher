@@ -11,7 +11,7 @@ import { EXCERPT_CHARS, FileEditSchema, MAX_FILE_CHARS, changedLineNumbers, exce
 import { playbookFor } from "./playbooks.js";
 import type { Validation } from "./sandbox.js";
 
-export const MAINTAINER_PROMPT_VERSION = "maintainer-v8";
+export const MAINTAINER_PROMPT_VERSION = "maintainer-v9";
 
 const MAX_TREE_PATHS = 1500;
 export { MAX_FILE_CHARS };
@@ -95,7 +95,7 @@ export function describeValidation(v: Validation | null): string {
     v.tests.scope === "targeted"
       ? ` (targeted: only the patch's tests and ${v.tests.selectedFiles ?? "some"} related test files ran, not the whole suite; say so if you report these numbers)`
       : "";
-  return `Sandbox${scope}: ${v.tests.passed}/${v.tests.total} tests pass, ${v.tests.failed + v.tests.errors} failing${v.tests.preexistingCount ? ` (${v.tests.preexistingCount} of them already failed on the original code: not caused by the patch, leave them alone)` : ""}; ${ftp}; ${v.lint.issues.length} lint issue(s); compiles: ${v.compile.ok}; ${sec}.${v.tests.failures.length ? `\nFailures:\n${v.tests.failures.slice(0, 5).map((f) => `- ${f.test}: ${f.message.slice(0, 300)}`).join("\n")}` : ""}`;
+  return `Sandbox${scope}: ${v.tests.passed}/${v.tests.total} tests pass, ${v.tests.failed + v.tests.errors} failing${v.tests.preexistingCount ? ` (${v.tests.preexistingCount} of them already failed on the original code: not caused by the patch, leave them alone)` : ""}; ${ftp}; ${v.lint.issues.length} lint issue(s); compiles: ${v.compile.ok}; ${sec}.${v.tests.failures.length ? `\nNew failures (these pass on the original code, so the patch caused them):\n${v.tests.failures.slice(0, 5).map((f) => `- ${f.test}: ${f.message.slice(0, 300)}`).join("\n")}` : ""}`;
 }
 
 // ─── Planning + baseline ──────────────────────────────────────────────────

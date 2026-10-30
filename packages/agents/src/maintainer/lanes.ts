@@ -75,7 +75,13 @@ export interface MaintainerLaneOptions {
   /** CodePolish only: SecurityPolish's critic verdict and the sandbox's security scan, for the dashboard. */
   onSecurityReview?: (review: SecurityReview) => void;
   onSecurityChecks?: (checks: TestCheck[]) => void;
+  /** CodePolish only: which tests to run on a revision (default: the related ones). */
+  testScope?: "targeted" | "full";
+  /** Extra guidance for this lane's repairs. */
+  repairNote?: string;
 }
+
+export const SUITE_REPAIR_NOTE = `The whole test suite found these failures; the related tests you ran so far all passed. A test that only fails in the whole suite usually means test order matters: the patch or its new tests leave something behind (a cache, a global, a module-level object) that a later test sees. Find what leaks and fix it, or write the new tests so they don't cause it. Keep the new tests failing on the original code. Don't change, skip or delete the failing test, and don't rename test files to change the order: that hides the problem.`;
 
 const EVALUATION_TEMPERATURE = 0;
 const REPAIR_TEMPERATURE = 0.3;
@@ -109,7 +115,7 @@ export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, Teste
       changes: { ...code },
       newTests: Object.keys(code).filter(isTestPath),
       // While polishing, only the related tests; the final patch gets the whole suite.
-      scope: "targeted",
+      scope: this.o.testScope ?? "targeted",
     });
     this.o.board.record(code, v);
     return v;
@@ -215,7 +221,7 @@ export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, Teste
       this.o.board.forCode(bundle.code),
       evaluation.issues,
       failing.map((c) => `${c.testType}: ${c.message}`),
-      [strategy.brief, lessons].filter(Boolean).join("\n\n")
+      [this.o.repairNote, strategy.brief, lessons].filter(Boolean).join("\n\n")
     );
 
     let next: string;

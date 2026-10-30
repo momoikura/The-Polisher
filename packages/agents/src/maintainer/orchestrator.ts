@@ -35,7 +35,7 @@ import { loadPrTemplate } from "./pr-template.js";
 import { codeStaticChecks, docChecks, prChecks, uxChecks } from "./checks.js";
 import type { CandidateSummary, LaneSummary, MaintainerEvent, MaintainerEventInput, MaintainerStatus, SideMetrics } from "./events.js";
 import { GitHubClient, parseIssueUrl } from "./github.js";
-import { MaintainerLaneAgent, ValidationBoard, type OwnerLane, type RepairInfo, type SecurityReview } from "./lanes.js";
+import { MaintainerLaneAgent, SUITE_REPAIR_NOTE, ValidationBoard, type OwnerLane, type RepairInfo, type SecurityReview } from "./lanes.js";
 import { MAX_LARGE_FILE_CHARS, applyEdits, isLarge, issueSymbols, type FileEdit } from "./large-files.js";
 import { BaselineSchema, MAINTAINER_PROMPT_VERSION, PlanSchema, buildBaselineMessages, buildPlanMessages, promptChars } from "./prompts.js";
 import { summarizeValidation, validationChecks, validationFailureChecks, type SandboxClient, type Validation } from "./sandbox.js";
@@ -78,6 +78,10 @@ const CLEAN_SCORE = 85;
 const DRAFT_GRACE_MS = 60_000;
 /** Share of the time limit kept for the final whole-suite run and reconcile (pygments#3247's took 5.5 min). */
 const FINAL_SHARE = 0.25;
+/** Below this, a further round on docs, the PR or a whole-suite failure can't pay for its model calls. */
+const MIN_FOLLOW_UP_USD = 0.02;
+/** A first look at the failure plus two revisions; each revision runs the whole suite again. */
+const SUITE_REPAIR_ROUNDS = 3;
 // A file of at most this many bytes has at most that many characters: the sandbox's per-file limit.
 // Files over MAX_FILE_CHARS are shown as excerpts and changed through edits (large-files.ts).
 const MAX_FILE_BYTES = MAX_LARGE_FILE_CHARS;
@@ -162,18 +166,31 @@ export function draftFailure(reasons: readonly unknown[]): Error {
 
 /** Keep only what each lane may own; anything else the baseline produced is dropped. */
 const AGENT_NAMES: Record<LaneId, string> = { code: "CodePolish", security: "SecurityPolish", doc: "DocPolish", write: "WritePolish" };
+const MAX_FAILURES_NAMED = 3;
+
+/** Failures in the whole suite that the targeted runs never showed, so CodePolish hasn't had the chance to fix them. */
+export function unseenFailures(full: Validation | null, targeted: Validation | null): string[] {
+  const seen = new Set(targeted?.tests.failures.map((f) => f.test));
+  return full?.tests.failures.map((f) => f.test).filter((t) => !seen.has(t)) ?? [];
+}
+
+function nameFailures(tests: readonly string[]): string {
+  const shown = tests.slice(0, MAX_FAILURES_NAMED).join(", ");
+  const rest = tests.length - MAX_FAILURES_NAMED;
+  return rest > 0 ? `${shown} and ${rest} more are` : `${shown} ${tests.length === 1 ? "is" : "are"}`;
+}
 
 /**
  * The run's outcome. "verified" is reported separately from "clean" so a fix the
  * sandbox proves is never presented as failed just because a critic wants polish,
  * and never presented as approved when a critic hasn't signed off.
  */
-export function verdict(input: { approved: readonly LaneId[]; objectivelyPassing: boolean; budgetHit: boolean; timeHit?: boolean }): {
+export function verdict(input: { approved: readonly LaneId[]; objectivelyPassing: boolean; budgetHit: boolean; timeHit?: boolean; newFailures?: readonly string[] }): {
   status: MaintainerStatus;
   message: string;
 } {
   const pending = LANES.filter((l) => !input.approved.includes(l)).map((l) => AGENT_NAMES[l]);
-  if (pending.length === 0) {
+  if (input.objectivelyPassing && pending.length === 0) {
     return { status: "clean", message: "Every check passes, the new tests prove the fix in the sandbox, and all four agents signed off." };
   }
   if (input.objectivelyPassing) {
@@ -181,6 +198,9 @@ export function verdict(input: { approved: readonly LaneId[]; objectivelyPassing
       status: "verified",
       message: `Every check passes and the new tests prove the fix in the sandbox. ${pending.join(" and ")} still ${pending.length === 1 ? "wants" : "want"} more polish before signing off.`,
     };
+  }
+  if (input.newFailures?.length) {
+    return { status: "not_clean", message: `In the whole test suite, ${nameFailures(input.newFailures)} now failing with this patch. The best version of each part is kept.` };
   }
   return {
     status: "not_clean",
@@ -215,7 +235,8 @@ function sanitizeBaseline(
 
 const tally = (checks: TestCheck[]) => ({ passed: checks.filter((c) => c.passed).length, total: checks.length });
 
-function metricsFor(snapshot: RepoSnapshot, bundle: PrBundle, validation: Validation | null, scores: Record<LaneId, number | null>): SideMetrics {
+/** `described` is the run the PR's text was written from, which may be a targeted one. */
+function metricsFor(snapshot: RepoSnapshot, bundle: PrBundle, validation: Validation | null, scores: Record<LaneId, number | null>, described: Validation | null = validation): SideMetrics {
   const v = summarizeValidation(validation);
   const diffs = diffBundle(snapshot, bundle);
   return {
@@ -227,7 +248,7 @@ function metricsFor(snapshot: RepoSnapshot, bundle: PrBundle, validation: Valida
       code: tally(codeStaticChecks(bundle.code, snapshot)),
       security: tally(securityChecks(validation)),
       doc: tally(docChecks(bundle.docs, bundle, snapshot)),
-      write: tally(prChecks(bundle.pr, bundle, snapshot, validation)),
+      write: tally(prChecks(bundle.pr, bundle, snapshot, described)),
     },
     scores,
     files: diffs.length,
@@ -391,26 +412,24 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     // ── 5 + 6. The code is final now: run the whole suite while docs/PR are reconciled ──
     // Reconcile only fixes objective failures (e.g. a changed file the PR doesn't mention), not a
     // critic wanting nicer wording, and never past the time limit.
-    const stale = (["doc", "write"] as const).filter((l) => failing(l, snap, ws).length > 0);
-    const left = cfg.budgetUSD - totalSpent();
-    const reconcile = stale.length > 0 && left > 0.02 && Date.now() < deadlineAt;
-    emit({ type: "phase", phase: reconcile ? "reconciling" : "verifying" });
-    // Polishing ran only the related tests; the final patch and the first draft get the whole suite.
-    // Reconcile can't change the code (DocPolish and WritePolish don't own code files).
-    const [[finalValidation, baselineValidation]] = await Promise.all([
+    const [[fullRun, baselineValidation]] = await Promise.all([
+      // Polishing ran only the related tests; the final patch and the first draft get the whole suite.
+      // Reconcile can't change the code (DocPolish and WritePolish don't own code files).
       fullValidations([ws.get(), baseline], snap),
-      reconcile ? Promise.all(stale.map((lane) => runLane(lane, left / stale.length, snap, ws, stopAll.signal, deadlineAt))) : Promise.resolve([]),
+      reconcileDocs(snap, ws),
     ]);
+    const finalValidation = await repairSuiteFailures(fullRun, snap, ws);
     const final = ws.get();
     const proof = proofFrom(finalValidation);
     if (proof) emit({ type: "proof", proof });
     emit({
       type: "comparison",
-      before: metricsFor(snap, baseline, baselineValidation, firstScore),
-      after: metricsFor(snap, final, finalValidation, bestScore),
+      before: metricsFor(snap, baseline, baselineValidation, firstScore, board.forCode(baseline.code) ?? baselineValidation),
+      after: metricsFor(snap, final, finalValidation, bestScore, board.forCode(final.code) ?? finalValidation),
     });
 
-    const lanes = summarize(snap, ws);
+    const newFailures = finalValidation?.tests.failures.map((f) => f.test) ?? [];
+    const lanes = summarize(snap, ws, newFailures);
     const objectivelyPassing =
       finalValidation !== null &&
       validationChecks(finalValidation).every((c) => c.passed) &&
@@ -421,6 +440,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
       objectivelyPassing,
       budgetHit: totalSpent() >= cfg.budgetUSD * 0.98,
       timeHit: stopAll.signal.aborted || OWNER_LANES.some((l) => lastStatus[l] === "time_limited"),
+      newFailures,
     });
     return finish(v.status, v.message, lanes);
   } catch (err) {
@@ -435,6 +455,40 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
   }
 
   // ── helpers ──────────────────────────────────────────────────────────────
+
+  /** Reports the phase, then has DocPolish and WritePolish fix what the final code left stale. */
+  async function reconcileDocs(snap: RepoSnapshot, ws: PrWorkspace): Promise<void> {
+    const stale = (["doc", "write"] as const).filter((l) => failing(l, snap, ws).length > 0);
+    const left = cfg.budgetUSD - totalSpent();
+    const reconcile = stale.length > 0 && left > MIN_FOLLOW_UP_USD && Date.now() < deadlineAt;
+    emit({ type: "phase", phase: reconcile ? "reconciling" : "verifying" });
+    if (reconcile) await Promise.all(stale.map((lane) => runLane(lane, left / stale.length, snap, ws, stopAll.signal, deadlineAt)));
+  }
+
+  /**
+   * Gives CodePolish a failure only the whole suite found, if another run fits in the time and
+   * budget left. Revisions run the whole suite, since the related tests can't see this failure.
+   * Returns the whole-suite result for the code that's final now.
+   */
+  async function repairSuiteFailures(full: Validation | null, snap: RepoSnapshot, ws: PrWorkspace): Promise<Validation | null> {
+    const before = ws.get().code;
+    const left = cfg.budgetUSD - totalSpent();
+    if (!full || full.tests.scope === "targeted" || unseenFailures(full, board.forCode(before)).length === 0) return full;
+    if (left <= MIN_FOLLOW_UP_USD || Date.now() + 2 * full.durationMs >= deadlineAt) return full;
+
+    emit({ type: "phase", phase: "polishing" });
+    // Its own board: the PR describes the targeted run, and stays judged against that if nothing changes.
+    const suiteBoard = new ValidationBoard();
+    suiteBoard.record(before, full);
+    await runLane("code", left * BUDGET_SHARE.code, snap, ws, stopAll.signal, deadlineAt - full.durationMs, suiteBoard);
+
+    const code = ws.get().code;
+    const repaired = suiteBoard.forCode(code);
+    if (!repaired || repaired === full) return full;
+    board.record(code, repaired);
+    await reconcileDocs(snap, ws);
+    return repaired;
+  }
 
   /**
    * The whole test suite, for the verdict and the comparison. Falls back to the targeted
@@ -507,7 +561,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     return checks.filter((c) => !c.passed).map((c) => `${c.testType}: ${c.message}`);
   }
 
-  function summarize(snap: RepoSnapshot, ws: PrWorkspace): Record<LaneId, LaneSummary> {
+  function summarize(snap: RepoSnapshot, ws: PrWorkspace, newFailures: readonly string[]): Record<LaneId, LaneSummary> {
     const b = ws.get();
     const cost = (l: LaneId) => (l === "security" ? 0 : laneCost[l].done + laneCost[l].current);
     const entry = (lane: LaneId, clean: boolean, status: string, remaining: string[]): [LaneId, LaneSummary] => {
@@ -515,7 +569,8 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
       return [lane, { clean, status, rounds: rounds[lane], costUSD: cost(lane), remaining }];
     };
     const owner = (lane: OwnerLane) => {
-      const f = failing(lane, snap, ws);
+      // The whole suite ran after the lanes finished, so only the code lane's summary can show it.
+      const f = [...failing(lane, snap, ws), ...(lane === "code" ? newFailures.map((t) => `new failure in the whole test suite: ${t}`) : [])];
       const clean = lastStatus[lane] === "accepted" && f.length === 0;
       return entry(lane, clean, lastStatus[lane], lastStatus[lane] === "accepted" ? f : [`stopped: ${lastStatus[lane]}`, ...f]);
     };
@@ -561,8 +616,8 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     return formatLessons(lessons);
   }
 
-  /** `stop` ends the lane's calls in flight; no new round starts after `until`. */
-  async function runLane(lane: OwnerLane, budgetUSD: number, snap: RepoSnapshot, ws: PrWorkspace, stop: AbortSignal, until: number): Promise<void> {
+  /** `stop` ends the lane's calls in flight; no new round starts after `until`. With `suiteBoard`, it's a repair of whole-suite failures. */
+  async function runLane(lane: OwnerLane, budgetUSD: number, snap: RepoSnapshot, ws: PrWorkspace, stop: AbortSignal, until: number, suiteBoard?: ValidationBoard): Promise<void> {
     laneCost[lane] = { done: laneCost[lane].done + laneCost[lane].current, current: 0 };
     let pending: { info: RepairInfo; scoreAfter: number | null; after: CheckSnapshot[] | null } | null = null;
 
@@ -581,7 +636,9 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
       lane,
       client: clientUntil(options.client, stop),
       workspace: ws,
-      board,
+      board: suiteBoard ?? board,
+      testScope: suiteBoard ? "full" : undefined,
+      repairNote: suiteBoard ? SUITE_REPAIR_NOTE : undefined,
       sandbox: options.sandbox && sandboxUntil(options.sandbox, stop),
       onActivity: (state) => emit({ type: "lane_state", lane, state, round: rounds[lane] }),
       recall: (f) => recall(lane, f),
@@ -649,12 +706,12 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
           ? ensureFilesListed(ws.get().pr, diffBundle(snap, ws.get()).map((d) => d.path))
           : MaintainerLaneAgent.serialize(lane, ws.get()),
       config: {
-        maxIterations: cfg.maxRoundsPerLane,
+        maxIterations: suiteBoard ? SUITE_REPAIR_ROUNDS : cfg.maxRoundsPerLane,
         maxCostUSD: Math.max(budgetUSD, 0.0001),
         deadlineAt: until,
         // Once every objective check passes: CodePolish gets one more round for its critic (the fix
         // itself); DocPolish and WritePolish stop there rather than polishing wording.
-        maxPolishRounds: lane === "code" ? 1 : 0,
+        maxPolishRounds: lane === "code" && !suiteBoard ? 1 : 0,
         // A revision that fixes more than it breaks may leave lint or wording for the next round
         // (sqlglot#8752 lost a proven fix over one unused import). Tests, the proof and security never.
         minorChecks: ["py_lint", "debug_leftovers", "ux_messages"],
@@ -662,7 +719,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
         maxConsecutiveRejections: 4,
         progressEpsilon: 0.1,
         // SecurityPolish's findings land in CodePolish's evaluation; a major one earns a revision.
-        reviseOnMajorFindings: lane === "code",
+        reviseOnMajorFindings: lane === "code" && !suiteBoard,
         earlyStopOnAcceptance: true,
         qualityThresholds: { minScore: 8.5, requireAllTestsPass: true, maxCriticalDefects: 0 },
       },

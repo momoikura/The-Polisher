@@ -1,0 +1,8 @@
+{
+  "chosen": "2026-10-31: rich#4244 again: in the first check the model API returned a 502 during the second repair attempt, and the PR called the new failure an old one; second check after fixing that (a check, not a benchmark)",
+  "budgetUSD": 0.5,
+  "concurrency": 1,
+  "issues": [
+    { "url": "https://github.com/Textualize/rich/issues/4244", "seenBefore": true }
+  ]
+}
