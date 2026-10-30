@@ -45,6 +45,8 @@ export interface MaintainerOptions {
   onEvent: (event: MaintainerEvent) => void;
   sandbox?: SandboxClient;
   budgetUSD?: number;
+  /** Wall-clock limit for the whole run; after it no new revision starts (default 20 min). */
+  timeLimitMs?: number;
   maxRoundsPerLane?: number;
   /** Independent first drafts to test in parallel when a sandbox can choose between them (default 3). */
   candidates?: number;
@@ -62,7 +64,7 @@ export interface MaintainerResult {
   totalUSD: number;
 }
 
-const DEFAULTS = { budgetUSD: 3, maxRoundsPerLane: 6, candidates: 3 };
+const DEFAULTS = { budgetUSD: 3, timeLimitMs: 20 * 60_000, maxRoundsPerLane: 6, candidates: 3 };
 const LANE_MODES: Record<OwnerLane, ArtifactMode> = { code: "code", doc: "reports", write: "writing" };
 const OWNER_LANES: OwnerLane[] = ["code", "doc", "write"];
 /** Share of the post-baseline budget each owning lane may spend. */
@@ -158,7 +160,7 @@ const AGENT_NAMES: Record<LaneId, string> = { code: "CodePolish", security: "Sec
  * sandbox proves is never presented as failed just because a critic wants polish,
  * and never presented as approved when a critic hasn't signed off.
  */
-export function verdict(input: { approved: readonly LaneId[]; objectivelyPassing: boolean; budgetHit: boolean }): {
+export function verdict(input: { approved: readonly LaneId[]; objectivelyPassing: boolean; budgetHit: boolean; timeHit?: boolean }): {
   status: MaintainerStatus;
   message: string;
 } {
@@ -174,7 +176,9 @@ export function verdict(input: { approved: readonly LaneId[]; objectivelyPassing
   }
   return {
     status: "not_clean",
-    message: input.budgetHit
+    message: input.timeHit
+      ? "Time limit reached before every agent signed off. The best version of each part is kept."
+      : input.budgetHit
       ? "Budget reached before every agent signed off. The best version of each part is kept."
       : "Some agents stopped improving before signing off. The best version of each part is kept.",
   };
@@ -232,6 +236,7 @@ function securityChecks(validation: Validation | null): TestCheck[] {
 
 export async function runMaintainer(source: MaintainerSource, options: MaintainerOptions): Promise<MaintainerResult> {
   const cfg = { ...DEFAULTS, ...options };
+  const deadlineAt = Date.now() + cfg.timeLimitMs;
   const provider = options.provider ?? "default";
   const emit = (e: MaintainerEventInput) => {
     try {
@@ -369,6 +374,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
       approved: LANES.filter((l) => lanes[l].clean),
       objectivelyPassing,
       budgetHit: totalSpent() >= cfg.budgetUSD * 0.98,
+      timeHit: Date.now() >= deadlineAt,
     });
     return finish(v.status, v.message, lanes);
   } catch (err) {
@@ -566,6 +572,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
       config: {
         maxIterations: cfg.maxRoundsPerLane,
         maxCostUSD: Math.max(budgetUSD, 0.0001),
+        deadlineAt,
         // Room for the narrowed, smallest-edit strategy (after 2 rejections) to get two tries.
         maxConsecutiveRejections: 4,
         progressEpsilon: 0.1,

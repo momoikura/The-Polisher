@@ -368,6 +368,10 @@ export class LoopController {
   }
 
   private checkLimits(ctx: RunContext, phase: string): { status: RunStatus; message: string } | null {
+    // Past the deadline, the version in hand is still assessed but no new revision starts.
+    if (phase === "repair" && ctx.config.deadlineAt !== undefined && Date.now() >= ctx.config.deadlineAt) {
+      return { status: "time_limited", message: "Time limit reached; the best version so far is kept." };
+    }
     const limit = ctx.limiter.check();
     if (!limit.shouldContinue) {
       return { status: limit.stopReason ?? "quality_target_not_reached", message: limit.message };

@@ -47,6 +47,7 @@ export const ALL_RUN_STATUSES = [
   "quality_target_not_reached",
   "iteration_limited",
   "cost_limited",
+  "time_limited",
   "stalled",
   "failed",
   "cancelled",
@@ -75,6 +76,8 @@ export const RunConfigSchema = z.object({
   maxIterations: z.number().int().min(1).default(5),
   /** Maximum total cost (USD) before the run is halted (default: $2.00). */
   maxCostUSD: z.number().positive().default(2.0),
+  /** Wall-clock deadline (epoch ms): after it, no new repair starts and the best version is kept. */
+  deadlineAt: z.number().int().positive().optional(),
   /** How many consecutive non-improving iterations before stagnation stop (default: 2). */
   maxConsecutiveRejections: z.number().int().min(1).default(2),
   /** Minimum score progress epsilon to count as meaningful progress (default: 0.05). */
@@ -182,6 +185,7 @@ export function isTerminalRunStatus(status: RunStatus): boolean {
     "quality_target_not_reached",
     "iteration_limited",
     "cost_limited",
+    "time_limited",
     "stalled",
     "failed",
     "cancelled",
@@ -206,6 +210,7 @@ export function isValidRunTransition(from: RunStatus, to: RunStatus): boolean {
       "quality_target_not_reached",
       "iteration_limited",
       "cost_limited",
+      "time_limited",
       "stalled",
       "failed",
       "cancelled",

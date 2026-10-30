@@ -213,6 +213,16 @@ describe("LoopController", () => {
     expect(result.bestVersionId).toBe("v0");
   });
 
+  it("stops as time_limited once the deadline passes, keeping the best version found", async () => {
+    const { controller, repairer } = setup(["score:6|fail:1", "score:7|fail:1"]);
+
+    const result = await controller.execute(run("score:5|fail:2", { deadlineAt: Date.now() - 1 }));
+
+    expect(result.status).toBe("time_limited");
+    expect(result.bestVersionId).toBe("v0");
+    expect(repairer.sources).toHaveLength(0);
+  });
+
   it("stops at the iteration limit and returns the best version found", async () => {
     const { controller } = setup(["score:6|fail:1", "score:7|fail:1", "score:8|fail:1"]);
     const result = await controller.execute(run("score:5|fail:1", { maxIterations: 3 }));

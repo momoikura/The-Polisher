@@ -11,9 +11,24 @@ Paste a GitHub issue from a Python repository. ThePolisher uses Muse Spark throu
 | CodePolish | the fix + pytest tests | compiles, no lint errors, all tests pass, **new tests fail on the original code and pass with the fix**, no deleted/skipped/weakened tests, no debug leftovers, error messages say what went wrong and how to fix it, Python-only and focused |
 | SecurityPolish | reviews CodePolish's change for security problems | **the sandbox's bandit scan finds no new medium or high finding** in the changed code; its critic (injection, path traversal, unsafe deserialization, secrets, unvalidated input) must also sign off, or CodePolish's revision is not accepted |
 | DocPolish | README / CHANGELOG | docs updated, only mentions functions and files that exist, no hype |
-| WritePolish | PR title + description | clear title, Summary/Changes/Testing, `Fixes #N`, every changed file mentioned, **no testing claims the sandbox didn't confirm** |
+| WritePolish | PR title + description | clear title, Summary/Changes/Testing, `Fixes #N` only when the tests prove the fix (`Refs #N` otherwise), every changed file mentioned, **no testing claims the sandbox didn't confirm** |
 
 Each owning agent runs the keep-or-reject loop. A revision is kept only if it doesn't break a passing check or add problems, and the critic score only breaks ties. Agents read each other's latest work. A reconcile pass re-checks the docs and PR description against the final code.
+
+**Try it:** [thepolisher.pages.dev](https://thepolisher.pages.dev). Sign in with GitHub; your first 3 runs are free, then bring your own Meta Model API key.
+
+## Results
+
+On **17 real, open issues from 10 popular Python repos** (Rich, jsonschema, sqlglot, urllib3, Pygments, astroid, pyparsing, more-itertools, humanize), chosen and committed before any run:
+
+| | ThePolisher | Single prompt (same model) |
+|---|---|---|
+| Fix **proven** by its own new tests in the sandbox | **14 of 17 (82%)** | 7 of 17 (41%) |
+| On the 12 issues never seen while building it | **10 of 12** | 5 of 12 |
+| Unproven first draft turned into a proven fix | 7 | |
+| Proven first draft made worse | 0 | |
+
+Total model cost for all 17: **$0.66** (median $0.04 per issue, Muse Spark 1.3 Contributor). When it couldn't prove a fix, it said so instead of claiming one. Every issue, the method and the limits: [benchmarks/results/issues-2026-10-29.md](benchmarks/results/issues-2026-10-29.md).
 
 ## Built during the hackathon
 
