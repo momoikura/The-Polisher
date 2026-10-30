@@ -329,7 +329,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     const images = issueImages(snap0.issue.body);
     imagesUsed = images;
     const plan = await withImageFallback(images, (imgs) =>
-      setupCall(options.client, withImages(buildPlanMessages(snap0), imgs), PlanSchema, { temperature: 0, reasoningEffort: EFFORT.plan })
+      setupCall(options.client, withImages(buildPlanMessages(snap0, imgs.length), imgs), PlanSchema, { temperature: 0, reasoningEffort: EFFORT.plan })
     );
     chargeSetup(plan, "planner");
     if (source.kind === "github") {
@@ -342,7 +342,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     // Large files are shown around these names: the planner's picks plus the ones the issue mentions.
     snapshot = { ...snapshot, focus: [...new Set([...plan.data.symbols, ...issueSymbols(snap0.issue.title, snap0.issue.body)])] };
     const snap = snapshot;
-    emit({ type: "context", repo: `${snap.owner}/${snap.repo}`, sha: snap.sha, issue: { number: snap.issue.number, title: snap.issue.title, url: snap.issue.url }, files: Object.keys(snap.files), approach: plan.data.approach, images: imagesUsed.length });
+    emit({ type: "context", repo: `${snap.owner}/${snap.repo}`, sha: snap.sha, issue: { number: snap.issue.number, title: snap.issue.title, url: snap.issue.url }, files: Object.keys(snap.files), approach: plan.data.approach, images: imagesUsed.length, screenshots: imagesUsed.map((url, i) => ({ url, note: plan.data.screenshots[i] ?? "" })) });
 
     // ── 3. First drafts. The first is the single-prompt baseline kept for the comparison;
     //       with a sandbox, several are drafted in parallel and the tests pick which to polish.

@@ -77,3 +77,13 @@ describe("withoutRefusedImage", () => {
     expect(withoutRefusedImage(imgs, "status 400: bad request")).toEqual([]);
   });
 });
+
+describe("the plan prompt with screenshots", () => {
+  it("asks for one note per screenshot only when some are attached", async () => {
+    const { buildPlanMessages } = await import("../src/maintainer/prompts.js");
+    const { DEMO_SNAPSHOT } = await import("../src/maintainer/simulated.js");
+
+    expect(String(buildPlanMessages(DEMO_SNAPSHOT, 2)[0].content)).toContain("2 screenshot(s) attached");
+    expect(String(buildPlanMessages(DEMO_SNAPSHOT)[0].content)).not.toContain("screenshot");
+  });
+});

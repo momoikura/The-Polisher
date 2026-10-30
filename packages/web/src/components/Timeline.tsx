@@ -16,6 +16,34 @@ function badgeFor(item: FeedItem): IconName {
   return item.lane ? LANE_META[item.lane].icon : "sync";
 }
 
+/**
+ * Screenshots from the issue, as Muse Spark read them. The links are GitHub-hosted
+ * only (issue-images.ts); a link that turns out not to be an image just hides.
+ */
+function Screenshots({ shots }: { shots: Array<{ url: string; note: string }> }) {
+  return (
+    <ul className="tl-shots" aria-label="Screenshots read from the issue">
+      {shots.map((s, i) => (
+        <li key={s.url}>
+          <a href={s.url} target="_blank" rel="noopener noreferrer" aria-label={`Open screenshot ${i + 1}`}>
+            <img
+              src={s.url}
+              alt=""
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                e.currentTarget.parentElement!.style.display = "none";
+              }}
+            />
+          </a>
+          <p>
+            <span className="muted">Muse Spark read:</span> {s.note || "a screenshot (no description)"}
+          </p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** The run as a pull request conversation: one event per row, newest at the bottom. */
 export function Timeline({ items, isLive }: { items: FeedItem[]; isLive: boolean }) {
   const endRef = useRef<HTMLLIElement>(null);
@@ -40,9 +68,12 @@ export function Timeline({ items, isLive }: { items: FeedItem[]; isLive: boolean
           <span className="tl-badge" aria-hidden="true">
             <Icon name={badgeFor(item)} size={14} />
           </span>
-          <p className="tl-body">
-            <strong>{item.lane ? AGENT[item.lane] : "ThePolisher"}</strong> <span className="tl-text">{item.text}</span>
-          </p>
+          <div className="tl-body">
+            <p>
+              <strong>{item.lane ? AGENT[item.lane] : "ThePolisher"}</strong> <span className="tl-text">{item.text}</span>
+            </p>
+            {item.screenshots && <Screenshots shots={item.screenshots} />}
+          </div>
           <time className="tl-time mono">{timeFormat.format(item.at)}</time>
         </li>
       ))}

@@ -78,3 +78,23 @@ describe("maintainerReducer", () => {
     expect(JSON.stringify(before)).toBe(snapshot);
   });
 });
+
+describe("screenshots", () => {
+  it("puts the screenshots the model read, with its notes, on the plan step", () => {
+    const view = maintainerReducer(initialView(), {
+      type: "context",
+      repo: "o/r",
+      sha: "abc",
+      issue: { number: 1, title: "t", url: "u" },
+      files: ["a.py"],
+      approach: "Fix the watch stream.",
+      images: 1,
+      screenshots: [{ url: "https://github.com/user-attachments/assets/x", note: "DevTools shows ready_targets: 0" }],
+      at: 1,
+    });
+
+    const plan = view.feed.at(-1)!;
+    expect(plan.text).toContain("1 screenshot from the issue");
+    expect(plan.screenshots).toEqual([{ url: "https://github.com/user-attachments/assets/x", note: "DevTools shows ready_targets: 0" }]);
+  });
+});

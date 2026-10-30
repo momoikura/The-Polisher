@@ -55,8 +55,10 @@ export type MaintainerEvent = At &
         issue: { number: number; title: string; url: string };
         files: string[];
         approach?: string;
-        /** Screenshots from the issue shown to the model. */
+        /** Screenshots from the issue shown to the model; older runs only recorded how many. */
         images?: number;
+        /** Each screenshot the model read, with what it saw in it (from the planner). */
+        screenshots?: Array<{ url: string; note: string }>;
       }
     | { type: "baseline"; diffs: FileDiff[]; pr: string; metrics: SideMetrics }
     | { type: "patch"; diffs: FileDiff[]; pr: string }

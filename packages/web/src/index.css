@@ -1404,6 +1404,42 @@ a {
   overflow-wrap: anywhere;
 }
 
+.tl-shots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--s-3);
+  margin: var(--s-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tl-shots li {
+  display: grid;
+  gap: var(--s-1);
+  align-content: start;
+}
+
+.tl-shots img {
+  display: block;
+  width: 100%;
+  /* A fixed frame: an image with no size until it loads may never be fetched. */
+  height: 140px;
+  object-fit: cover;
+  object-position: top left;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-subtle);
+}
+
+.tl-shots a:focus-visible img {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.tl-shots p {
+  font-size: var(--text-xs);
+}
+
 .tl-text {
   color: var(--fg-muted);
 }

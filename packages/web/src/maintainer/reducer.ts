@@ -32,6 +32,8 @@ export interface FeedItem {
   lane: LaneId | null;
   tone: "neutral" | "good" | "bad" | "warn";
   text: string;
+  /** Screenshots from the issue the model read, with what it saw (the plan step). */
+  screenshots?: Array<{ url: string; note: string }>;
 }
 
 export interface Side {
@@ -138,11 +140,13 @@ export function maintainerReducer(view: MaintainerView, event: MaintainerEvent):
 
     case "context": {
       const next = { ...view, context: { repo: event.repo, sha: event.sha, issue: event.issue, files: event.files, approach: event.approach } };
+      const shots = event.screenshots?.length ?? event.images ?? 0;
       return event.approach
         ? pushFeed(next, event, {
             lane: null,
             tone: "neutral",
-            text: `Plan: ${event.approach} (read ${event.files.length} files${event.images ? ` and ${event.images} screenshot${event.images === 1 ? "" : "s"} from the issue` : ""})`,
+            text: `Plan: ${event.approach} (read ${event.files.length} files${shots ? ` and ${shots} screenshot${shots === 1 ? "" : "s"} from the issue` : ""})`,
+            screenshots: event.screenshots?.length ? event.screenshots : undefined,
           })
         : next;
     }
