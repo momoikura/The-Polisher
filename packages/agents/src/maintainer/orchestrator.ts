@@ -200,7 +200,7 @@ export function verdict(input: { approved: readonly LaneId[]; objectivelyPassing
     };
   }
   if (input.newFailures?.length) {
-    return { status: "not_clean", message: `In the whole test suite, ${nameFailures(input.newFailures)} now failing with this patch, though the tests run while polishing passed. The best version of each part is kept.` };
+    return { status: "not_clean", message: `In the whole test suite, ${nameFailures(input.newFailures)} now failing with this patch. The best version of each part is kept.` };
   }
   return {
     status: "not_clean",

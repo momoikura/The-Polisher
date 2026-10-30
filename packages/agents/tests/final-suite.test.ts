@@ -11,6 +11,7 @@ import type { ChatClient } from "../src/llm/chat-client.js";
 import type { ChatMessage } from "../src/llm/meta-client.js";
 import { DEMO_SNAPSHOT, createSimulatedMaintainerClient, createSimulatedSandbox } from "../src/maintainer/simulated.js";
 import { prChecks } from "../src/maintainer/checks.js";
+import { describeValidation } from "../src/maintainer/prompts.js";
 import { proofFrom } from "../src/maintainer/proof.js";
 import { newFailing, type SandboxClient, type Validation } from "../src/maintainer/sandbox.js";
 import type { MaintainerEvent } from "../src/maintainer/events.js";
@@ -202,6 +203,25 @@ describe("pr_honest_claims", () => {
     expect(honesty("All tests pass.", withPreexisting).passed).toBe(false);
     expect(honesty("All 949 tests pass.", withPreexisting).passed).toBe(false);
     expect(honesty("The tests pass.", withPreexisting).passed).toBe(false);
+  });
+
+  describe("a new failure described as an old one", () => {
+    const failing = validation({ total: 983, passed: 949, failed: 9, skipped: 25, preexistingCount: 8, failures: [{ test: NEW_FAILURE, message: "x" }] });
+
+    it("is rejected, as the real Rich#4244 PR text was", () => {
+      const claim = "Testing: full suite 949/983 pass, 9 failing (8 already failed on the original code, including `tests.test_panel::test_render_size`).";
+      const check = honesty(claim, failing);
+      expect(check.passed).toBe(false);
+      expect(check.message).toContain("test_render_size");
+    });
+
+    it("isn't confused with saying so honestly", () => {
+      expect(honesty("949/983 tests pass. test_render_size newly fails with this patch; 8 others already failed on the original code.", failing).passed).toBe(true);
+    });
+
+    it("is told apart for the writer in the sandbox summary", () => {
+      expect(describeValidation(failing)).toMatch(/New failures[^\n]*pass on the original code[^\n]*:\n- tests\.test_panel::test_render_size/);
+    });
   });
 
   it("judges the PR against the run it describes in the before/after comparison", async () => {
