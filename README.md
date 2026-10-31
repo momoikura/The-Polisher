@@ -11,7 +11,7 @@
 ![target](https://img.shields.io/badge/fixes-Python_%2B_pytest-3776ab)
 ![stack](https://img.shields.io/badge/TypeScript-React_19-3178c6)
 ![hosting](https://img.shields.io/badge/hosting-Cloudflare_Pages-f38020)
-![tests](https://img.shields.io/badge/tests-337_passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-341_passing-brightgreen)
 
 **Paste a GitHub issue. Get a pull request whose tests prove the fix.**
 
