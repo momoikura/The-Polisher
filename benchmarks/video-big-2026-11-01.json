@@ -1,0 +1,23 @@
+{
+  "chosen": "2026-11-01: candidates from Scrapy (65k stars) and Textual (37k stars) for a big-repo test, on the current build (not a benchmark)",
+  "budgetUSD": 0.5,
+  "concurrency": 4,
+  "issues": [
+    {
+      "url": "https://github.com/scrapy/scrapy/issues/8418",
+      "seenBefore": false
+    },
+    {
+      "url": "https://github.com/scrapy/scrapy/issues/8426",
+      "seenBefore": false
+    },
+    {
+      "url": "https://github.com/scrapy/scrapy/issues/8425",
+      "seenBefore": false
+    },
+    {
+      "url": "https://github.com/Textualize/textual/issues/6734",
+      "seenBefore": false
+    }
+  ]
+}
