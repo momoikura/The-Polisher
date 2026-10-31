@@ -14,7 +14,7 @@ export const RED = "#cf222e";
 export const SANS = '"Mona Sans Variable", system-ui, sans-serif';
 export const MONO = '"Monaspace Neon", Consolas, monospace';
 
-export const sceneFrames = (id: SceneId) => Math.ceil(timing[id].seconds * FPS);
+export const sceneFrames = (id: SceneId) => (timing[id] as unknown as { frames: number }).frames;
 export const lineAt = (id: SceneId, i: number) => Math.round(timing[id].lines[i].start * FPS);
 
 const OUT = Easing.bezier(0.16, 1, 0.3, 1);
@@ -122,3 +122,42 @@ export const Logo = ({ size = 72, color = "#fff" }: { size?: number; color?: str
     </g>
   </svg>
 );
+
+// ── Motion language: masked type, a floating app window ───────────────────────
+
+/** Words rise out of a mask, one after another. */
+export const Words = ({ text, at, stagger = 3, style }: { text: string; at: number; stagger?: number; style?: React.CSSProperties }) => {
+  const frame = useCurrentFrame();
+  return (
+    <div style={style}>
+      {text.split(" ").map((word, i) => {
+        const p = rise(frame, at + i * stagger, 14);
+        return (
+          <span key={`${word}-${i}`} style={{ display: "inline-block", overflow: "hidden", verticalAlign: "bottom", paddingBottom: "0.12em", marginBottom: "-0.12em" }}>
+            <span style={{ display: "inline-block", translate: `0 ${(1 - p) * 110}%`, whiteSpace: "pre" }}>{`${word} `}</span>
+          </span>
+        );
+      })}
+    </div>
+  );
+};
+
+/** The app in a floating window on a dark stage, with a slow 3D drift. */
+export const Stage = ({ children, tiltX = 0, tiltY = 0, scale = 0.94, y = -26 }: { children: ReactNode; tiltX?: number; tiltY?: number; scale?: number; y?: number }) => (
+  <div style={{ position: "absolute", inset: 0, background: "#0b0b0b", perspective: 2600 }}>
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        borderRadius: 22,
+        overflow: "hidden",
+        boxShadow: "0 40px 120px rgba(0,0,0,.6)",
+        transform: `translateY(${y}px) rotateX(${tiltX}deg) rotateY(${tiltY}deg) scale(${scale})`,
+      }}
+    >
+      {children}
+    </div>
+  </div>
+);
+
+export const count = (frame: number, start: number, to: number, dur = 24) => to * rise(frame, start, dur);

@@ -4,10 +4,12 @@ import "@fontsource/monaspace-neon/500.css";
 import "../../packages/web/src/index.css";
 import { Audio } from "@remotion/media";
 import { fade } from "@remotion/transitions/fade";
-import { TransitionSeries, linearTiming } from "@remotion/transitions";
-import { AbsoluteFill, staticFile, useCurrentFrame } from "remotion";
+import { slide } from "@remotion/transitions/slide";
+import { TransitionSeries, linearTiming, type TransitionPresentation } from "@remotion/transitions";
+import { AbsoluteFill, Easing, staticFile, useCurrentFrame } from "remotion";
 import { FPS, SANS, sceneFrames, useFontsReady, type SceneId } from "./common";
 import timing from "./timing.json";
+import { iris } from "./transitions";
 import { Agents } from "./scenes/Agents";
 import { Close } from "./scenes/Close";
 import { Compare } from "./scenes/Compare";
@@ -19,32 +21,36 @@ import { Results } from "./scenes/Results";
 import { Safety } from "./scenes/Safety";
 import { Vision } from "./scenes/Vision";
 
-const SCENES: Array<{ id: SceneId; C: React.FC }> = [
+// One beat at 120 BPM, so every scene change lands on the music's grid (scripts/music.mjs).
+const TRANSITION = 15;
+const push = (direction: "from-right" | "from-bottom") => slide({ direction }) as unknown as TransitionPresentation<Record<string, unknown>>;
+const SCENES: Array<{ id: SceneId; C: React.FC; into?: TransitionPresentation<Record<string, unknown>> }> = [
   { id: "hook", C: Hook },
-  { id: "problem", C: Problem },
-  { id: "paste", C: Paste },
-  { id: "agents", C: Agents },
-  { id: "vision", C: Vision },
-  { id: "proof", C: ProofScene },
-  { id: "compare", C: Compare },
-  { id: "results", C: Results },
-  { id: "safety", C: Safety },
-  { id: "close", C: Close },
+  { id: "problem", C: Problem, into: iris() as never },
+  { id: "paste", C: Paste, into: push("from-bottom") },
+  { id: "agents", C: Agents, into: fade() as never }, // the same screen carries on, so this doesn't show
+  { id: "vision", C: Vision, into: push("from-right") },
+  { id: "proof", C: ProofScene, into: iris() as never },
+  { id: "compare", C: Compare, into: push("from-bottom") },
+  { id: "results", C: Results, into: iris() as never },
+  { id: "safety", C: Safety, into: iris() as never },
+  { id: "close", C: Close, into: fade() as never },
 ];
-const FADE = 10;
-export const totalFrames = SCENES.reduce((n, s) => n + sceneFrames(s.id), 0) - FADE * (SCENES.length - 1);
+export const totalFrames = SCENES.reduce((n, s) => n + sceneFrames(s.id), 0) - TRANSITION * (SCENES.length - 1);
 
 /** Burned in: many judges watch muted. */
 const Captions = ({ id }: { id: SceneId }) => {
   const t = useCurrentFrame() / FPS;
-  const line = timing[id].lines.find((l) => t >= l.start - 0.05 && t < l.end + 0.25);
+  const line = timing[id].lines.find((l) => t >= l.start - 0.05 && t < l.end + 0.2);
   if (!line) return null;
   return (
-    <div style={{ position: "absolute", left: 0, right: 0, bottom: 26, display: "flex", justifyContent: "center", zIndex: 50 }}>
-      <div style={{ maxWidth: 1600, padding: "10px 24px", borderRadius: 10, background: "rgba(0,0,0,.88)", color: "#fff", font: `500 32px/1.25 ${SANS}`, textAlign: "center" }}>{line.text}</div>
+    <div style={{ position: "absolute", left: 0, right: 0, bottom: 22, display: "flex", justifyContent: "center", zIndex: 50 }}>
+      <div style={{ maxWidth: 1600, padding: "9px 22px", borderRadius: 10, background: "rgba(0,0,0,.88)", color: "#fff", font: `500 30px/1.25 ${SANS}`, textAlign: "center" }}>{line.text}</div>
     </div>
   );
 };
+
+const EASE = Easing.bezier(0.65, 0, 0.35, 1);
 
 export const Demo: React.FC = () => {
   useFontsReady();
@@ -52,14 +58,15 @@ export const Demo: React.FC = () => {
     <AbsoluteFill style={{ background: "#000", fontFamily: SANS }}>
       {/* The app's CSS motion can't be frame-accurate here. */}
       <style>{"*,*::before,*::after{transition:none!important;animation:none!important}"}</style>
+      <Audio src={staticFile("audio/score.mp3")} />
       <TransitionSeries>
-        {SCENES.flatMap(({ id, C }, i) => [
+        {SCENES.flatMap(({ id, C, into }) => [
+          ...(into ? [<TransitionSeries.Transition key={`${id}-t`} presentation={into} timing={linearTiming({ durationInFrames: TRANSITION, easing: EASE })} />] : []),
           <TransitionSeries.Sequence key={id} durationInFrames={sceneFrames(id)} name={id}>
             <C />
             <Captions id={id} />
             <Audio src={staticFile(`audio/${id}.wav`)} />
           </TransitionSeries.Sequence>,
-          ...(i < SCENES.length - 1 ? [<TransitionSeries.Transition key={`${id}-t`} presentation={fade()} timing={linearTiming({ durationInFrames: FADE })} />] : []),
         ])}
       </TransitionSeries>
     </AbsoluteFill>

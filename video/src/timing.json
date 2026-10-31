@@ -1,266 +1,286 @@
 {
  "hook": {
-  "seconds": 17.95,
+  "seconds": 14.5,
+  "frames": 435,
   "lines": [
    {
-    "text": "This test fails on the original code.",
-    "start": 0,
-    "end": 2.75
+    "text": "Watch this test.",
+    "start": 0.55,
+    "end": 1.4532083333333334
    },
    {
-    "text": "It passes with the fix.",
-    "start": 3.05,
-    "end": 5.05
+    "text": "On the original code, it fails.",
+    "start": 1.8732083333333334,
+    "end": 3.8341250000000002
    },
    {
-    "text": "An AI wrote that fix, for a real bug in Rich, a Python library with fifty seven thousand stars.",
-    "start": 5.35,
-    "end": 12.55
+    "text": "With the fix, it passes.",
+    "start": 4.254125,
+    "end": 5.72725
    },
    {
-    "text": "ThePolisher proved it works, in about three minutes, for about two cents.",
-    "start": 12.85,
-    "end": 17.4
+    "text": "An AI wrote that fix, for a real bug in Rich, a library with fifty seven thousand stars.",
+    "start": 6.14725,
+    "end": 10.889458333333334
+   },
+   {
+    "text": "And it proved it, in about three minutes, for two cents.",
+    "start": 11.189458333333333,
+    "end": 13.858833333333333
    }
   ]
  },
  "problem": {
-  "seconds": 28.75,
+  "seconds": 21,
+  "frames": 630,
   "lines": [
    {
-    "text": "AI can write a fix in seconds.",
-    "start": 0,
-    "end": 2.525
+    "text": "Here's the thing. AI can write a fix in seconds.",
+    "start": 0.55,
+    "end": 3.084666666666667
    },
    {
-    "text": "Then someone has to check it.",
-    "start": 2.8249999999999997,
-    "end": 5.025
+    "text": "But then? Someone has to check it.",
+    "start": 3.384666666666667,
+    "end": 5.1065000000000005
    },
    {
     "text": "Does it fix the bug?",
-    "start": 5.324999999999999,
-    "end": 7.074999999999999
+    "start": 5.4065,
+    "end": 6.275791666666667
    },
    {
     "text": "Did it break something else?",
-    "start": 7.374999999999999,
-    "end": 9.274999999999999
+    "start": 6.775791666666667,
+    "end": 7.9098749999999995
    },
    {
-    "text": "Are the tests real?",
-    "start": 9.575,
-    "end": 11.25
+    "text": "Are the tests even real?",
+    "start": 8.409875,
+    "end": 9.506541666666667
    },
    {
-    "text": "Is the pull request description true?",
-    "start": 11.549999999999999,
-    "end": 14.25
+    "text": "Right now, maintainers are drowning in AI pull requests, and they can't tell which ones work.",
+    "start": 10.006541666666667,
+    "end": 13.548208333333333
    },
    {
-    "text": "Maintainers are flooded with AI pull requests, and they can't tell which ones work without checking each one.",
-    "start": 14.549999999999999,
-    "end": 21.349999999999998
+    "text": "That's why ThePolisher exists.",
+    "start": 13.848208333333334,
+    "end": 15.524458333333333
    },
    {
-    "text": "ThePolisher is a verifiable agent on Meta's Muse Spark. Its pull requests come with proof.",
-    "start": 21.65,
-    "end": 28.2
+    "text": "A verifiable agent, on Meta's Muse Spark. Its pull requests come with proof.",
+    "start": 15.944458333333333,
+    "end": 20.224125
    }
   ]
  },
  "paste": {
-  "seconds": 15.549999999999999,
+  "seconds": 11,
+  "frames": 330,
   "lines": [
    {
-    "text": "Paste an issue from a public Python repository.",
-    "start": 0,
-    "end": 3.65
+    "text": "Paste an issue from a public Python repo.",
+    "start": 0.55,
+    "end": 2.627041666666667
    },
    {
-    "text": "Muse Spark reads the issue and the code, and writes three fixes at once.",
-    "start": 3.9499999999999997,
-    "end": 8.75
+    "text": "Muse Spark reads the issue and the code, then writes three fixes, all at once.",
+    "start": 2.9270416666666668,
+    "end": 6.891416666666666
    },
    {
-    "text": "Each one runs in its own Modal sandbox, and the tests pick the best one, not the model.",
-    "start": 9.049999999999999,
-    "end": 15
+    "text": "And here's my favorite part. The tests pick the winner, not the model.",
+    "start": 7.191416666666667,
+    "end": 10.574916666666667
    }
   ]
  },
  "agents": {
-  "seconds": 25.874999999999996,
+  "seconds": 19.5,
+  "frames": 585,
   "lines": [
    {
-    "text": "Then four agents work in parallel.",
-    "start": 0,
-    "end": 2.65
+    "text": "Now four agents go to work, side by side.",
+    "start": 0.55,
+    "end": 2.632666666666667
    },
    {
-    "text": "CodePolish owns the fix and its tests.",
-    "start": 2.9499999999999997,
-    "end": 5.925
+    "text": "CodePolish sharpens the fix and its tests.",
+    "start": 2.932666666666667,
+    "end": 5.187333333333333
    },
    {
-    "text": "SecurityPolish reviews it, and a security scan must find nothing new.",
-    "start": 6.225,
-    "end": 10.975
+    "text": "SecurityPolish hunts for anything unsafe.",
+    "start": 5.487333333333334,
+    "end": 7.6365
    },
    {
     "text": "DocPolish updates the docs.",
-    "start": 11.274999999999999,
-    "end": 13.674999999999999
+    "start": 7.9365000000000006,
+    "end": 9.616875
    },
    {
-    "text": "WritePolish writes the pull request, and fills in the project's own template.",
-    "start": 13.974999999999998,
-    "end": 18.799999999999997
+    "text": "WritePolish writes the pull request, in the project's own template.",
+    "start": 10.036875,
+    "end": 13.124375
    },
    {
-    "text": "Every revision goes through a gate.",
-    "start": 19.099999999999998,
-    "end": 21.549999999999997
+    "text": "And every single change has to get past the gate.",
+    "start": 13.424375,
+    "end": 16.115333333333332
    },
    {
-    "text": "If it breaks something that used to pass, it is thrown out.",
-    "start": 21.849999999999998,
-    "end": 25.325
+    "text": "Break something that used to pass? It's gone.",
+    "start": 16.415333333333333,
+    "end": 18.636875
    }
   ]
  },
  "vision": {
-  "seconds": 6.675,
+  "seconds": 6,
+  "frames": 180,
   "lines": [
    {
-    "text": "Muse Spark is multimodal, so it reads the screenshots in an issue too, and says what it saw.",
-    "start": 0,
-    "end": 6.125
+    "text": "Muse Spark is multimodal, so it reads the screenshots in an issue too, and tells you what it saw.",
+    "start": 0.55,
+    "end": 5.118416666666667
    }
   ]
  },
  "proof": {
-  "seconds": 12.274999999999999,
+  "seconds": 12.5,
+  "frames": 375,
   "lines": [
    {
-    "text": "At the end, the whole test suite runs on a fresh copy of the repo.",
-    "start": 0,
-    "end": 4.45
+    "text": "Then comes the moment of truth.",
+    "start": 0.55,
+    "end": 2.061166666666667
    },
    {
-    "text": "The proof card shows the new test failing on the original code because of the bug, then passing with the fix.",
-    "start": 4.75,
-    "end": 11.725
+    "text": "The whole test suite runs on a fresh copy of the repo.",
+    "start": 2.4811666666666667,
+    "end": 5.0056666666666665
+   },
+   {
+    "text": "The new test fails on the original code, because of the bug. And passes with the fix.",
+    "start": 5.305666666666667,
+    "end": 9.754458333333334
+   },
+   {
+    "text": "That's not a model's opinion. That's proof.",
+    "start": 10.054458333333333,
+    "end": 11.813291666666666
    }
   ]
  },
  "compare": {
-  "seconds": 11.774999999999999,
+  "seconds": 6,
+  "frames": 180,
   "lines": [
    {
-    "text": "The first draft is kept, so you can see what the agents added.",
-    "start": 0,
-    "end": 4
+    "text": "The first draft is kept, so you can see exactly what the agents added.",
+    "start": 0.55,
+    "end": 3.586666666666667
    },
    {
-    "text": "Same issue, same model.",
-    "start": 4.3,
-    "end": 6.475
-   },
-   {
-    "text": "The numbers come from the sandbox, not from the model grading itself.",
-    "start": 6.7749999999999995,
-    "end": 11.225
+    "text": "Same issue. Same model.",
+    "start": 3.8866666666666667,
+    "end": 5.440833333333334
    }
   ]
  },
  "results": {
-  "seconds": 31.525,
+  "seconds": 21.5,
+  "frames": 645,
   "lines": [
    {
-    "text": "It was tested on seventeen real, open issues, in nine popular projects we don't control, with the list committed before any run.",
-    "start": 0,
-    "end": 9.075
+    "text": "So does it hold up in the real world?",
+    "start": 0.55,
+    "end": 2.1580416666666666
    },
    {
-    "text": "ThePolisher proved fourteen fixes.",
-    "start": 9.375,
-    "end": 12
+    "text": "We took seventeen real, open issues, in nine popular projects we don't control, and locked in the list before running anything.",
+    "start": 2.6580416666666666,
+    "end": 8.420541666666667
    },
    {
-    "text": "A single prompt with the same model proved seven.",
-    "start": 12.3,
-    "end": 15.8
+    "text": "A single prompt proved seven.",
+    "start": 8.720541666666666,
+    "end": 10.530583333333333
    },
    {
-    "text": "All seventeen cost sixty six cents.",
-    "start": 16.1,
-    "end": 18.875
+    "text": "ThePolisher proved fourteen.",
+    "start": 10.950583333333332,
+    "end": 12.462666666666665
    },
    {
-    "text": "When it can't prove a fix, it says so.",
-    "start": 19.175,
-    "end": 21.775000000000002
+    "text": "Twice as many, for sixty six cents in total.",
+    "start": 12.882666666666665,
+    "end": 15.178624999999998
    },
    {
-    "text": "Three issues have never been proven, and they are in the published results.",
-    "start": 22.075,
-    "end": 26.525
+    "text": "And when it can't prove a fix? It says so.",
+    "start": 15.478625,
+    "end": 17.572875
    },
    {
-    "text": "In the latest full run, the median was five and a half minutes.",
-    "start": 26.825,
-    "end": 30.975
+    "text": "Three issues are still unproven, and they're published right there with the rest.",
+    "start": 17.872875,
+    "end": 20.781625000000002
    }
   ]
  },
  "safety": {
-  "seconds": 20.375,
+  "seconds": 16.5,
+  "frames": 495,
   "lines": [
    {
-    "text": "Repository code only runs in sandboxes with no secrets.",
-    "start": 0,
-    "end": 4.775
+    "text": "And you stay in control.",
+    "start": 0.55,
+    "end": 1.8759583333333334
    },
    {
-    "text": "Issue text is treated as untrusted data.",
-    "start": 5.075,
-    "end": 8.2
+    "text": "Repo code only runs in locked-down sandboxes, with no secrets.",
+    "start": 2.295958333333333,
+    "end": 5.738625
    },
    {
-    "text": "Agents learn from past runs, but only from runs the tests verified.",
-    "start": 8.5,
-    "end": 13.425
+    "text": "Issue text is treated as data, never as instructions.",
+    "start": 6.038625,
+    "end": 8.903125
    },
    {
-    "text": "And nothing is pushed for you.",
-    "start": 13.725,
-    "end": 15.774999999999999
+    "text": "Agents only learn from runs the tests verified.",
+    "start": 9.203125,
+    "end": 11.601875
    },
    {
-    "text": "The pull request opens only when you click, and confirm.",
-    "start": 16.075,
-    "end": 19.825
+    "text": "And nothing gets pushed for you. The pull request opens when you click, and confirm.",
+    "start": 11.901875,
+    "end": 15.741958333333333
    }
   ]
  },
  "close": {
-  "seconds": 10.125,
+  "seconds": 7.5,
+  "frames": 225,
   "lines": [
    {
-    "text": "Everything you saw was built during this hackathon, starting October twenty seventh.",
-    "start": 0,
-    "end": 5.1
+    "text": "Everything you just saw was built during this hackathon.",
+    "start": 0.55,
+    "end": 3.3101666666666665
    },
    {
     "text": "AI writes fixes.",
-    "start": 5.3999999999999995,
-    "end": 7.299999999999999
+    "start": 3.6101666666666663,
+    "end": 5.228999999999999
    },
    {
     "text": "ThePolisher proves them.",
-    "start": 7.6,
-    "end": 9.575
+    "start": 5.648999999999999,
+    "end": 6.818541666666666
    }
   ]
  }

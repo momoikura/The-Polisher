@@ -1,64 +1,66 @@
 [
-  { "id": "hook", "lines": [
-    "This test fails on the original code.",
-    "It passes with the fix.",
-    "An AI wrote that fix, for a real bug in Rich, a Python library with fifty seven thousand stars.",
-    "ThePolisher proved it works, in about three minutes, for about two cents."
+  { "id": "hook", "mood": 0.75, "lines": [
+    "Watch this test.",
+    "On the original code, it fails.",
+    "With the fix, it passes.",
+    "An AI wrote that fix, for a real bug in Rich, a library with fifty seven thousand stars.",
+    "And it proved it, in about three minutes, for two cents."
   ]},
-  { "id": "problem", "lines": [
-    "AI can write a fix in seconds.",
-    "Then someone has to check it.",
+  { "id": "problem", "mood": 0.7, "lines": [
+    "Here's the thing. AI can write a fix in seconds.",
+    "But then? Someone has to check it.",
     "Does it fix the bug?",
     "Did it break something else?",
-    "Are the tests real?",
-    "Is the pull request description true?",
-    "Maintainers are flooded with AI pull requests, and they can't tell which ones work without checking each one.",
-    "ThePolisher is a verifiable agent on Meta's Muse Spark. Its pull requests come with proof."
+    "Are the tests even real?",
+    "Right now, maintainers are drowning in AI pull requests, and they can't tell which ones work.",
+    "That's why ThePolisher exists.",
+    "A verifiable agent, on Meta's Muse Spark. Its pull requests come with proof."
   ]},
-  { "id": "paste", "lines": [
-    "Paste an issue from a public Python repository.",
-    "Muse Spark reads the issue and the code, and writes three fixes at once.",
-    "Each one runs in its own Modal sandbox, and the tests pick the best one, not the model."
+  { "id": "paste", "mood": 0.65, "lines": [
+    "Paste an issue from a public Python repo.",
+    "Muse Spark reads the issue and the code, then writes three fixes, all at once.",
+    "And here's my favorite part. The tests pick the winner, not the model."
   ]},
-  { "id": "agents", "lines": [
-    "Then four agents work in parallel.",
-    "CodePolish owns the fix and its tests.",
-    "SecurityPolish reviews it, and a security scan must find nothing new.",
+  { "id": "agents", "mood": 0.65, "lines": [
+    "Now four agents go to work, side by side.",
+    "CodePolish sharpens the fix and its tests.",
+    "SecurityPolish hunts for anything unsafe.",
     "DocPolish updates the docs.",
-    "WritePolish writes the pull request, and fills in the project's own template.",
-    "Every revision goes through a gate.",
-    "If it breaks something that used to pass, it is thrown out."
+    "WritePolish writes the pull request, in the project's own template.",
+    "And every single change has to get past the gate.",
+    "Break something that used to pass? It's gone."
   ]},
-  { "id": "vision", "lines": [
-    "Muse Spark is multimodal, so it reads the screenshots in an issue too, and says what it saw."
+  { "id": "vision", "mood": 0.6, "lines": [
+    "Muse Spark is multimodal, so it reads the screenshots in an issue too, and tells you what it saw."
   ]},
-  { "id": "proof", "lines": [
-    "At the end, the whole test suite runs on a fresh copy of the repo.",
-    "The proof card shows the new test failing on the original code because of the bug, then passing with the fix."
+  { "id": "proof", "mood": 0.85, "lines": [
+    "Then comes the moment of truth.",
+    "The whole test suite runs on a fresh copy of the repo.",
+    "The new test fails on the original code, because of the bug. And passes with the fix.",
+    "That's not a model's opinion. That's proof."
   ]},
-  { "id": "compare", "lines": [
-    "The first draft is kept, so you can see what the agents added.",
-    "Same issue, same model.",
-    "The numbers come from the sandbox, not from the model grading itself."
+  { "id": "compare", "mood": 0.55, "lines": [
+    "The first draft is kept, so you can see exactly what the agents added.",
+    "Same issue. Same model."
   ]},
-  { "id": "results", "lines": [
-    "It was tested on seventeen real, open issues, in nine popular projects we don't control, with the list committed before any run.",
-    "ThePolisher proved fourteen fixes.",
-    "A single prompt with the same model proved seven.",
-    "All seventeen cost sixty six cents.",
-    "When it can't prove a fix, it says so.",
-    "Three issues have never been proven, and they are in the published results.",
-    "In the latest full run, the median was five and a half minutes."
+  { "id": "results", "mood": 0.8, "lines": [
+    "So does it hold up in the real world?",
+    "We took seventeen real, open issues, in nine popular projects we don't control, and locked in the list before running anything.",
+    "A single prompt proved seven.",
+    "ThePolisher proved fourteen.",
+    "Twice as many, for sixty six cents in total.",
+    "And when it can't prove a fix? It says so.",
+    "Three issues are still unproven, and they're published right there with the rest."
   ]},
-  { "id": "safety", "lines": [
-    "Repository code only runs in sandboxes with no secrets.",
-    "Issue text is treated as untrusted data.",
-    "Agents learn from past runs, but only from runs the tests verified.",
-    "And nothing is pushed for you.",
-    "The pull request opens only when you click, and confirm."
+  { "id": "safety", "mood": 0.6, "lines": [
+    "And you stay in control.",
+    "Repo code only runs in locked-down sandboxes, with no secrets.",
+    "Issue text is treated as data, never as instructions.",
+    "Agents only learn from runs the tests verified.",
+    "And nothing gets pushed for you. The pull request opens when you click, and confirm."
   ]},
-  { "id": "close", "lines": [
-    "Everything you saw was built during this hackathon, starting October twenty seventh.",
+  { "id": "close", "mood": 0.8, "lines": [
+    "Everything you just saw was built during this hackathon.",
     "AI writes fixes.",
     "ThePolisher proves them."
   ]}
