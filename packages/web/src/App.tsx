@@ -1,4 +1,4 @@
-import { useEffect, useState, type MouseEvent } from "react";
+import { useEffect, useState, type MouseEvent, type ReactNode } from "react";
 import { ExperiencePanel } from "./components/ExperiencePanel.js";
 import { Header, type Page } from "./components/Header.js";
 import { Icon } from "./components/Icon.js";
@@ -8,9 +8,19 @@ import { MergeBox } from "./components/MergeBox.js";
 import { RunsPage } from "./components/RunsPage.js";
 import { RunView } from "./components/RunView.js";
 import { modelLabel } from "./maintainer/model-label.js";
+import { EVIDENCE } from "./maintainer/evidence.js";
 import { pageFromPath, pathForPage } from "./maintainer/routes.js";
 import { useAuth } from "./maintainer/useAuth.js";
 import { useMaintainer } from "./maintainer/useMaintainer.js";
+
+const REPO_URL = "https://github.com/momoikura/The-Polisher";
+
+const ExternalLink = ({ href, children }: { href: string; children: ReactNode }) => (
+  <a href={href} target="_blank" rel="noopener noreferrer">
+    {children}
+    <Icon name="external" size={12} />
+  </a>
+);
 
 export default function App() {
   const { view, config, runId, start, reset, startError, isStarting, isConnectionLost, pr, openPr } = useMaintainer();
@@ -103,15 +113,31 @@ export default function App() {
         )}
       </main>
       <footer className="site-footer">
-        <nav aria-label="About this site">
-          <a {...footerLink("about")}>About</a>
-          <a {...footerLink("privacy")}>Privacy</a>
-          <a {...footerLink("terms")}>Terms</a>
-          <a href="https://github.com/momoikura/The-Polisher" target="_blank" rel="noopener noreferrer">
-            GitHub
-          </a>
-        </nav>
-        <p className="muted">An independent project built for the Meta Global AI Developer Hackathon. Not made or endorsed by Meta.</p>
+        <div className="footer-columns">
+          <nav aria-label="Product">
+            <h2>Product</h2>
+            <a {...footerLink("maintainer")}>Fix an issue</a>
+            <a {...footerLink("runs")}>Runs</a>
+            <a {...footerLink("memory")}>Memory</a>
+          </nav>
+          <nav aria-label="Learn">
+            <h2>Learn</h2>
+            <a {...footerLink("about")}>About</a>
+            <ExternalLink href={EVIDENCE.url}>Benchmarks</ExternalLink>
+            <ExternalLink href={`${REPO_URL}/blob/main/docs/architecture.md`}>Architecture</ExternalLink>
+            <ExternalLink href={`${REPO_URL}#run-it-locally`}>Run it yourself</ExternalLink>
+          </nav>
+          <nav aria-label="Project">
+            <h2>Project</h2>
+            <ExternalLink href={REPO_URL}>Source on GitHub</ExternalLink>
+            <ExternalLink href={`${REPO_URL}/issues`}>Report an issue</ExternalLink>
+            <a {...footerLink("privacy")}>Privacy</a>
+            <a {...footerLink("terms")}>Terms</a>
+          </nav>
+        </div>
+        <p className="muted">
+          MIT licensed. Built for the Meta Global AI Developer Hackathon 2026. An independent project, not made or endorsed by Meta.
+        </p>
       </footer>
     </div>
   );
