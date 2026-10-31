@@ -14,6 +14,20 @@ import { runStore, type RunRecord, type RunStatus, type SavedRun } from "./store
 
 const LIST_LIMIT = 200;
 
+/**
+ * Runs taken off the site but kept in storage: rich#4244's fix also broke two other tests,
+ * which these runs reported as already failing (benchmarks/results/rerun-2026-10-30.md).
+ */
+const WITHDRAWN = new Set([
+  "f023855e-b850-4248-8af1-84dbd4dad4a2",
+  "de71dd7d-c18b-452d-be80-d3518b5c016c",
+  "d78c719f-94c1-4c4d-be7a-1329ebc891c7",
+  "73b4b063-9d39-4b0a-88d3-49f73d48e609",
+  "77c6d63d-614b-5a6f-a7f1-8b288af66888",
+]);
+
+export const isWithdrawn = (id: string): boolean => WITHDRAWN.has(id);
+
 export function publicRun({ user: _user, ...shown }: RunRecord): Omit<RunRecord, "user"> {
   return shown;
 }
@@ -54,13 +68,13 @@ export async function handleHistoryRequest(req: IncomingMessage, res: ServerResp
   if (req.method !== "GET") return false;
 
   if (url === "/api/runs") {
-    sendJson(res, 200, { runs: (await runStore().list(LIST_LIMIT)).map(publicRun) });
+    sendJson(res, 200, { runs: (await runStore().list(LIST_LIMIT)).filter((r) => !isWithdrawn(r.id)).map(publicRun) });
     return true;
   }
 
   const one = url.match(/^\/api\/runs\/([0-9a-f-]{36})$/);
   if (one) {
-    const saved = await runStore().get(one[1]);
+    const saved = isWithdrawn(one[1]) ? null : await runStore().get(one[1]);
     if (!saved) sendJson(res, 404, { error: "No saved run with that id." });
     else sendJson(res, 200, runForViewer(saved, (await currentUser(req))?.login ?? null));
     return true;

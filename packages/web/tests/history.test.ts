@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { publicRun, runForViewer } from "../src/server/history.js";
+import { isWithdrawn, publicRun, runForViewer } from "../src/server/history.js";
 import type { RunRecord } from "../src/server/store/index.js";
 
 const record: RunRecord = {
@@ -36,5 +36,17 @@ describe("public run data", () => {
 
   it("gives a run nobody signed in for no owner, even to a viewer with no login", () => {
     expect(runForViewer({ record: { ...record, user: null }, events: [] }, null).isMine).toBe(false);
+  });
+});
+
+describe("withdrawn runs", () => {
+  it("hides the rich#4244 runs whose fix was later found to break other tests", () => {
+    expect(isWithdrawn("f023855e-b850-4248-8af1-84dbd4dad4a2")).toBe(true);
+    expect(isWithdrawn("77c6d63d-614b-5a6f-a7f1-8b288af66888")).toBe(true);
+  });
+
+  it("keeps every other run", () => {
+    expect(isWithdrawn(record.id)).toBe(false);
+    expect(isWithdrawn("e53f63a5-4ee2-4823-aff1-2323ff801c76")).toBe(false);
   });
 });
