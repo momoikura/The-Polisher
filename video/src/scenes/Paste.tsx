@@ -3,6 +3,7 @@ import { AbsoluteFill, Sequence, interpolate, useCurrentFrame } from "remotion";
 import type { CandidateSummary } from "@thepolisher/agents";
 import { IssueForm } from "../../../packages/web/src/components/IssueForm.js";
 import { BASE, CENTER_Y, Camera, Cursor, GREEN, MONO, SANS, Stage, WIDTH, cameraAt, lineAt, rise, sceneFrames, typed, useRects } from "../common";
+import beats from "../beats.json";
 import { ISSUE, PrPage, REPO, TopBar, clock, eventIndex, richEvents, viewFrom } from "../app";
 
 const config = { provider: "meta", isSimulated: false, isConfigured: true, model: "muse-spark-1.3-contributor", setupHint: null, isSandboxConfigured: true, prAccess: "sign_in", demoIssueUrl: null, activeRunId: null, isAuthEnabled: true, requiresUserKey: true, freeRunsLeft: 3, freeRunsPerUser: 3 };
@@ -52,7 +53,7 @@ export const Clock = ({ n }: { n: number }) => (
 /** The three drafts, with the numbers the sandbox reported for each. */
 const Race = ({ start }: { start: number }) => {
   const f = useCurrentFrame();
-  const picked = start + 63;
+  const picked = start + Math.round(beats.racePick * 30);
   return (
     <AbsoluteFill style={{ background: `rgba(0,0,0,${0.72 * rise(f, start, 12)})`, justifyContent: "center", alignItems: "center", paddingBottom: 90, fontFamily: SANS }}>
       <div style={{ width: 1280, opacity: rise(f, start + 4, 12), translate: `0 ${(1 - rise(f, start + 4, 14)) * 30}px` }}>

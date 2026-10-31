@@ -1,7 +1,9 @@
 // Turns the per-sentence narration into one track per scene and src/timing.json, which
 // every scene and the music sync to.
 // Usage: node scripts/assemble_voice.mjs <cache folder>
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 const cache = process.argv[2];
@@ -11,6 +13,14 @@ const GRID_FRAMES = 15; // scenes last whole beats at 120 BPM and 30 fps
 const TRANSITION_FRAMES = 15;
 const TARGET_RMS = 0.085;
 const PEAK = 0.8;
+/** Below 1 slows the delivery, keeping the pitch. Chatterbox reads quickly for narration. */
+const TEMPO = 0.78;
+const slowed = path.join(os.tmpdir(), "thepolisher-slowed.wav");
+
+function readSlowed(file) {
+  execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", file, "-af", `rubberband=tempo=${TEMPO}:pitchq=quality:transients=smooth`, "-c:a", "pcm_s16le", slowed]);
+  return readWav(slowed);
+}
 
 function readWav(file) {
   const b = fs.readFileSync(file);
@@ -72,7 +82,7 @@ function clean({ samples, rate }) {
 }
 
 /** Questions and short punchlines get room to land. */
-const gapAfter = (line) => (line.endsWith("?") ? 0.5 : line.length < 34 ? 0.42 : 0.3);
+const gapAfter = (line) => (line.endsWith("?") ? 0.65 : line.length < 34 ? 0.55 : 0.42);
 
 const scenes = JSON.parse(fs.readFileSync("src/script.json", "utf8"));
 const timing = {};
@@ -90,7 +100,7 @@ for (const scene of scenes) {
       .map((f) => path.join(folder, f))
       .sort((x, y) => fs.statSync(y).mtimeMs - fs.statSync(x).mtimeMs)[0];
     if (!file) throw new Error(`no voice for ${scene.id} line ${n}`);
-    const wav = readWav(file);
+    const wav = readSlowed(file);
     rate = wav.rate;
     const voice = clean(wav);
     const seconds = voice.length / rate;
