@@ -3,6 +3,7 @@ import { EVIDENCE } from "../maintainer/evidence.js";
 
 const REPO_URL = "https://github.com/momoikura/The-Polisher";
 const ISSUES_URL = `${REPO_URL}/issues`;
+const CONTACT_EMAIL = "markdanila12@gmail.com";
 const UPDATED = "October 31, 2026";
 
 const External = ({ href, children }: { href: string; children: ReactNode }) => (
@@ -10,6 +11,8 @@ const External = ({ href, children }: { href: string; children: ReactNode }) => 
     {children}
   </a>
 );
+
+const Email = () => <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>;
 
 const Page = ({ title, lede, updated, children }: { title: string; lede: string; updated?: boolean; children: ReactNode }) => (
   <article className="info-page">
@@ -56,7 +59,7 @@ export function AboutPage() {
       <h2>Who made it</h2>
       <p>
         ThePolisher was built for the Meta Global AI Developer Hackathon. It is an independent project, not made or endorsed by Meta. The code is <External href={REPO_URL}>open source on GitHub</External> under the
-        MIT license. For questions and bug reports, <External href={ISSUES_URL}>open an issue</External>.
+        MIT license. For questions, email <Email />. For bug reports, <External href={ISSUES_URL}>open an issue</External>.
       </p>
     </Page>
   );
@@ -104,7 +107,7 @@ export function PrivacyPage() {
           <tr>
             <td>Runs: the issue link and text, code changes, test results, cost and your GitHub username</td>
             <td>To show results and let you open the pull request later</td>
-            <td>Kept and public until removed. The Runs page doesn't display your username, but it is included in the data the page loads.</td>
+            <td>Kept until removed. Everything except your username is public. Your username stays on the server, to apply run limits and let only you open the run's pull request.</td>
           </tr>
           <tr>
             <td>Lessons from runs the tests verified: short notes on what worked</td>
@@ -155,10 +158,14 @@ export function PrivacyPage() {
         <li>Choose "Forget it" on the issue form to delete a remembered Meta key.</li>
         <li>Revoke the app's access in your GitHub settings.</li>
         <li>
-          To remove a run or your other data, <External href={ISSUES_URL}>open an issue on GitHub</External>. Issues are public, so don't include anything sensitive. Lessons and data already sent to Meta may not be
-          removable.
+          To remove a run or your other data, email <Email />. Lessons and data already sent to Meta may not be removable.
         </li>
       </ul>
+
+      <h2>Contact</h2>
+      <p>
+        Questions about privacy: <Email />.
+      </p>
 
       <h2>Children</h2>
       <p>ThePolisher requires a GitHub account and isn't meant for children under 13.</p>
@@ -204,7 +211,7 @@ export function TermsPage() {
 
       <h2>Contact</h2>
       <p>
-        <External href={ISSUES_URL}>Open an issue on GitHub</External>.
+        Email <Email />, or <External href={ISSUES_URL}>open an issue on GitHub</External>.
       </p>
     </Page>
   );

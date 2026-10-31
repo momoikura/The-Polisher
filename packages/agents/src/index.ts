@@ -1,22 +1,8 @@
 /**
  * @thepolisher/agents — public API.
  *
- * Exports the LLM provider utilities and agent implementations.
- * Individual agent implementations will be added in Day 3-4.
+ * The Meta Model API client, the Auto-Maintainer pipeline and its experience memory.
  */
-
-// ─── LLM Provider ────────────────────────────────────────────────────────────
-export {
-  createModel,
-  callLLM,
-  callLLMStructured,
-  getAvailableProviders,
-  type ProviderName,
-  type ProviderConfig,
-  type LLMResult,
-} from "./llm/provider.js";
-
-export { DEFAULT_MODELS, resolveModel } from "./llm/models.js";
 
 // ─── Meta Model Client ───────────────────────────────────────────────────────
 export {
@@ -42,15 +28,6 @@ export {
   type MetaChatCompletionResponse,
   type MetaHealthCheckResult,
 } from "./llm/meta-client.js";
-
-// ─── Claude ──────────────────────────────────────────────────────────────────
-export {
-  ClaudeChatClient,
-  DEFAULT_CLAUDE_MODEL,
-  isClaudeConfigured,
-  resolveClaudeConfig,
-  type ClaudeClientConfig,
-} from "./llm/anthropic-client.js";
 
 // ─── Structured chat ─────────────────────────────────────────────────────────
 export {

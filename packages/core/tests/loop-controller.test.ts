@@ -295,7 +295,7 @@ describe("LoopController", () => {
     const failing: RepairerAgent = {
       async repair() {
         throw Object.assign(new Error("Structured output invalid after 2 attempts"), {
-          usage: { model: "claude-opus-5-5", promptTokens: 1_000_000, completionTokens: 0 },
+          usage: { model: "muse-spark-1.3", promptTokens: 1_000_000, completionTokens: 0 },
         });
       },
     };
@@ -309,8 +309,8 @@ describe("LoopController", () => {
     const result = await controller.execute(run("score:5|fail:1"));
 
     expect(result.status).toBe("failed");
-    // $4 for the failed call (1M input tokens at Opus 5.5 rates) plus the cheap mock evaluation before it.
-    expect(result.totalCostUSD).toBeCloseTo(4, 2);
+    // $1.25 for the failed call (1M input tokens at Muse Spark rates) plus the cheap mock evaluation before it.
+    expect(result.totalCostUSD).toBeCloseTo(1.25, 2);
   });
 
   it("tells the repairer what its previous attempts did and why they were rejected", async () => {

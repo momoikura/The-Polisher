@@ -1,15 +1,12 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import {
-  ClaudeChatClient,
   GitHubClient,
   MetaModelClient,
   ModalSandboxClient,
   chatClientFromMeta,
   createSimulatedMaintainerClient,
   createSimulatedSandbox,
-  isClaudeConfigured,
-  resolveClaudeConfig,
   type ChatClient,
   type SandboxClient,
 } from "@thepolisher/agents";
@@ -55,13 +52,11 @@ export function metaClient(): MetaModelClient {
   return new MetaModelClient({ timeoutMs: Math.max(envTimeout, MIN_STUDIO_TIMEOUT_MS) });
 }
 
-export type Provider = "simulated" | "anthropic" | "meta";
+export type Provider = "simulated" | "meta";
 
-/** THEPOLISHER_SIMULATE=1 wins; otherwise MODEL_PROVIDER picks Claude ("anthropic"/"claude") or Meta (default). */
+/** THEPOLISHER_SIMULATE=1 runs the scripted demo; otherwise the Meta Model API. */
 export function activeProvider(): Provider {
-  if (isSimulated()) return "simulated";
-  const chosen = (process.env.MODEL_PROVIDER ?? "meta").trim().toLowerCase();
-  return chosen === "anthropic" || chosen === "claude" ? "anthropic" : "meta";
+  return isSimulated() ? "simulated" : "meta";
 }
 
 export interface ProviderStatus {
@@ -75,15 +70,6 @@ export interface ProviderStatus {
 export function providerStatus(): ProviderStatus {
   const provider = activeProvider();
   if (provider === "simulated") return { provider, isConfigured: true, model: "simulated", setupHint: null };
-  if (provider === "anthropic") {
-    const isConfigured = isClaudeConfigured();
-    return {
-      provider,
-      isConfigured,
-      model: resolveClaudeConfig().model,
-      setupHint: isConfigured ? null : "Set ANTHROPIC_API_KEY in .env at the repo root and restart the dev server.",
-    };
-  }
   const meta = metaClient();
   return {
     provider,
@@ -91,7 +77,7 @@ export function providerStatus(): ProviderStatus {
     model: meta.getModelId(),
     setupHint: meta.isConfigured()
       ? null
-      : "Set MODEL_BASE_URL, MODEL_API_KEY and MODEL_ID in .env at the repo root (or MODEL_PROVIDER=anthropic with ANTHROPIC_API_KEY) and restart the dev server.",
+      : "Set MODEL_BASE_URL, MODEL_API_KEY and MODEL_ID in .env at the repo root and restart the dev server.",
   };
 }
 
@@ -100,8 +86,6 @@ export function modelClientOrNull(): ChatClient | null {
   switch (activeProvider()) {
     case "simulated":
       return createSimulatedMaintainerClient();
-    case "anthropic":
-      return isClaudeConfigured() ? new ClaudeChatClient() : null;
     case "meta": {
       const meta = metaClient();
       return meta.isConfigured() ? chatClientFromMeta(meta) : null;

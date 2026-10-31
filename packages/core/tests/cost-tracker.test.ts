@@ -27,12 +27,12 @@ describe("CostTracker", () => {
   it("calculates cost from token counts using known model pricing", () => {
     const tracker = new CostTracker({ ...DEFAULT_RUN_CONFIG, maxCostUSD: 10 });
 
-    // gpt-4o: $2.50/1M input, $10/1M output
-    const cost = tracker.recordCall("generator", "gpt-4o", 1000, 500);
+    // muse-spark-1.3-contributor: $0.10/1M input, $0.20/1M output
+    const cost = tracker.recordCall("generator", "muse-spark-1.3-contributor", 1000, 500);
 
-    // Expected: (1000 * 2.5 + 500 * 10) / 1_000_000 = (2500 + 5000) / 1_000_000 = 0.0075
-    expect(cost).toBeCloseTo(0.0075, 4);
-    expect(tracker.getTotalCost()).toBeCloseTo(0.0075, 4);
+    // Expected: (1000 * 0.1 + 500 * 0.2) / 1_000_000 = 0.0002
+    expect(cost).toBeCloseTo(0.0002, 6);
+    expect(tracker.getTotalCost()).toBeCloseTo(0.0002, 6);
   });
 
   it("uses default pricing for unknown models", () => {
@@ -57,9 +57,9 @@ describe("CostTracker", () => {
   it("accumulates costs across multiple calls", () => {
     const tracker = new CostTracker({ ...DEFAULT_RUN_CONFIG, maxCostUSD: 10 });
 
-    tracker.recordCall("generator", "gpt-4o-mini", 2000, 1000);
-    tracker.recordCall("evaluator", "gpt-4o-mini", 1500, 800);
-    tracker.recordCall("repairer", "gpt-4o-mini", 2000, 1200);
+    tracker.recordCall("generator", "muse-spark-1.3-contributor", 2000, 1000);
+    tracker.recordCall("evaluator", "muse-spark-1.3-contributor", 1500, 800);
+    tracker.recordCall("repairer", "muse-spark-1.3-contributor", 2000, 1200);
 
     const status = tracker.getStatus();
     expect(status.totalCostUSD).toBeGreaterThan(0);
@@ -70,24 +70,24 @@ describe("CostTracker", () => {
     const tracker = new CostTracker({ ...DEFAULT_RUN_CONFIG, maxCostUSD: 0.001 });
 
     // This call will exceed the tiny budget
-    tracker.recordCall("generator", "gpt-4o", 100_000, 50_000);
+    tracker.recordCall("generator", "muse-spark-1.3", 100_000, 50_000);
 
     expect(tracker.canAffordCall()).toBe(false);
     expect(tracker.getStatus().isOverBudget).toBe(true);
   });
 
   it("triggers warning at 80% utilization", () => {
-    const tracker = new CostTracker({ ...DEFAULT_RUN_CONFIG, maxCostUSD: 0.01 });
+    const tracker = new CostTracker({ ...DEFAULT_RUN_CONFIG, maxCostUSD: 0.0045 });
 
-    // gpt-4o: push past 80% of $0.01
-    tracker.recordCall("generator", "gpt-4o", 1000, 500);
-    // Cost ≈ $0.0075 = 75% of $0.01 — not yet warning
+    // muse-spark-1.3: push past 80% of $0.0045
+    tracker.recordCall("generator", "muse-spark-1.3", 1000, 500);
+    // Cost = $0.003375 = 75% of the budget, not yet a warning
 
     const statusBefore = tracker.getStatus();
     expect(statusBefore.isWarning).toBe(false);
 
     // Another small call should push past 80%
-    tracker.recordCall("evaluator", "gpt-4o", 200, 100);
+    tracker.recordCall("evaluator", "muse-spark-1.3", 200, 100);
 
     const statusAfter = tracker.getStatus();
     expect(statusAfter.isWarning).toBe(true);
@@ -95,14 +95,14 @@ describe("CostTracker", () => {
 
   it("can still afford a call when under budget", () => {
     const tracker = new CostTracker({ ...DEFAULT_RUN_CONFIG, maxCostUSD: 10 });
-    tracker.recordCall("generator", "gpt-4o-mini", 1000, 500);
+    tracker.recordCall("generator", "muse-spark-1.3-contributor", 1000, 500);
 
     expect(tracker.canAffordCall()).toBe(true);
   });
 
   it("records accurate timestamps on each call", () => {
     const tracker = new CostTracker(DEFAULT_RUN_CONFIG);
-    tracker.recordCall("generator", "gpt-4o", 100, 50);
+    tracker.recordCall("generator", "muse-spark-1.3", 100, 50);
 
     const status = tracker.getStatus();
     expect(status.records[0].timestamp).toBeTruthy();

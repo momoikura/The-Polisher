@@ -13,7 +13,6 @@ export function prettyModel(model: string): string {
 export function modelLabel(config: MaintainerConfig | null): string {
   if (!config) return "Checking…";
   if (config.isSimulated) return "Demo mode";
-  const provider = config.provider === "anthropic" ? "Claude" : "Meta";
-  if (!config.isConfigured) return `${provider} key not set`;
-  return config.provider === "meta" ? prettyModel(config.model) : `${provider} · ${config.model}`;
+  if (!config.isConfigured) return "Meta key not set";
+  return prettyModel(config.model);
 }

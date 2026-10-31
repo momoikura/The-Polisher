@@ -4,7 +4,7 @@ import { Button } from "./Button.js";
 import { LANE_META } from "../maintainer/lanes.js";
 import { Icon } from "./Icon.js";
 
-const PROVIDER_LABEL: Record<string, string> = { simulated: "the simulated demo", anthropic: "Claude", meta: "the Meta model" };
+const PROVIDER_LABEL: Record<string, string> = { simulated: "the simulated demo", meta: "the Meta model" };
 
 interface Summary {
   provider: string;

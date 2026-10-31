@@ -94,7 +94,7 @@ describe("recallLessons", () => {
       exp({ lane: "write" }),
       exp({ targeted: ["dom_contract"], fixed: ["dom_contract"] }),
       exp({ provider: "simulated" }),
-      exp({ provider: "anthropic" }),
+      exp({ provider: "other" }),
     ];
     const lessons = recallLessons(all, { lane: "security", failing: ["slop_visual"], provider: "meta" });
     expect(lessons.consulted).toBe(0);

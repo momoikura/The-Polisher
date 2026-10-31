@@ -2,14 +2,25 @@
  * Run history endpoints, readable by anyone:
  *   GET /api/runs        → recent runs, newest first
  *   GET /api/runs/:id    → one run's summary and full event timeline, for replay
+ *
+ * Who started a run stays on the server: a signed-in owner only learns the run is theirs.
  */
 
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { parseIssueUrl } from "@thepolisher/agents";
+import { currentUser } from "./auth/auth-api.js";
 import { sendJson } from "./http.js";
-import { runStore, type RunRecord, type RunStatus } from "./store/index.js";
+import { runStore, type RunRecord, type RunStatus, type SavedRun } from "./store/index.js";
 
 const LIST_LIMIT = 200;
+
+export function publicRun({ user: _user, ...shown }: RunRecord): Omit<RunRecord, "user"> {
+  return shown;
+}
+
+export function runForViewer(saved: SavedRun, viewer: string | null) {
+  return { ...saved, record: publicRun(saved.record), isMine: viewer !== null && saved.record.user === viewer };
+}
 
 /** The summary saved when a run starts; title and status are filled in when it finishes. */
 export function startedRecord(id: string, issueUrl: string, model: string, user: string | null): RunRecord {
@@ -43,7 +54,7 @@ export async function handleHistoryRequest(req: IncomingMessage, res: ServerResp
   if (req.method !== "GET") return false;
 
   if (url === "/api/runs") {
-    sendJson(res, 200, { runs: await runStore().list(LIST_LIMIT) });
+    sendJson(res, 200, { runs: (await runStore().list(LIST_LIMIT)).map(publicRun) });
     return true;
   }
 
@@ -51,7 +62,7 @@ export async function handleHistoryRequest(req: IncomingMessage, res: ServerResp
   if (one) {
     const saved = await runStore().get(one[1]);
     if (!saved) sendJson(res, 404, { error: "No saved run with that id." });
-    else sendJson(res, 200, saved);
+    else sendJson(res, 200, runForViewer(saved, (await currentUser(req))?.login ?? null));
     return true;
   }
   return false;

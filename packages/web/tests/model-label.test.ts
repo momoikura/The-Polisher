@@ -12,7 +12,7 @@ describe("prettyModel", () => {
   });
 
   it("leaves other model IDs unchanged", () => {
-    expect(prettyModel("claude-opus-5-5")).toBe("claude-opus-5-5");
+    expect(prettyModel("simulated")).toBe("simulated");
   });
 });
 

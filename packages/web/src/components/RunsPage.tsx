@@ -3,7 +3,6 @@ import type { MaintainerEvent } from "@thepolisher/agents";
 import { initialView, maintainerReducer, type MaintainerView } from "../maintainer/reducer.js";
 import { prettyModel } from "../maintainer/model-label.js";
 import { requestPullRequest } from "../maintainer/pull-request.js";
-import type { AuthUser } from "../maintainer/useAuth.js";
 import type { PrState } from "../maintainer/useMaintainer.js";
 import { Icon, type IconName } from "./Icon.js";
 import { MergeBox } from "./MergeBox.js";
@@ -20,7 +19,6 @@ interface RunRecord {
   totalUSD: number;
   model: string;
   startedAt: string;
-  user: string | null;
   issueUrl: string;
   source?: "web" | "benchmark";
   benchmark?: { list: string; provesFix: boolean; baselineProvesFix: boolean | null; tests: string | null; wallSeconds: number; seenBefore: boolean; hasTimeline: boolean };
@@ -99,16 +97,16 @@ async function getJson<T>(url: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-function Replay({ id, user, onBack }: { id: string; user: AuthUser | null; onBack: () => void }) {
-  const [state, setState] = useState<{ view: MaintainerView; model: string; owner: string | null; record: RunRecord; hasEvents: boolean } | { error: string } | null>(null);
+function Replay({ id, onBack }: { id: string; onBack: () => void }) {
+  const [state, setState] = useState<{ view: MaintainerView; model: string; isMine: boolean; record: RunRecord; hasEvents: boolean } | { error: string } | null>(null);
   const [pr, setPr] = useState<PrState>({ kind: "idle" });
 
   useEffect(() => {
     let isCurrent = true;
-    getJson<{ record: RunRecord; events: Array<MaintainerEvent & { at: number }> }>(`/api/runs/${id}`)
-      .then(({ record, events }) => {
+    getJson<{ record: RunRecord; events: Array<MaintainerEvent & { at: number }>; isMine: boolean }>(`/api/runs/${id}`)
+      .then(({ record, events, isMine }) => {
         if (isCurrent)
-          setState({ view: events.reduce(maintainerReducer, initialView()), model: prettyModel(record.model), owner: record.user, record, hasEvents: events.length > 0 });
+          setState({ view: events.reduce(maintainerReducer, initialView()), model: prettyModel(record.model), isMine, record, hasEvents: events.length > 0 });
       })
       .catch((err: unknown) => isCurrent && setState({ error: err instanceof Error ? err.message : "Couldn't load that run." }));
     return () => {
@@ -126,7 +124,6 @@ function Replay({ id, user, onBack }: { id: string; user: AuthUser | null; onBac
     );
   if (state.record.benchmark && !state.hasEvents) return <BenchmarkSummary record={state.record} onBack={onBack} />;
   // Your own saved run can still open its pull request (the server checks it's yours too).
-  const isMine = Boolean(user && state.owner === user.login);
   return (
     <RunView
       view={state.view}
@@ -143,7 +140,7 @@ function Replay({ id, user, onBack }: { id: string; user: AuthUser | null; onBac
             setPr({ kind: "opening" });
             void requestPullRequest(id).then(setPr);
           }}
-          isReplay={!isMine}
+          isReplay={!state.isMine}
         />
       }
     />
@@ -151,7 +148,7 @@ function Replay({ id, user, onBack }: { id: string; user: AuthUser | null; onBac
 }
 
 /** Every saved run, newest first, each one replayable in full. */
-export function RunsPage({ user }: { user: AuthUser | null }) {
+export function RunsPage() {
   const [runs, setRuns] = useState<RunRecord[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -162,7 +159,7 @@ export function RunsPage({ user }: { user: AuthUser | null }) {
       .catch((err: unknown) => setError(err instanceof Error ? err.message : "Couldn't load the run history."));
   }, []);
 
-  if (selected) return <Replay id={selected} user={user} onBack={() => setSelected(null)} />;
+  if (selected) return <Replay id={selected} onBack={() => setSelected(null)} />;
 
   return (
     <div className="runs-page">

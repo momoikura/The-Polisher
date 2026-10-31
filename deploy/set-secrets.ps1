@@ -53,7 +53,6 @@ $settings = [ordered]@{
     GITHUB_CLIENT_SECRET         = $clientSecret
     SANDBOX_URL                  = Read-DotEnv "SANDBOX_URL"
     SANDBOX_TOKEN                = Read-DotEnv "SANDBOX_TOKEN"
-    MODEL_PROVIDER               = "meta"
     MODEL_BASE_URL               = Read-DotEnv "MODEL_BASE_URL"
     MODEL_ID                     = Read-DotEnv "MODEL_ID" "muse-spark-1.3-contributor"
 }

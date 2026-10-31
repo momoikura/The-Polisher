@@ -4,7 +4,7 @@ import { initialView, maintainerReducer, type MaintainerView } from "./reducer.j
 import { requestPullRequest } from "./pull-request.js";
 
 export interface MaintainerConfig {
-  provider: "simulated" | "anthropic" | "meta";
+  provider: "simulated" | "meta";
   isSimulated: boolean;
   isConfigured: boolean;
   model: string;

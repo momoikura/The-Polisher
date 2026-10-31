@@ -34,28 +34,11 @@ export interface CostStatus {
  * Update as pricing changes.
  */
 const COST_PER_MILLION_TOKENS: Record<string, { input: number; output: number }> = {
-  // OpenAI
-  "gpt-4o": { input: 2.5, output: 10.0 },
-  "gpt-4o-mini": { input: 0.15, output: 0.6 },
-  "gpt-4-turbo": { input: 10.0, output: 30.0 },
-  "o1": { input: 15.0, output: 60.0 },
-  "o1-mini": { input: 3.0, output: 12.0 },
-  // Anthropic (first-party API rates as of 2026-10; Haiku 5.5 rate is for prompts up to 100K tokens)
-  "claude-fable-5-1": { input: 10.0, output: 50.0 },
-  "claude-opus-5-5": { input: 4.0, output: 20.0 },
-  "claude-opus-5": { input: 5.0, output: 25.0 },
-  "claude-sonnet-5-5": { input: 2.0, output: 10.0 },
-  "claude-sonnet-5": { input: 2.0, output: 10.0 },
-  "claude-haiku-5-5": { input: 0.1, output: 0.5 },
-  "claude-haiku-4-5": { input: 1.0, output: 5.0 },
   // Meta Model API (dev.meta.ai/models/muse-spark, 2026-10). Cached input ($0.15) isn't tracked separately.
   "muse-spark-1.3": { input: 1.25, output: 4.25 },
   "muse-spark-1.3-contributor": { input: 0.1, output: 0.2 },
   // Scripted demo client: no real spend.
   simulated: { input: 0, output: 0 },
-  // Google
-  "gemini-2.0-flash": { input: 0.1, output: 0.4 },
-  "gemini-2.5-pro": { input: 1.25, output: 10.0 },
 };
 
 /** Default cost for unknown models (conservative estimate). */
