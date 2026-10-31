@@ -20,7 +20,6 @@ for (const s of script) {
 }
 const TOTAL = t + TRANSITION;
 const line = (id, n) => start[id] + timing[id].lines[n].start;
-const lineEnd = (id, n) => start[id] + timing[id].lines[n].end;
 const N = Math.ceil((TOTAL + 3) * RATE);
 const dry = [new Float32Array(N), new Float32Array(N)];
 const wet = [new Float32Array(N), new Float32Array(N)]; // goes to reverb
@@ -49,7 +48,7 @@ const SECTIONS = [
   { from: line("hook", 3), pad: 0.7, arp: 0.25, bass: 0.25, kick: 0, hat: 0, bright: 0.35 },
   { from: at("problem"), pad: 0.6, arp: 0.35, bass: 0.35, kick: 0, hat: 0.12, bright: 0.3 },
   { from: line("problem", 5), pad: 0.85, arp: 0.45, bass: 0.6, kick: 0.45, hat: 0.2, bright: 0.45 },
-  { from: line("problem", 7) - 0.2, pad: 1, arp: 0.75, bass: 0.85, kick: 0.9, hat: 0.6, bright: 0.85 },
+  { from: line("problem", 6), pad: 1, arp: 0.75, bass: 0.85, kick: 0.9, hat: 0.6, bright: 0.85 },
   { from: at("paste"), pad: 0.75, arp: 0.7, bass: 0.8, kick: 0.8, hat: 0.5, bright: 0.65 },
   { from: at("agents"), pad: 0.85, arp: 0.85, bass: 0.95, kick: 1, hat: 0.75, bright: 0.8 },
   { from: at("vision"), pad: 0.7, arp: 0.6, bass: 0.6, kick: 0.5, hat: 0.3, bright: 0.5 },
@@ -57,7 +56,7 @@ const SECTIONS = [
   { from: line("proof", 3), pad: 1, arp: 0.7, bass: 0.8, kick: 0.5, hat: 0.3, bright: 0.9 },
   { from: at("compare"), pad: 0.7, arp: 0.6, bass: 0.7, kick: 0.6, hat: 0.4, bright: 0.6 },
   { from: at("results"), pad: 0.7, arp: 0.5, bass: 0.5, kick: 0.35, hat: 0.25, bright: 0.5 },
-  { from: line("results", 5) - 1.6, pad: 1, arp: 0.95, bass: 1, kick: 1, hat: 0.85, bright: 1 },
+  { from: line("results", 3), pad: 1, arp: 0.95, bass: 1, kick: 1, hat: 0.85, bright: 1 },
   { from: line("results", 5), pad: 0.75, arp: 0.55, bass: 0.6, kick: 0.45, hat: 0.3, bright: 0.6 },
   { from: at("safety"), pad: 0.7, arp: 0.6, bass: 0.6, kick: 0.5, hat: 0.35, bright: 0.55 },
   { from: at("close"), pad: 0.9, arp: 0.7, bass: 0.8, kick: 0.7, hat: 0.5, bright: 0.8 },
@@ -290,26 +289,25 @@ function thud(time, amp) {
   }
 }
 
-const HIT_LEAD = 0.45;
 for (const s of script.slice(1)) whoosh(start[s.id] + TRANSITION / 2, 0.55, 0.13);
-impact(line("hook", 1) - HIT_LEAD, 0.2); // fails
-chime(line("hook", 2) - HIT_LEAD, [76, 79, 84], 0.05); // passes
+impact(line("hook", 1), 0.2); // fails
+chime(line("hook", 2), [76, 79, 84], 0.05); // passes
 chime(line("hook", 4) + 0.1, [72, 76, 79], 0.035);
-impact(lineEnd("problem", 6), 0.26); // ThePolisher appears
+impact(line("problem", 6), 0.3); // ThePolisher appears
 click(start.paste + timing.paste.lines[1].start - 0.2, 0.5); // the Run click
-chime(line("paste", 2) + beats.racePick, [79, 83, 86], 0.04); // the tests pick the winner
+chime(line("paste", 2) + 2.1, [79, 83, 86], 0.04); // the tests pick the winner
 for (let n = 1; n <= 4; n++) click(line("agents", n), 0.25);
 chime(line("agents", 5) + 0.9, [76, 79, 84], 0.04); // kept by the gate
 thud(line("agents", 6) + 0.25, 0.3); // thrown out
-impact(line("proof", 2) - HIT_LEAD, 0.14);
+impact(line("proof", 2), 0.14);
 chime(line("proof", 2) + beats.proofPass, [76, 79, 84], 0.05); // passes with the fix
 impact(line("proof", 3) + beats.proofWord, 0.3); // "That's proof"
 chime(line("proof", 3) + beats.proofWord, [72, 76, 79, 84], 0.06);
-impact(lineEnd("results", 3), 0.22); // proved fourteen
-chime(lineEnd("results", 4), [79, 84, 88], 0.04);
+impact(line("results", 3), 0.28); // proved fourteen
+chime(line("results", 4), [79, 84, 88], 0.04);
 click(line("safety", 4) + beats.safetyClick, 0.4);
-impact(line("close", 2) - HIT_LEAD, 0.3);
-chime(line("close", 2) - HIT_LEAD, [69, 72, 76, 81, 84], 0.06);
+impact(line("close", 2), 0.3);
+chime(line("close", 2), [69, 72, 76, 81, 84], 0.06);
 
 // ── Reverb, mix, and ducking under the voice ──────────────────────────────────
 
@@ -333,7 +331,7 @@ function reverb(input, offset) {
 const rev = [reverb(wet[0], 0), reverb(wet[1], 1.3)];
 
 const voiceDuck = new Float32Array(N).fill(1);
-const UNDER_VOICE = 0.14;
+const UNDER_VOICE = 0.17;
 for (const s of script) {
   for (const l of timing[s.id].lines) {
     const a = start[s.id] + l.start;
@@ -354,8 +352,7 @@ for (let i = 0; i < samples; i++) {
   const fade = smooth((TOTAL - i / RATE) / 0.9);
   for (const c of [0, 1]) {
     const music = (dry[c][i] * duckFromKick[i] + rev[c][i] * duckFromKick[i]) * voiceDuck[i];
-    // Effects stay well under speech too, so a hit that rings on never covers a word.
-    const raw = (music + fx[c][i] * 0.8 * Math.sqrt(voiceDuck[i])) * fade;
+    const raw = (music + fx[c][i] * 0.8) * fade;
     const soft = Math.tanh(raw * 1.15) * 0.92;
     peak = Math.max(peak, Math.abs(soft));
     pcm.writeInt16LE(Math.round(soft * 32767), i * 4 + c * 2);
