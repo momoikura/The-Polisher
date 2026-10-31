@@ -2216,3 +2216,105 @@ a {
     animation: none !important;
   }
 }
+
+/* ── About, Privacy, Terms ─────────────────────────────────────────────── */
+
+.info-page {
+  max-width: 76ch;
+}
+
+.info-page h2 {
+  margin: var(--s-6) 0 var(--s-2);
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.info-page p + p {
+  margin-top: var(--s-3);
+}
+
+.info-page ul,
+.info-page ol {
+  display: grid;
+  gap: var(--s-2);
+  padding-left: var(--s-5);
+}
+
+.info-page ul {
+  list-style: disc;
+}
+
+.info-page ol {
+  list-style: decimal;
+}
+
+.info-page a,
+.flash a {
+  text-decoration: underline;
+}
+
+.info-updated {
+  margin-top: var(--s-2);
+  font-size: var(--text-sm);
+}
+
+.info-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.info-table th,
+.info-table td {
+  padding: var(--s-3) var(--s-3) var(--s-3) 0;
+  border-bottom: 1px solid var(--border-muted);
+  text-align: left;
+  vertical-align: top;
+}
+
+.info-table th {
+  color: var(--fg-muted);
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .info-table thead {
+    display: none;
+  }
+
+  .info-table tr {
+    display: block;
+    padding: var(--s-3) 0;
+    border-bottom: 1px solid var(--border-muted);
+  }
+
+  .info-table td {
+    display: block;
+    padding: var(--s-1) 0;
+    border: 0;
+  }
+
+  .info-table td:first-child {
+    font-weight: 600;
+  }
+}
+
+.site-footer {
+  max-width: var(--container);
+  margin: 0 auto;
+  padding: var(--s-5);
+  border-top: 1px solid var(--border-muted);
+  font-size: var(--text-sm);
+}
+
+.site-footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-5);
+  margin-bottom: var(--s-2);
+}
+
+.site-footer a {
+  color: var(--fg);
+  text-decoration: underline;
+}

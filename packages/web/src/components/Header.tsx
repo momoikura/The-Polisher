@@ -1,10 +1,11 @@
 import type { AuthState } from "../maintainer/useAuth.js";
 import type { MaintainerConfig } from "../maintainer/useMaintainer.js";
 import { modelLabel } from "../maintainer/model-label.js";
+import type { Page } from "../maintainer/routes.js";
 import { AccountMenu } from "./AccountMenu.js";
 import { Icon } from "./Icon.js";
 
-export type Page = "maintainer" | "runs" | "memory";
+export type { Page } from "../maintainer/routes.js";
 
 const PAGES: Array<{ id: Page; label: string }> = [
   { id: "maintainer", label: "Pull requests" },

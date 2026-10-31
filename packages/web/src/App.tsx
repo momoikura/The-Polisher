@@ -1,19 +1,38 @@
-import { useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { ExperiencePanel } from "./components/ExperiencePanel.js";
 import { Header, type Page } from "./components/Header.js";
 import { Icon } from "./components/Icon.js";
+import { AboutPage, PrivacyPage, TermsPage } from "./components/InfoPages.js";
 import { IssueForm } from "./components/IssueForm.js";
 import { MergeBox } from "./components/MergeBox.js";
 import { RunsPage } from "./components/RunsPage.js";
 import { RunView } from "./components/RunView.js";
 import { modelLabel } from "./maintainer/model-label.js";
+import { pageFromPath, pathForPage } from "./maintainer/routes.js";
 import { useAuth } from "./maintainer/useAuth.js";
 import { useMaintainer } from "./maintainer/useMaintainer.js";
 
 export default function App() {
   const { view, config, runId, start, reset, startError, isStarting, isConnectionLost, pr, openPr } = useMaintainer();
   const auth = useAuth();
-  const [page, setPage] = useState<Page>("maintainer");
+  const [page, setPage] = useState<Page>(() => pageFromPath(window.location.pathname));
+  useEffect(() => {
+    const onBack = () => setPage(pageFromPath(window.location.pathname));
+    window.addEventListener("popstate", onBack);
+    return () => window.removeEventListener("popstate", onBack);
+  }, []);
+  const navigate = (next: Page) => {
+    if (next !== page) window.history.pushState(null, "", pathForPage(next));
+    setPage(next);
+    window.scrollTo(0, 0);
+  };
+  const footerLink = (next: Page) => ({
+    href: pathForPage(next),
+    onClick: (e: MouseEvent) => {
+      e.preventDefault();
+      navigate(next);
+    },
+  });
   const isSimulated = config?.isSimulated ?? false;
 
   return (
@@ -21,7 +40,7 @@ export default function App() {
       <a href="#main" className="skip-link">
         Skip to content
       </a>
-      <Header config={config} auth={auth} repo={page === "maintainer" ? (view.context?.repo ?? null) : null} page={page} onNavigate={setPage} />
+      <Header config={config} auth={auth} repo={page === "maintainer" ? (view.context?.repo ?? null) : null} page={page} onNavigate={navigate} />
 
       <main id="main" className="container">
         {auth.error && (
@@ -30,7 +49,13 @@ export default function App() {
             <span>{auth.error}</span>
           </p>
         )}
-        {page === "memory" ? (
+        {page === "about" ? (
+          <AboutPage />
+        ) : page === "privacy" ? (
+          <PrivacyPage />
+        ) : page === "terms" ? (
+          <TermsPage />
+        ) : page === "memory" ? (
           <div className="memory-page">
             <div className="new-head">
               <h1 className="page-title">Memory</h1>
@@ -77,6 +102,17 @@ export default function App() {
           />
         )}
       </main>
+      <footer className="site-footer">
+        <nav aria-label="About this site">
+          <a {...footerLink("about")}>About</a>
+          <a {...footerLink("privacy")}>Privacy</a>
+          <a {...footerLink("terms")}>Terms</a>
+          <a href="https://github.com/momoikura/The-Polisher" target="_blank" rel="noopener noreferrer">
+            GitHub
+          </a>
+        </nav>
+        <p className="muted">An independent project built for the Meta Global AI Developer Hackathon. Not made or endorsed by Meta.</p>
+      </footer>
     </div>
   );
 }

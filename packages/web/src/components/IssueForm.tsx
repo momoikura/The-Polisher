@@ -215,7 +215,7 @@ export function IssueForm({ config, user, isStarting, error, onStart, onForgetKe
                 <Icon name="info" size={16} />
                 <span>
                   Runs use {prettyModel(config.model)}, Meta's lower-cost tier: Meta may use the issue, the repository code and the
-                  drafts sent to it to train its models. Only use it on public repositories.
+                  drafts sent to it to train its models. Runs are public. Only use it on public repositories. <a href="/privacy">Privacy</a>
                 </span>
               </p>
             )}
