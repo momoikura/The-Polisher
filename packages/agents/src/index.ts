@@ -82,6 +82,7 @@ export { GitHubClient, GitHubError, parseIssueUrl, type IssueRef, type PullReque
 export { ModalSandboxClient, type SandboxClient, type Validation } from "./maintainer/sandbox.js";
 export { proofFrom, type Proof } from "./maintainer/proof.js";
 export { type Challenge } from "./maintainer/challenge.js";
+export { isPullUrl, parsePullUrl, runPrCheck, type PrCheck, type PrVerdict } from "./maintainer/pr-check.js";
 export { adaptStrategy, type AdaptMode, type AdaptStrategy } from "./maintainer/adapt.js";
 export { diffBundle, splitPr, type FileDiff, type PrBundle, type RepoSnapshot } from "./maintainer/bundle.js";
 export type {

@@ -2,6 +2,7 @@
 
 import type { LaneId } from "../lanes.js";
 import type { Challenge } from "./challenge.js";
+import type { PrCheck } from "./pr-check.js";
 import type { Proof } from "./proof.js";
 import type { FileDiff } from "./bundle.js";
 
@@ -55,6 +56,8 @@ export type MaintainerEvent = At &
         sha: string;
         issue: { number: number; title: string; url: string };
         files: string[];
+        /** Checking someone's pull request, not fixing an issue. */
+        isCheck?: boolean;
         approach?: string;
         /** Screenshots from the issue shown to the model; older runs only recorded how many. */
         images?: number;
@@ -82,6 +85,10 @@ export type MaintainerEvent = At &
     | { type: "proof"; proof: Proof }
     /** A stronger model's own edge-case tests, run on the final patch. Evidence only: it doesn't change the verdict. */
     | { type: "challenge"; challenge: Challenge }
+    /** Muse Spark was stuck on an unproven fix, so one revision goes to a stronger model. */
+    | { type: "rescue"; lane: LaneId; round: number; model: string }
+    /** The result of checking someone's pull request. */
+    | { type: "pr_check"; check: PrCheck }
     | { type: "complete"; status: MaintainerStatus; message: string; lanes: Record<LaneId, LaneSummary>; totalUSD: number; canOpenPr: boolean }
   );
 

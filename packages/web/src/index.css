@@ -914,6 +914,31 @@ a {
   word-break: break-word;
 }
 
+.check-kicker {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--fg-muted);
+}
+
+.check-verdict {
+  display: grid;
+  gap: var(--s-2);
+  justify-items: start;
+  margin-bottom: var(--s-4);
+  padding: var(--s-4);
+  border: 1px solid var(--border-muted);
+  border-left-width: 4px;
+  border-radius: var(--radius);
+}
+
+.check-verdict.is-good {
+  border-left-color: var(--success, #1a7f37);
+}
+
+.check-verdict.is-bad {
+  border-left-color: var(--danger, #cf222e);
+}
+
 .proof-challenge {
   margin-top: var(--s-4);
   padding: var(--s-3);

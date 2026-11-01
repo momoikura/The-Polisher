@@ -14,7 +14,9 @@ import {
   GitHubClient,
   GitHubError,
   diffBundle,
+  isPullUrl,
   parseIssueUrl,
+  runPrCheck,
   runMaintainer,
   splitPr,
   type MaintainerEvent,
@@ -40,11 +42,11 @@ import {
 import { SessionRegistry } from "./sessions.js";
 import { withProofSection } from "./pr-proof.js";
 
-/** Tries to break each proven fix with its own tests. Stronger than Muse Spark, so it costs more per token. */
-const CHALLENGE_MODEL = "muse-wonder-1.0";
+/** Tries to break each proven fix, tests others' PRs, and steps in when Muse Spark is stuck. Stronger, and costs more per token. */
+const WONDER_MODEL = "muse-wonder-1.0";
 
 const StartSchema = z.object({
-  issueUrl: z.string().trim().min(1, "Paste a GitHub issue link.").max(500),
+  issueUrl: z.string().trim().min(1, "Paste a GitHub issue or pull request link.").max(500),
   budgetUSD: z.number().min(0.1).max(20).default(3),
   metaApiKey: z
     .string()
@@ -126,7 +128,7 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
     }
     if (!isSimulated()) {
       try {
-        parseIssueUrl(parsed.data.issueUrl);
+        if (!isPullUrl(parsed.data.issueUrl)) parseIssueUrl(parsed.data.issueUrl);
       } catch (err) {
         sendJson(res, 400, { error: err instanceof Error ? err.message : "Invalid issue link." });
         return true;
@@ -209,11 +211,24 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
       async (publish) => {
         let result: MaintainerResult;
         try {
-          result = await runMaintainer(source, {
+          const sandbox = sandboxClientOrNull();
+          if (isPullUrl(parsed.data.issueUrl) && !isSimulated() && !sandbox) throw new Error("Checking a pull request needs the sandbox, which isn't set up on this server.");
+          result =
+            isPullUrl(parsed.data.issueUrl) && !isSimulated() && sandbox
+              ? await runPrCheck(parsed.data.issueUrl, {
+                  github: user ? new GitHubClient({ token: user.token }) : githubClient(),
+                  sandbox,
+                  client,
+                  budgetUSD,
+                  runUrl: () => runAddress(session.id),
+                  ...(activeProvider() === "meta" ? { challengeModel: WONDER_MODEL } : {}),
+                  onEvent: publish,
+                })
+              : await runMaintainer(source, {
             client,
             sandbox: sandboxClientOrNull() ?? undefined,
             budgetUSD,
-            ...(!isSimulated() && activeProvider() === "meta" ? { challengeModel: CHALLENGE_MODEL } : {}),
+            ...(!isSimulated() && activeProvider() === "meta" ? { challengeModel: WONDER_MODEL, rescueModel: WONDER_MODEL } : {}),
             experience: memory,
             provider,
             onEvent: publish,

@@ -1,5 +1,6 @@
 import type {
   CandidateSummary,
+  PrCheck,
   Challenge,
   FileDiff,
   LaneId,
@@ -44,7 +45,7 @@ export interface Side {
 
 export interface MaintainerView {
   phase: MaintainerPhase | "idle";
-  context: { repo: string; sha: string; issue: { number: number; title: string; url: string }; files: string[]; approach?: string } | null;
+  context: { repo: string; sha: string; isCheck?: boolean; issue: { number: number; title: string; url: string }; files: string[]; approach?: string } | null;
   lanes: Record<LaneId, LaneView>;
   baseline: (Side & { metrics: SideMetrics }) | null;
   current: Side | null;
@@ -53,6 +54,8 @@ export interface MaintainerView {
   proof: Proof | null;
   /** A stronger model's own tests, run on the final patch. */
   challenge: Challenge | null;
+  /** Set when this run checks someone's pull request. */
+  prCheck: PrCheck | null;
   costUSD: number;
   budgetUSD: number;
   feed: FeedItem[];
@@ -83,6 +86,7 @@ export const initialView = (): MaintainerView => ({
   comparison: null,
   proof: null,
   challenge: null,
+  prCheck: null,
   costUSD: 0,
   budgetUSD: 0,
   feed: [],
@@ -143,7 +147,7 @@ export function maintainerReducer(view: MaintainerView, event: MaintainerEvent):
       return pushFeed({ ...view, phase: event.phase }, event, { lane: null, tone: "neutral", text: PHASE_TEXT[event.phase] });
 
     case "context": {
-      const next = { ...view, context: { repo: event.repo, sha: event.sha, issue: event.issue, files: event.files, approach: event.approach } };
+      const next = { ...view, context: { repo: event.repo, sha: event.sha, isCheck: event.isCheck, issue: event.issue, files: event.files, approach: event.approach } };
       const shots = event.screenshots?.length ?? event.images ?? 0;
       return event.approach
         ? pushFeed(next, event, {
@@ -250,6 +254,12 @@ export function maintainerReducer(view: MaintainerView, event: MaintainerEvent):
 
     case "challenge":
       return { ...view, challenge: event.challenge };
+
+    case "pr_check":
+      return { ...view, prCheck: event.check };
+
+    case "rescue":
+      return pushFeed(view, event, { lane: event.lane, tone: "warn", text: `Stuck on an unproven fix, so ${event.model} writes this one revision. It goes through the same gate.` });
 
     case "complete":
       return pushFeed(

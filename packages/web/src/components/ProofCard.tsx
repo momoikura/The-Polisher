@@ -13,7 +13,7 @@ type Props = {
 };
 
 /** A stronger model that didn't write the fix tries to break it. */
-function ChallengeSection({ challenge }: { challenge: Challenge }) {
+export function ChallengeSection({ challenge }: { challenge: Challenge }) {
   const survived = challenge.failures.length === 0;
   const regressions = challenge.failures.filter((f) => f.failsOnOriginal === false).length;
   return (
@@ -23,7 +23,7 @@ function ChallengeSection({ challenge }: { challenge: Challenge }) {
       </strong>
       <p className="muted">
         {survived
-          ? "A stronger model that didn't write this fix wrote edge-case tests for it. They ran on the final patch in the sandbox."
+          ? "A stronger model that didn't write this code wrote edge-case tests for it. They ran on the final patch in the sandbox."
           : regressions > 0
             ? "A test passes on the original code and fails with this fix. Check it before you merge."
             : "A failing test here may be a real gap, or a wrong guess by the model."}
@@ -84,7 +84,7 @@ export function ProofCard({ proof, diffs, challenge = null, context = null }: Pr
   const otherFailures = proof.newFailing ?? 0;
   const suitePasses = otherFailures === 0;
   // Every test failing with or without the patch: the suite didn't really run here, so it says nothing either way.
-  const suiteDidNotRun = proof.testsPassed === 0 && proof.preexisting > 0;
+  const suiteDidNotRun = proof.testsTotal > 1 && proof.testsPassed === 0 && proof.preexisting > 0;
   const testCode = diffs
     .filter((d) => proof.newTests.includes(d.path))
     .map((d) => ({ path: d.path, lines: d.lines.filter((l) => l.type === "added").map((l) => l.text) }))

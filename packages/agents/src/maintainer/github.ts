@@ -24,6 +24,13 @@ export function parseIssueUrl(input: string): IssueRef {
   return { owner: m[1], repo: m[2], number: Number(m[3]) };
 }
 
+const PullSchema = z.object({
+  title: z.string(),
+  body: z.string().nullable(),
+  base: z.object({ sha: z.string(), ref: z.string() }),
+  head: z.object({ sha: z.string(), repo: z.object({ name: z.string(), owner: z.object({ login: z.string() }) }).nullable() }),
+});
+
 export const IssueSchema = z.object({
   number: z.number(),
   title: z.string(),
@@ -128,6 +135,27 @@ export class GitHubClient {
     const parsed = schema.safeParse(await res.json());
     if (!parsed.success) throw new GitHubError("GitHub returned an unexpected response.");
     return parsed.data;
+  }
+
+  /** A pull request, with the commit it branched from: its files, applied there, are exactly what it changes. */
+  async getPullRequest(ref: IssueRef) {
+    const base = `/repos/${ref.owner}/${ref.repo}`;
+    const pr = await this.request(`${base}/pulls/${ref.number}`, PullSchema);
+    if (!pr.head.repo) throw new GitHubError("This pull request's fork was deleted, so its code can't be read.");
+    const [compare, files] = await Promise.all([
+      this.request(`${base}/compare/${pr.base.sha}...${pr.head.sha}`, z.object({ merge_base_commit: z.object({ sha: z.string() }) })),
+      this.request(`${base}/pulls/${ref.number}/files?per_page=100`, z.array(z.object({ filename: z.string(), status: z.string() }))),
+    ]);
+    return {
+      title: pr.title,
+      body: pr.body,
+      baseSha: compare.merge_base_commit.sha,
+      baseBranch: pr.base.ref,
+      headSha: pr.head.sha,
+      headOwner: pr.head.repo.owner.login,
+      headRepo: pr.head.repo.name,
+      files: files.map((f) => ({ path: f.filename, status: f.status })),
+    };
   }
 
   async getIssue(ref: IssueRef): Promise<Issue> {

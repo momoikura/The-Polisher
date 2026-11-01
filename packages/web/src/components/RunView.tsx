@@ -5,6 +5,7 @@ import { Comparison } from "./Comparison.js";
 import { FilesChanged } from "./FilesChanged.js";
 import { Icon, type IconName } from "./Icon.js";
 import { PrHeader } from "./PrHeader.js";
+import { PrCheckView } from "./PrCheckView.js";
 import { ProofCard } from "./ProofCard.js";
 import { Timeline } from "./Timeline.js";
 
@@ -25,6 +26,7 @@ type Props = {
 /** One run as a pull request page: shared by the live run and saved-run replays. */
 export function RunView({ view, isSimulated, model, action, notice, mergeBox }: Props) {
   const [tab, setTab] = useState<Tab>("conversation");
+  if (view.context?.isCheck) return <PrCheckView view={view} action={action} />;
   const fileCount = view.current?.diffs.length ?? view.baseline?.diffs.length ?? 0;
   const tabs: { id: Tab; label: string; icon: IconName; count?: number; isHidden?: boolean }[] = [
     { id: "conversation", label: "Conversation", icon: "comment", count: view.feed.length },

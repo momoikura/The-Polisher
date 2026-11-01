@@ -7,7 +7,7 @@
  */
 
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { parseIssueUrl } from "@thepolisher/agents";
+import { isPullUrl, parseIssueUrl, parsePullUrl } from "@thepolisher/agents";
 import { currentUser } from "./auth/auth-api.js";
 import { sendJson } from "./http.js";
 import { runStore, type RunRecord, type RunStatus, type SavedRun } from "./store/index.js";
@@ -41,7 +41,7 @@ export function startedRecord(id: string, issueUrl: string, model: string, user:
   let repo = "";
   let issueNumber = 0;
   try {
-    const ref = parseIssueUrl(issueUrl);
+    const ref = isPullUrl(issueUrl) ? parsePullUrl(issueUrl) : parseIssueUrl(issueUrl);
     repo = `${ref.owner}/${ref.repo}`;
     issueNumber = ref.number;
   } catch {

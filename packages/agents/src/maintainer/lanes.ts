@@ -72,6 +72,8 @@ export interface MaintainerLaneOptions {
   onRepaired?: (info: RepairInfo) => void;
   /** Called when rejections make the agent change approach. */
   onAdapt?: (strategy: AdaptStrategy) => void;
+  /** CodePolish only: a stronger model for this revision, when Muse Spark is stuck. */
+  repairModel?: () => string | undefined;
   /** CodePolish only: SecurityPolish's critic verdict and the sandbox's security scan, for the dashboard. */
   onSecurityReview?: (review: SecurityReview) => void;
   onSecurityChecks?: (checks: TestCheck[]) => void;
@@ -237,7 +239,9 @@ export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, Teste
         next = ensureFilesListed(r.data.candidateArtifact, diffBundle(snap, bundle).map((d) => d.path));
         changes = r.data.changesMade;
       } else {
+        const stronger = this.o.repairModel?.();
         const r = await completeStructured(this.o.client, messages, FilesRepairSchema, {
+          ...(stronger ? { model: stronger } : {}),
           temperature,
           reasoningEffort: this.o.lane === "code" ? EFFORT.codeRepair : EFFORT.otherRepair,
         });

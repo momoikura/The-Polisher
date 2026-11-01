@@ -69,23 +69,20 @@ async function runOne({ url, seenBefore }) {
     fs.writeFileSync(path.join(root, "benchmarks/results/events", `${runId}.json`), JSON.stringify(events));
   };
   try {
-    const result = await A.runMaintainer(
-      { kind: "github", issueUrl: url, github },
-      {
-        client,
-        sandbox,
-        budgetUSD: settings.budgetUSD,
-        provider: "meta",
-        ...(list.challengeModel ? { challengeModel: list.challengeModel } : {}),
-        onEvent: (e) => {
-          events.push(e);
-          if (e.type === "context") title = e.issue.title;
-          track(e);
-          if (e.type === "comparison") comparison = e;
-          if (e.type === "cost") lastCost = e.totalUSD;
-        },
-      }
-    );
+    const onEvent = (e) => {
+      events.push(e);
+      if (e.type === "context") title = e.issue.title;
+      track(e);
+      if (e.type === "comparison") comparison = e;
+      if (e.type === "cost") lastCost = e.totalUSD;
+    };
+    const models = {
+      ...(list.challengeModel ? { challengeModel: list.challengeModel } : {}),
+      ...(list.rescueModel ? { rescueModel: list.rescueModel } : {}),
+    };
+    const result = A.isPullUrl(url)
+      ? await A.runPrCheck(url, { github, sandbox, client, budgetUSD: settings.budgetUSD, challengeModel: list.challengeModel, onEvent })
+      : await A.runMaintainer({ kind: "github", issueUrl: url, github }, { client, sandbox, budgetUSD: settings.budgetUSD, provider: "meta", ...models, onEvent });
     saveEvents();
     const files = result.snapshot && result.final ? A.diffBundle(result.snapshot, result.final).map((d) => d.path) : [];
     return {
@@ -99,6 +96,8 @@ async function runOne({ url, seenBefore }) {
       wallSeconds: Math.round((Date.now() - started) / 1000),
       files,
       timing,
+      rescues: events.filter((e) => e.type === "rescue").length,
+      ...(result.check ? { verdict: result.check.verdict, headline: result.check.headline } : {}),
       ...(result.challenge ? { challenge: { total: result.challenge.total, passed: result.challenge.passed, failures: result.challenge.failures } } : {}),
       error: null,
     };

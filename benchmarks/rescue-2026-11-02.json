@@ -1,0 +1,12 @@
+{
+  "chosen": "Does Muse Wonder's rescue prove fixes Muse Spark alone left unproven? The issues not proven on 2026-11-01, except pyparsing#693, which is stopped by the file size limit. Chosen before running. One run each, so this is a first look, not a measure.",
+  "budgetUSD": 3,
+  "concurrency": 2,
+  "rescueModel": "muse-wonder-1.0",
+  "issues": [
+    { "url": "https://github.com/Textualize/rich/issues/4238" },
+    { "url": "https://github.com/tobymao/sqlglot/issues/8752" },
+    { "url": "https://github.com/pylint-dev/astroid/issues/3255" },
+    { "url": "https://github.com/pygments/pygments/issues/3247" }
+  ]
+}

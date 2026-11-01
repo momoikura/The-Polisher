@@ -41,6 +41,7 @@ import { BaselineSchema, MAINTAINER_PROMPT_VERSION, PlanSchema, buildBaselineMes
 import { summarizeValidation, validationChecks, validationFailureChecks, type SandboxClient, type Validation } from "./sandbox.js";
 
 import { runChallenge, type Challenge } from "./challenge.js";
+import { createRescue } from "./rescue.js";
 import type { Proof } from "./proof.js";
 
 export type MaintainerSource =
@@ -61,6 +62,8 @@ export interface MaintainerOptions {
   provider?: string;
   /** A stronger model that tries to break a proven fix with its own tests. Off when unset. */
   challengeModel?: string;
+  /** A stronger model that takes one revision when CodePolish is stuck on an unproven fix. Off when unset. */
+  rescueModel?: string;
 }
 
 export interface MaintainerResult {
@@ -78,6 +81,8 @@ export interface MaintainerResult {
 /** What one challenge usually costs at most (free runs have $0.20 in all), and the time it takes. */
 const CHALLENGE_MIN_USD = 0.15;
 const CHALLENGE_MIN_MS = 3 * 60_000;
+/** A revision by the stronger model outputs whole files, at $20 per million tokens. */
+const RESCUE_MIN_USD = 0.5;
 const DEFAULTS = { budgetUSD: 3, timeLimitMs: 20 * 60_000, maxRoundsPerLane: 6, candidates: 3 };
 const LANE_MODES: Record<OwnerLane, ArtifactMode> = { code: "code", doc: "reports", write: "writing" };
 const OWNER_LANES: OwnerLane[] = ["code", "doc", "write"];
@@ -661,8 +666,18 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
       ws.set(patch);
       publishPatch(snap, ws);
     });
+    const rescue =
+      lane === "code" && options.rescueModel
+        ? createRescue({
+            model: options.rescueModel,
+            hasRoom: () => cfg.budgetUSD - totalSpent() >= RESCUE_MIN_USD,
+            isProven: () => proofFrom((suiteBoard ?? board).forCode(ws.get().code))?.proven === true,
+            onUse: (model) => emit({ type: "rescue", lane, round: rounds[lane], model }),
+          })
+        : null;
     const agent = new MaintainerLaneAgent({
       lane,
+      repairModel: rescue?.modelForRepair,
       client: clientUntil(options.client, stop),
       workspace: ws,
       board: suiteBoard ?? board,
@@ -671,7 +686,10 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
       sandbox: options.sandbox && sandboxUntil(options.sandbox, stop),
       onActivity: (state) => emit({ type: "lane_state", lane, state, round: rounds[lane] }),
       recall: (f) => recall(lane, f),
-      onAdapt: (s) => emit({ type: "adapt", lane, round: rounds[lane], mode: s.mode, label: s.label ?? "" }),
+      onAdapt: (s) => {
+        emit({ type: "adapt", lane, round: rounds[lane], mode: s.mode, label: s.label ?? "" });
+        rescue?.markStuck();
+      },
       onRepaired: (info) => {
         pending = { info, scoreAfter: null, after: null };
       },

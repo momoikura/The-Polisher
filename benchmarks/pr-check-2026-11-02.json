@@ -1,0 +1,100 @@
+{
+  "chosen": "The newest 3 merged and 3 closed-without-merging human PRs per repo that change Python outside the tests (benchmarks/select-prs.mjs). Checked after they closed, so they're run on what was submitted. Closed doesn't mean bad: a PR can close for many reasons.",
+  "budgetUSD": 1,
+  "concurrency": 3,
+  "challengeModel": "muse-wonder-1.0",
+  "issues": [
+    {
+      "url": "https://github.com/Textualize/rich/pull/4079",
+      "outcome": "merged"
+    },
+    {
+      "url": "https://github.com/Textualize/rich/pull/4077",
+      "outcome": "merged"
+    },
+    {
+      "url": "https://github.com/Textualize/rich/pull/4076",
+      "outcome": "merged"
+    },
+    {
+      "url": "https://github.com/Textualize/rich/pull/4159",
+      "outcome": "closed"
+    },
+    {
+      "url": "https://github.com/Textualize/rich/pull/4146",
+      "outcome": "closed"
+    },
+    {
+      "url": "https://github.com/Textualize/rich/pull/4145",
+      "outcome": "closed"
+    },
+    {
+      "url": "https://github.com/python-jsonschema/jsonschema/pull/1562",
+      "outcome": "merged"
+    },
+    {
+      "url": "https://github.com/python-jsonschema/jsonschema/pull/1482",
+      "outcome": "merged"
+    },
+    {
+      "url": "https://github.com/python-jsonschema/jsonschema/pull/1565",
+      "outcome": "closed"
+    },
+    {
+      "url": "https://github.com/python-jsonschema/jsonschema/pull/1564",
+      "outcome": "closed"
+    },
+    {
+      "url": "https://github.com/python-jsonschema/jsonschema/pull/1563",
+      "outcome": "closed"
+    },
+    {
+      "url": "https://github.com/python-humanize/humanize/pull/465",
+      "outcome": "merged"
+    },
+    {
+      "url": "https://github.com/python-humanize/humanize/pull/440",
+      "outcome": "merged"
+    },
+    {
+      "url": "https://github.com/python-humanize/humanize/pull/402",
+      "outcome": "merged"
+    },
+    {
+      "url": "https://github.com/python-humanize/humanize/pull/486",
+      "outcome": "closed"
+    },
+    {
+      "url": "https://github.com/python-humanize/humanize/pull/485",
+      "outcome": "closed"
+    },
+    {
+      "url": "https://github.com/python-humanize/humanize/pull/484",
+      "outcome": "closed"
+    },
+    {
+      "url": "https://github.com/more-itertools/more-itertools/pull/1342",
+      "outcome": "merged"
+    },
+    {
+      "url": "https://github.com/more-itertools/more-itertools/pull/1334",
+      "outcome": "merged"
+    },
+    {
+      "url": "https://github.com/more-itertools/more-itertools/pull/1331",
+      "outcome": "merged"
+    },
+    {
+      "url": "https://github.com/more-itertools/more-itertools/pull/1343",
+      "outcome": "closed"
+    },
+    {
+      "url": "https://github.com/more-itertools/more-itertools/pull/1341",
+      "outcome": "closed"
+    },
+    {
+      "url": "https://github.com/more-itertools/more-itertools/pull/1340",
+      "outcome": "closed"
+    }
+  ]
+}

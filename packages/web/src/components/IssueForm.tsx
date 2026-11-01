@@ -10,7 +10,7 @@ import { Button } from "./Button.js";
 import { Icon } from "./Icon.js";
 
 const BUDGETS = [1, 3, 5, 10];
-const ISSUE_URL = /^https:\/\/github\.com\/[^/\s]+\/[^/\s]+\/issues\/\d+/;
+const ISSUE_URL = /^https:\/\/github\.com\/[^/\s]+\/[^/\s]+\/(issues|pull)\/\d+/;
 
 const STEPS = [
   "Three first drafts are written at once and tested on Modal; the tests pick which one to polish.",
@@ -98,7 +98,7 @@ export function IssueForm({ config, user, isStarting, error, onStart, onForgetKe
           <div className="box-body form-stack">
             <div className="field">
               <label htmlFor="issue-url" className="field-label">
-                Issue link
+                Issue or pull request link
               </label>
               <input
                 id="issue-url"
@@ -109,17 +109,17 @@ export function IssueForm({ config, user, isStarting, error, onStart, onForgetKe
                 spellCheck={false}
                 value={issueUrl}
                 onChange={(e) => setIssueUrl(e.target.value)}
-                placeholder="https://github.com/owner/repo/issues/123"
+                placeholder="https://github.com/owner/repo/issues/123 or /pull/123"
                 aria-describedby="issue-help"
                 aria-invalid={showInvalid || undefined}
               />
               <p id="issue-help" className={`field-help${showInvalid ? " is-error" : ""}`}>
                 {showInvalid ? (
                   <>
-                    <Icon name="exclamation" size={14} /> Use a link like https://github.com/owner/repo/issues/123.
+                    <Icon name="exclamation" size={14} /> Use an issue or pull request link from github.com.
                   </>
                 ) : (
-                  "Public repositories with pytest tests."
+                  "Public repositories with pytest tests. An issue gets a fix. A pull request gets tested, and nothing is posted to it."
                 )}
               </p>
               {config?.demoIssueUrl && (
