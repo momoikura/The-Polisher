@@ -1,16 +1,16 @@
 /**
  * The benchmark shown on the issue form. These numbers are copied from
- * benchmarks/results/issues-2026-10-29.md (issue list committed before the run);
+ * benchmarks/results/final-2026-11-01.md (issue list committed before the run);
  * update both together.
  */
 /** A finished, public run anyone can open: Textualize/rich#4237. */
 export const SHOWCASE_RUN = "e53f63a5-4ee2-4823-aff1-2323ff801c76";
 
 export const EVIDENCE = {
-  issues: 17,
+  issues: 16,
   projects: 9,
-  proven: 14,
-  singlePrompt: 7,
-  totalUSD: 0.66,
-  url: "https://github.com/momoikura/The-Polisher/blob/main/benchmarks/results/issues-2026-10-29.md",
+  proven: 11,
+  singlePrompt: 5,
+  totalUSD: 0.43,
+  url: "https://github.com/momoikura/The-Polisher/blob/main/benchmarks/results/final-2026-11-01.md",
 } as const;

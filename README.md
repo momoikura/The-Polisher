@@ -69,6 +69,10 @@ Every revision goes through a gate. It is kept only if it does not break a check
 
 ## Results
 
+**Latest full run (2026-11-01): 11 of 16 fixes proven, 10 of them with no new failures in the whole test suite.** The first draft alone proved 5. All 16 issues together cost $0.43, with a median of 8.6 minutes each. That's one fewer proven than the run before, on a stricter check that now catches a fix the earlier run wrongly passed. See [final-2026-11-01.md](benchmarks/results/final-2026-11-01.md), which also covers Muse Wonder's challenge and what it hasn't found yet.
+
+The first benchmark, from 2026-10-29, is below.
+
 <img src="assets/results.svg" alt="ThePolisher proved 14 of 17 fixes, a single prompt with the same model proved 7" width="100%">
 
 The 17 issues come from Rich, jsonschema, sqlglot, urllib3, Pygments, astroid, pyparsing, more-itertools and humanize. They were chosen and committed before any run. When ThePolisher could not prove a fix, it said so.
