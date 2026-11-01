@@ -2,7 +2,7 @@ import { AbsoluteFill, useCurrentFrame } from "remotion";
 import { INK, MONO, MUTED, RED, Reveal, SANS, Words, count, lineAt, rise } from "../common";
 
 const PROJECTS = ["Rich", "jsonschema", "sqlglot", "urllib3", "Pygments", "astroid", "pyparsing", "more-itertools", "humanize"];
-const MISSES = ["rich#4238", "sqlglot#8752", "astroid#3255", "pyparsing#693", "pygments#3247"];
+const MISSES = ["astroid#3255", "jsonschema#1588", "pyparsing#693"];
 const ISSUES = 16;
 const at = (i: number) => lineAt("results", i);
 
@@ -46,12 +46,12 @@ export const Results: React.FC = () => {
             ))}
           </div>
           <div style={{ marginTop: 40 }}>
-            {f >= at(2) - 8 && <Board label="First draft, same model" proven={5} start={at(2)} ink="#bdbdbd" />}
-            {f >= at(3) - 8 && <Board label="ThePolisher" proven={11} start={at(3)} ink="#000" isOurs />}
+            {f >= at(2) - 8 && <Board label="First draft, same model" proven={6} start={at(2)} ink="#bdbdbd" />}
+            {f >= at(3) - 8 && <Board label="ThePolisher" proven={13} start={at(3)} ink="#000" isOurs />}
           </div>
           <div style={{ display: "flex", gap: 80, alignItems: "flex-start", marginTop: 6 }}>
             <Reveal at={at(4)} style={{ flex: "none" }}>
-              <div style={{ font: `700 66px ${SANS}`, letterSpacing: -1.5, fontVariantNumeric: "tabular-nums" }}>2× · ${count(f, at(4) + 6, 0.43).toFixed(2)}</div>
+              <div style={{ font: `700 66px ${SANS}`, letterSpacing: -1.5, fontVariantNumeric: "tabular-nums" }}>2× · ${count(f, at(4) + 6, 0.48).toFixed(2)}</div>
               <div style={{ font: `500 30px ${SANS}`, color: MUTED }}>as many proven, total cost</div>
             </Reveal>
             <Reveal at={at(5)}>

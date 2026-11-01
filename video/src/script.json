@@ -86,11 +86,11 @@
     "lines": [
       "So does it hold up in the real world?",
       "We took sixteen real, open issues, in nine popular projects we don't control, and locked in the list before running anything.",
-      "The first draft alone proved five.",
-      "ThePolisher proved eleven.",
-      "More than twice as many, for forty three cents in total.",
+      "The first draft alone proved six.",
+      "ThePolisher proved thirteen.",
+      "More than twice as many, for forty eight cents in total.",
       "And when it can't prove a fix? It says so.",
-      "Five issues are still unproven, and they're published right there with the rest."
+      "Three issues are still unproven, and they're published right there with the rest."
     ]
   },
   {

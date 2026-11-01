@@ -92,9 +92,9 @@ Every revision goes through a gate. It is kept only if it does not break a check
 
 ## Results
 
-**Latest full run (2026-11-01): 11 of 16 fixes proven, 10 of them with no new failures in the whole test suite.** The first draft alone proved 5. All 16 issues together cost $0.43, with a median of 8.6 minutes each. That's one fewer proven than the run before, on a stricter check that now catches a fix the earlier run wrongly passed. See [final-2026-11-01.md](benchmarks/results/final-2026-11-01.md), which also covers Muse Wonder's challenge and what it hasn't found yet.
+**Latest runs (2026-11-02): 13 and 14 of 16 fixes proven with no new failures in the whole test suite,** run twice to see past single-run luck. The first draft alone proved 6 and 8. Each run of all 16 cost under $0.50. Before we fixed hung tests and lost model calls, it was [10 of 16](benchmarks/results/final-2026-11-01.md). It didn't get faster, and one issue that was proven before no longer is. See [repeat-2026-11-02.md](benchmarks/results/repeat-2026-11-02.md).
 
-**On real pull requests:** Muse Wonder's tests failed on a merged Rich PR (#4076) and passed on the code before it. It's a real bug: CRLF text gets lost, a person reported it ten days later as [Rich#4090](https://github.com/Textualize/rich/issues/4090), and it's still open. It doesn't catch this on every run, and the check doesn't predict what gets merged. See [the check on that PR](https://thepolisher.pages.dev/runs/b1eb802c-5e3b-42f5-8ba5-7859e88d0117) and [pr-check-2026-11-02.md](benchmarks/results/pr-check-2026-11-02.md).
+**On real pull requests:** Muse Wonder's tests failed on a merged Rich PR (#4076) and passed on the code before it. It's a real bug: CRLF text gets lost, a person reported it ten days later as [Rich#4090](https://github.com/Textualize/rich/issues/4090), and it's still open. Muse Wonder doesn't flag this exact bug on every run, it's noisy, and the check doesn't predict what gets merged. See [the check on that PR](https://thepolisher.pages.dev/runs/b1eb802c-5e3b-42f5-8ba5-7859e88d0117) and [pr-check-2026-11-02.md](benchmarks/results/pr-check-2026-11-02.md).
 
 The first benchmark, from 2026-10-29, is below.
 
