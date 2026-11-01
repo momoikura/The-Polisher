@@ -1,0 +1,8 @@
+{
+  "chosen": "Rich#4090, the open bug matching what Muse Wonder's tests found on PR #4076. Can the full pipeline fix what the check found? One run, with no PR opened.",
+  "budgetUSD": 3,
+  "concurrency": 1,
+  "challengeModel": "muse-wonder-1.0",
+  "rescueModel": "muse-wonder-1.0",
+  "issues": [{ "url": "https://github.com/Textualize/rich/issues/4090" }]
+}

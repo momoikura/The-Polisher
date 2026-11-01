@@ -1,0 +1,15 @@
+{
+  "chosen": "The 7 PRs from pr-check-2026-11-02 that couldn't be checked: 3 with deleted forks and 4 over the sandbox's old 200 KB file limit, re-run after fixing both. None were added or removed.",
+  "budgetUSD": 1,
+  "concurrency": 3,
+  "challengeModel": "muse-wonder-1.0",
+  "issues": [
+    { "url": "https://github.com/Textualize/rich/pull/4159", "outcome": "closed" },
+    { "url": "https://github.com/Textualize/rich/pull/4145", "outcome": "closed" },
+    { "url": "https://github.com/python-jsonschema/jsonschema/pull/1482", "outcome": "merged" },
+    { "url": "https://github.com/more-itertools/more-itertools/pull/1342", "outcome": "merged" },
+    { "url": "https://github.com/more-itertools/more-itertools/pull/1343", "outcome": "closed" },
+    { "url": "https://github.com/more-itertools/more-itertools/pull/1341", "outcome": "closed" },
+    { "url": "https://github.com/more-itertools/more-itertools/pull/1340", "outcome": "closed" }
+  ]
+}
