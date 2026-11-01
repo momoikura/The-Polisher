@@ -14,29 +14,38 @@ type Props = {
 
 /** A stronger model that didn't write the fix tries to break it. */
 export function ChallengeSection({ challenge }: { challenge: Challenge }) {
-  const survived = challenge.failures.length === 0;
-  const regressions = challenge.failures.filter((f) => f.failsOnOriginal === false).length;
+  const regressions = challenge.failures.filter((f) => f.failsOnOriginal === false);
+  const unknown = challenge.failures.filter((f) => f.failsOnOriginal === undefined);
+  const alsoFailing = challenge.failures.filter((f) => f.failsOnOriginal === true);
+  const show = [...regressions, ...unknown];
+  const output = (f: Challenge["failures"][number]) => (
+    <pre key={f.test} className="proof-output">
+      {f.test}
+      {"\n"}
+      {f.message}
+    </pre>
+  );
   return (
-    <div className={`proof-challenge${survived ? " is-pass" : " is-warn"}`}>
+    <div className={`proof-challenge${regressions.length > 0 ? " is-warn" : " is-pass"}`}>
       <strong>
-        Muse Wonder tried to break it: {challenge.passed} of {challenge.total} of its own tests pass
+        {regressions.length > 0
+          ? `Muse Wonder found ${regressions.length} ${regressions.length === 1 ? "test" : "tests"} that ${regressions.length === 1 ? "passes" : "pass"} before this change and ${regressions.length === 1 ? "fails" : "fail"} with it`
+          : `Muse Wonder tried to break it: ${challenge.passed} of ${challenge.total} of its own tests pass`}
       </strong>
       <p className="muted">
-        {survived
-          ? "A stronger model that didn't write this code wrote edge-case tests for it. They ran on the final patch in the sandbox."
-          : regressions > 0
-            ? "A test passes on the original code and fails with this fix. Check it before you merge."
-            : "A failing test here may be a real gap, or a wrong guess by the model."}
+        {regressions.length > 0
+          ? "Check these before you merge. It's a stronger model that didn't write this code, and it can still be wrong."
+          : "A stronger model that didn't write this code wrote edge-case tests for it. They ran on the final patch in the sandbox."}
       </p>
-      {challenge.failures.map((f) => (
-        <pre key={f.test} className="proof-output">
-          {f.test}
-          {f.failsOnOriginal === true && "\nAlso fails on the original code, possibly for a different reason."}
-          {f.failsOnOriginal === false && "\nPasses on the original code and fails with this change."}
-          {"\n"}
-          {f.message}
-        </pre>
-      ))}
+      {show.map(output)}
+      {alsoFailing.length > 0 && (
+        <details className="proof-test">
+          <summary>
+            {alsoFailing.length} also {alsoFailing.length === 1 ? "fails" : "fail"} on the original code, so {alsoFailing.length === 1 ? "it says" : "they say"} little about this change
+          </summary>
+          {alsoFailing.map(output)}
+        </details>
+      )}
       <details className="proof-test">
         <summary>
           <Icon name="fileCode" size={16} />

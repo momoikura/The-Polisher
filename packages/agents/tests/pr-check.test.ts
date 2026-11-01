@@ -86,7 +86,17 @@ describe("the comment for the maintainer", () => {
     const challenge = { model: "muse-wonder-1.0", total: 3, passed: 2, tests: "", ideas: [], failures: [{ test: "t::x`y", message: "", failsOnOriginal: false }] };
     const comment = prCheckComment(check, challenge, null);
     expect(comment).toContain("2 of 3 pass");
-    expect(comment).toContain("`t::x'y` doesn't pass, but passes on the original code");
+    expect(comment).toContain("`t::x'y` passes on the original code and fails with this PR");
+  });
+
+  it("counts tests that fail on the original code too, instead of listing them", () => {
+    const failures = [
+      { test: "t::guess1", message: "", failsOnOriginal: true },
+      { test: "t::guess2", message: "", failsOnOriginal: true },
+    ];
+    const comment = prCheckComment(check, { model: "m", total: 3, passed: 1, tests: "", ideas: [], failures }, null);
+    expect(comment).toContain("2 other tests also fail on the original code");
+    expect(comment).not.toContain("guess1");
   });
 });
 

@@ -1,7 +1,6 @@
 import type { Challenge, Proof } from "@thepolisher/agents";
 
 function challengeNote(failsOnOriginal: boolean | undefined): string {
-  if (failsOnOriginal === true) return "It also fails on the original code, possibly for a different reason.";
   if (failsOnOriginal === false) return "It passes on the original code and fails with this change. Please check it.";
   return "Please check whether this is a real gap.";
 }
@@ -15,6 +14,7 @@ export function withProofSection(pr: string, proof: Proof | null, challenge: Cha
   // Test output comes from the repo, so it can't be allowed to close the code span it's shown in.
   const code = (text: string) => `\`${text.replaceAll("`", "'")}\``;
   const failure = proof.baseFailure?.split("\n")[0];
+  const alsoFailing = challenge?.failures.filter((f) => f.failsOnOriginal === true).length ?? 0;
   const lines = [
     `New tests (${proof.newTests.map(code).join(", ")}) fail on the original code and pass with this change.`,
     ...(failure ? [`Failure on the original code: ${code(failure)}`] : []),
@@ -24,7 +24,8 @@ export function withProofSection(pr: string, proof: Proof | null, challenge: Cha
     ...(challenge
       ? [
           `Edge-case tests written independently by ${challenge.model}: ${challenge.passed} of ${challenge.total} pass.`,
-          ...challenge.failures.map((f) => `Didn't pass: ${code(f.test)}. ${challengeNote(f.failsOnOriginal)}`),
+          ...challenge.failures.filter((f) => f.failsOnOriginal !== true).map((f) => `Didn't pass: ${code(f.test)}. ${challengeNote(f.failsOnOriginal)}`),
+          ...(alsoFailing > 0 ? [`${alsoFailing} also failed on the original code, so they say little about this change.`] : []),
         ]
       : []),
     ...(runUrl ? [`Full run: ${runUrl}`] : []),

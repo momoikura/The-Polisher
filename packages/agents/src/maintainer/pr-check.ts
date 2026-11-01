@@ -76,6 +76,12 @@ export function judgePr(v: Validation, proof: Proof | null): Pick<PrCheck, "verd
 
 const code = (text: string) => `\`${text.replaceAll("`", "'")}\``;
 
+/** Tests that fail on the original code too are often wrong guesses, so they're a count, not a list. */
+const alsoFailing = (challenge: Challenge) => {
+  const n = challenge.failures.filter((f) => f.failsOnOriginal === true).length;
+  return n > 0 ? [`${plural(n, "other test")} also ${n === 1 ? "fails" : "fail"} on the original code, so ${n === 1 ? "it says" : "they say"} little about this PR.`] : [];
+};
+
 /** Ready to paste into the PR. A person decides whether to post it. */
 export function prCheckComment(check: Pick<PrCheck, "headline" | "detail" | "notApplied">, challenge: Challenge | null, runUrl: string | null): string {
   const lines = [
@@ -83,7 +89,8 @@ export function prCheckComment(check: Pick<PrCheck, "headline" | "detail" | "not
     ...(challenge
       ? [
           `Independent edge-case tests by ${challenge.model}: ${challenge.passed} of ${challenge.total} pass.`,
-          ...challenge.failures.map((f) => `${code(f.test)} doesn't pass${f.failsOnOriginal === true ? ", and also fails on the original code" : f.failsOnOriginal === false ? ", but passes on the original code" : ""}.`),
+          ...challenge.failures.filter((f) => f.failsOnOriginal !== true).map((f) => `${code(f.test)} ${f.failsOnOriginal === false ? "passes on the original code and fails with this PR. Please check it." : "doesn't pass."}`),
+          ...alsoFailing(challenge),
         ]
       : []),
     ...(check.notApplied.length > 0 ? [`Not applied in the sandbox: ${check.notApplied.map(code).join(", ")}.`] : []),
