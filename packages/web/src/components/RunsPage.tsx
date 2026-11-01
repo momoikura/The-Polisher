@@ -7,6 +7,7 @@ import type { PrState } from "../maintainer/useMaintainer.js";
 import { Icon, type IconName } from "./Icon.js";
 import { MergeBox } from "./MergeBox.js";
 import { RunView } from "./RunView.js";
+import { pathForPage, pathForRun, runIdFromPath } from "../maintainer/routes.js";
 
 type RunStatus = "running" | "clean" | "verified" | "not_clean" | "failed";
 
@@ -151,7 +152,17 @@ function Replay({ id, onBack }: { id: string; onBack: () => void }) {
 export function RunsPage() {
   const [runs, setRuns] = useState<RunRecord[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState(() => runIdFromPath(window.location.pathname));
+  const open = (id: string | null) => {
+    window.history.pushState(null, "", id ? pathForRun(id) : pathForPage("runs"));
+    setSelected(id);
+  };
+
+  useEffect(() => {
+    const onBack = () => setSelected(runIdFromPath(window.location.pathname));
+    window.addEventListener("popstate", onBack);
+    return () => window.removeEventListener("popstate", onBack);
+  }, []);
 
   useEffect(() => {
     getJson<{ runs: RunRecord[] }>("/api/runs")
@@ -159,7 +170,7 @@ export function RunsPage() {
       .catch((err: unknown) => setError(err instanceof Error ? err.message : "Couldn't load the run history."));
   }, []);
 
-  if (selected) return <Replay id={selected} onBack={() => setSelected(null)} />;
+  if (selected) return <Replay key={selected} id={selected} onBack={() => open(null)} />;
 
   return (
     <div className="runs-page">
@@ -179,7 +190,7 @@ export function RunsPage() {
         <ul className="box run-list">
           {runs.map((r) => (
             <li key={r.id}>
-              <button type="button" className="run-row" onClick={() => setSelected(r.id)}>
+              <button type="button" className="run-row" onClick={() => open(r.id)}>
                 <span className={`run-status run-${r.status}`}>
                   <Icon name={STATUS[r.status].icon} size={16} className={r.status === "running" ? "spin" : ""} />
                   {STATUS[r.status].label}

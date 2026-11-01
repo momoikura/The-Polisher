@@ -35,6 +35,7 @@ flowchart TD
 | Reconcile + verify | These run in parallel. Reconcile brings the docs and the PR description in line with the final code. Verify runs the whole test suite on the final patch and on the first draft. | `maintainer/orchestrator.ts` |
 | Whole-suite repair | Only if verify finds a failure the related tests never showed, and another whole-suite run fits in the time and budget left. CodePolish gets up to two revisions, each tested on the whole suite, then reconcile runs again. | `maintainer/orchestrator.ts` |
 | Proof | Records which new tests failed on the base commit and pass after the fix. The Proof card on the run page shows this. | `maintainer/proof.ts`, `web/components/ProofCard.tsx` |
+| Challenge | On a proven fix, Muse Wonder (`muse-wonder-1.0`), which didn't write it, writes up to three edge-case tests, and the sandbox runs them on the final patch. Runs after the verdict and never changes it, because a failing test may be a real gap or a wrong guess by the model. Skipped when too little time or budget is left. | `maintainer/challenge.ts` |
 
 ### Limits on every run
 

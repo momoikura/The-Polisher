@@ -38,6 +38,10 @@ import {
   sendJson,
 } from "./http.js";
 import { SessionRegistry } from "./sessions.js";
+import { withProofSection } from "./pr-proof.js";
+
+/** Tries to break each proven fix with its own tests. Stronger than Muse Spark, so it costs more per token. */
+const CHALLENGE_MODEL = "muse-wonder-1.0";
 
 const StartSchema = z.object({
   issueUrl: z.string().trim().min(1, "Paste a GitHub issue link.").max(500),
@@ -209,6 +213,7 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
             client,
             sandbox: sandboxClientOrNull() ?? undefined,
             budgetUSD,
+            ...(!isSimulated() && activeProvider() === "meta" ? { challengeModel: CHALLENGE_MODEL } : {}),
             experience: memory,
             provider,
             onEvent: publish,
@@ -231,7 +236,7 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
           await saveQuietly("save the finished run", () => runStore().finish(finished, session.events));
         }
         // Kept so the PR can still be opened after a restart, or later from the run history.
-        const toOpen = pullRequestFrom(result, providerStatus().model);
+        const toOpen = pullRequestFrom(result, providerStatus().model, session.id);
         if (toOpen) await saveQuietly("save the pull request", () => runStore().savePullRequest(session.id, toOpen));
         await saveQuietly("share this run's lessons", () => memory.commit(result.status));
         return result;
@@ -271,7 +276,13 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
 }
 
 /** What "Open pull request" needs from a finished run, or null if it has nothing to open. */
-export function pullRequestFrom(result: MaintainerResult, model: string): SavedPullRequest | null {
+/** The run's public page, when this server knows its public address. */
+const runAddress = (runId: string): string | null => {
+  const site = process.env.THEPOLISHER_PUBLIC_URL?.trim().replace(/\/+$/, "");
+  return site ? `${site}/runs/${runId}` : null;
+};
+
+export function pullRequestFrom(result: MaintainerResult, model: string, runId?: string): SavedPullRequest | null {
   const { snapshot, final, status } = result;
   if (!snapshot || !final || status === "failed") return null;
   const files = Object.fromEntries(diffBundle(snapshot, final).map((d) => [d.path, final.code[d.path] ?? final.docs[d.path]] as const));
@@ -285,7 +296,7 @@ export function pullRequestFrom(result: MaintainerResult, model: string): SavedP
     status,
     model,
     files,
-    pr: final.pr,
+    pr: withProofSection(final.pr, result.proof, result.challenge, runId ? runAddress(runId) : null),
   };
 }
 
@@ -301,7 +312,7 @@ async function openPullRequest(req: IncomingMessage, res: ServerResponse, id: st
   let saved: SavedPullRequest | null = null;
   if (session?.result) {
     owner = typeof session.meta.owner === "string" ? session.meta.owner : null;
-    saved = pullRequestFrom(session.result, providerStatus().model);
+    saved = pullRequestFrom(session.result, providerStatus().model, id);
     if (saved && typeof session.meta.prUrl === "string") saved = { ...saved, prUrl: session.meta.prUrl };
   } else {
     const [run, stored] = await Promise.all([runStore().get(id), runStore().getPullRequest(id)]);

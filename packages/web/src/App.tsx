@@ -32,7 +32,11 @@ export default function App() {
     return () => window.removeEventListener("popstate", onBack);
   }, []);
   const navigate = (next: Page) => {
-    if (next !== page) window.history.pushState(null, "", pathForPage(next));
+    if (window.location.pathname !== pathForPage(next)) {
+      window.history.pushState(null, "", pathForPage(next));
+      // Pages that read the address (an open run) follow it as they do for Back.
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    }
     setPage(next);
     window.scrollTo(0, 0);
   };

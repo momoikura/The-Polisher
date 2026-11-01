@@ -3,7 +3,8 @@ import type { AuthUser } from "../maintainer/useAuth.js";
 import type { MaintainerConfig } from "../maintainer/useMaintainer.js";
 import { LANE_IDS } from "../maintainer/reducer.js";
 import { LANE_META } from "../maintainer/lanes.js";
-import { EVIDENCE } from "../maintainer/evidence.js";
+import { EVIDENCE, SHOWCASE_RUN } from "../maintainer/evidence.js";
+import { pathForRun } from "../maintainer/routes.js";
 import { prettyModel } from "../maintainer/model-label.js";
 import { Button } from "./Button.js";
 import { Icon } from "./Icon.js";
@@ -65,6 +66,9 @@ export function IssueForm({ config, user, isStarting, error, onStart, onForgetKe
       <div className="new-head">
         <h1 className="page-title">Fix an issue</h1>
         <p className="page-lede">Paste a GitHub issue from a Python repository. You get a pull request whose tests prove the fix.</p>
+        <p className="evidence-proof">
+          <a href={pathForRun(SHOWCASE_RUN)}>See a finished proof</a> on a real Rich issue. No sign-in needed.
+        </p>
         <a className="evidence" href={EVIDENCE.url} target="_blank" rel="noopener noreferrer">
           <span className="evidence-stat">
             <strong>{EVIDENCE.proven}</strong>
@@ -215,7 +219,7 @@ export function IssueForm({ config, user, isStarting, error, onStart, onForgetKe
                 <Icon name="info" size={16} />
                 <span>
                   Runs use {prettyModel(config.model)}, Meta's lower-cost tier: Meta may use the issue, the repository code and the
-                  drafts sent to it to train its models. Runs are public. Only use it on public repositories. <a href="/privacy">Privacy</a>
+                  drafts sent to it to train its models. Each proven fix also gets a check by Muse Wonder, which usually adds up to $0.20 to the run. Runs are public. Only use it on public repositories. <a href="/privacy">Privacy</a>
                 </span>
               </p>
             )}

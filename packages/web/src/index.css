@@ -914,6 +914,28 @@ a {
   word-break: break-word;
 }
 
+.proof-challenge {
+  margin-top: var(--s-4);
+  padding: var(--s-3);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius);
+}
+
+.proof-challenge p {
+  margin-top: var(--s-1);
+  font-size: var(--text-sm);
+}
+
+.proof-receipt {
+  margin-top: var(--s-3);
+  font-size: var(--text-sm);
+}
+
+.evidence-proof {
+  margin-bottom: var(--s-3);
+  font-size: var(--text-sm);
+}
+
 .proof-test {
   margin-top: var(--s-4);
   border-top: 1px solid var(--border-muted);

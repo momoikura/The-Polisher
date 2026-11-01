@@ -27,6 +27,7 @@ Setup (once):
 Put the printed URL + "/validate" in .env as SANDBOX_URL and the token as SANDBOX_TOKEN.
 """
 
+import inspect
 import hmac
 import json
 import os
@@ -59,6 +60,31 @@ MAX_CACHE_BYTES = 400_000_000
 MAX_CACHE_ENTRIES = 60
 PACKED = "/tmp/deps.tar.gz"
 REQUIREMENT_FILES = ["requirements.txt", "requirements-dev.txt", "requirements_dev.txt", "dev-requirements.txt", "test-requirements.txt", "requirements-test.txt"]
+
+def tox_test_deps(text):
+    """The requirement lines in tox.ini's [testenv] deps. Some projects (Scrapy) list their test needs only there."""
+    import configparser
+    import re
+
+    tox = configparser.RawConfigParser(strict=False)
+    tox.read_string(text)
+
+    def lines(section, key, seen=()):
+        if (section, key) in seen or not tox.has_option(section, key):
+            return []
+        found = []
+        for line in tox.get(section, key).splitlines():
+            line = line.split(" #")[0].strip()
+            ref = re.fullmatch(r"\{\[([^\]]+)\]([\w-]+)\}", line)
+            if ref:
+                found += lines(ref[1], ref[2], (*seen, (section, key)))
+            # Skips tox-only syntax: other substitutions, "py310: dep" factors, and editable or constraint lines.
+            elif line and not re.match(r"[\w,{}!-]+:\s|-[ec]\b|.*\{", line):
+                found.append(line)
+        return found
+
+    return lines("testenv", "deps")
+
 
 # Runs inside the sandbox. Installs the project and whatever its tests need, and exits non-zero
 # if any step failed, so a broken install is never reported as OK.
@@ -100,6 +126,15 @@ if names:
 for req in {REQUIREMENT_FILES!r}:
     if pathlib.Path(req).exists():
         ok &= pip("-r", req)
+
+{inspect.getsource(tox_test_deps)}
+# Best effort: tox isn't what a project promises plain pip can install, so failing here doesn't fail the install.
+if pathlib.Path("tox.ini").exists():
+    try:
+        for dep in tox_test_deps(pathlib.Path("tox.ini").read_text()):
+            pip(*dep.split()) if dep.startswith("-r") else pip(dep)
+    except Exception as err:
+        print("tox.ini skipped:", err)
 
 sys.exit(0 if ok else 1)
 '''

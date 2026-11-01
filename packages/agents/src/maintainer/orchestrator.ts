@@ -40,6 +40,9 @@ import { MAX_LARGE_FILE_CHARS, applyEdits, isLarge, issueSymbols, type FileEdit 
 import { BaselineSchema, MAINTAINER_PROMPT_VERSION, PlanSchema, buildBaselineMessages, buildPlanMessages, promptChars } from "./prompts.js";
 import { summarizeValidation, validationChecks, validationFailureChecks, type SandboxClient, type Validation } from "./sandbox.js";
 
+import { runChallenge, type Challenge } from "./challenge.js";
+import type { Proof } from "./proof.js";
+
 export type MaintainerSource =
   | { kind: "github"; issueUrl: string; github: GitHubClient }
   | { kind: "snapshot"; snapshot: RepoSnapshot };
@@ -56,6 +59,8 @@ export interface MaintainerOptions {
   candidates?: number;
   experience?: ExperienceStore;
   provider?: string;
+  /** A stronger model that tries to break a proven fix with its own tests. Off when unset. */
+  challengeModel?: string;
 }
 
 export interface MaintainerResult {
@@ -66,8 +71,13 @@ export interface MaintainerResult {
   final: PrBundle | null;
   lanes: Record<LaneId, LaneSummary>;
   totalUSD: number;
+  proof: Proof | null;
+  challenge: Challenge | null;
 }
 
+/** What one challenge usually costs at most (free runs have $0.20 in all), and the time it takes. */
+const CHALLENGE_MIN_USD = 0.15;
+const CHALLENGE_MIN_MS = 3 * 60_000;
 const DEFAULTS = { budgetUSD: 3, timeLimitMs: 20 * 60_000, maxRoundsPerLane: 6, candidates: 3 };
 const LANE_MODES: Record<OwnerLane, ArtifactMode> = { code: "code", doc: "reports", write: "writing" };
 const OWNER_LANES: OwnerLane[] = ["code", "doc", "write"];
@@ -266,6 +276,8 @@ function securityChecks(validation: Validation | null): TestCheck[] {
 export async function runMaintainer(source: MaintainerSource, options: MaintainerOptions): Promise<MaintainerResult> {
   const cfg = { ...DEFAULTS, ...options };
   const deadlineAt = Date.now() + cfg.timeLimitMs;
+  let finalProof: Proof | null = null;
+  let finalChallenge: Challenge | null = null;
   // The limit is hard: model and sandbox calls still in flight stop at it. Polishing stops
   // earlier, so the final whole-suite run and reconcile still fit before it.
   const polishUntil = deadlineAt - cfg.timeLimitMs * FINAL_SHARE;
@@ -421,6 +433,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     const finalValidation = await repairSuiteFailures(fullRun, snap, ws);
     const final = ws.get();
     const proof = proofFrom(finalValidation);
+    finalProof = proof;
     if (proof) emit({ type: "proof", proof });
     emit({
       type: "comparison",
@@ -442,6 +455,8 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
       timeHit: stopAll.signal.aborted || OWNER_LANES.some((l) => lastStatus[l] === "time_limited"),
       newFailures,
     });
+    // After the verdict, so running out of time here can't change it.
+    if (proof?.proven) finalChallenge = await challengeFix(snap, final);
     return finish(v.status, v.message, lanes);
   } catch (err) {
     // Only planning and the first drafts can be stopped here; later stops keep the best version.
@@ -589,6 +604,20 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     ]) as Record<LaneId, LaneSummary>;
   }
 
+  /** Extra evidence, so anything going wrong just leaves it out. */
+  async function challengeFix(snap: RepoSnapshot, bundle: PrBundle): Promise<Challenge | null> {
+    const hasRoom = cfg.budgetUSD - totalSpent() >= CHALLENGE_MIN_USD && deadlineAt - Date.now() >= CHALLENGE_MIN_MS;
+    if (!options.challengeModel || !sandbox || !hasRoom) return null;
+    try {
+      const challenge = await runChallenge({ client, sandbox, snapshot: snap, bundle, model: options.challengeModel, charge: (u) => chargeSetup(u, "challenge") });
+      if (challenge) emit({ type: "challenge", challenge });
+      return challenge;
+    } catch (err) {
+      console.warn(`Skipped the challenge: ${err instanceof Error ? err.message : String(err)}`);
+      return null;
+    }
+  }
+
   function finish(status: MaintainerStatus, message: string, lanes: Record<LaneId, LaneSummary> | null): MaintainerResult {
     for (const t of timers) clearTimeout(t);
     const summary =
@@ -598,7 +627,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     const hasChanges = Boolean(snapshot && final && diffBundle(snapshot, final).length > 0);
     emit({ type: "phase", phase: "done" });
     emit({ type: "complete", status, message, lanes: summary, totalUSD: totalSpent(), canOpenPr: status !== "failed" && hasChanges });
-    return { status, message, snapshot, baseline, final, lanes: summary, totalUSD: totalSpent() };
+    return { status, message, snapshot, baseline, final, lanes: summary, totalUSD: totalSpent(), proof: finalProof, challenge: finalChallenge };
   }
 
   function publishPatch(snap: RepoSnapshot, ws: PrWorkspace) {

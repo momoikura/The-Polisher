@@ -6,12 +6,12 @@
 
 [![CI](https://github.com/momoikura/The-Polisher/actions/workflows/ci.yml/badge.svg)](https://github.com/momoikura/The-Polisher/actions/workflows/ci.yml)
 ![license](https://img.shields.io/badge/license-MIT-blue)
-![model](https://img.shields.io/badge/model-Muse_Spark_1.3-0866ff)
+![model](https://img.shields.io/badge/models-Muse_Spark_%2B_Muse_Wonder-0866ff)
 ![sandbox](https://img.shields.io/badge/sandbox-Modal-7fee64)
 ![target](https://img.shields.io/badge/fixes-Python_%2B_pytest-3776ab)
 ![stack](https://img.shields.io/badge/TypeScript-React_19-3178c6)
 ![hosting](https://img.shields.io/badge/hosting-Cloudflare_Pages-f38020)
-![tests](https://img.shields.io/badge/tests-338_passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-359_passing-brightgreen)
 
 **Paste a GitHub issue. Get a pull request whose tests prove the fix.**
 
@@ -24,6 +24,17 @@
 > [!NOTE]
 > Built for the **Meta Global AI Developer Hackathon**, *Push the Frontier* track.
 > Try it at **[thepolisher.pages.dev](https://thepolisher.pages.dev)**. Sign in with GitHub and your first 3 runs are free. After that, bring your own Meta Model API key.
+
+## For judges
+
+**See it in one minute, no sign-in:** [a finished proof on a real Rich issue](https://thepolisher.pages.dev/runs/e53f63a5-4ee2-4823-aff1-2323ff801c76). Then [every saved run](https://thepolisher.pages.dev/runs).
+
+| Criterion | Where to look |
+| --- | --- |
+| **Impact** (30%) | Maintainers are flooded with AI pull requests they can't trust. Each PR from ThePolisher carries its own evidence: fails before, passes after, whole-suite counts. [The problem](#the-problem), [results on projects we don't control](#results), including [the mistake we published](benchmarks/results/rerun-2026-10-30.md). |
+| **Use of Meta AI tooling** (25%) | Two Meta models with different jobs. Muse Spark writes three drafts and polishes the best, with `reasoning_effort` set per task and issue screenshots read as images. Muse Wonder, which didn't write the fix, then writes its own tests to try to break it. [Models](docs/architecture.md). |
+| **Technical depth** (20%) | Tests decide, not the model: a revision that breaks a passing check is thrown away. Untrusted code runs only in Modal sandboxes with no secrets. A hard 20-minute limit. Issue lists committed before each benchmark. [Architecture](docs/architecture.md), [CI](https://github.com/momoikura/The-Polisher/actions/workflows/ci.yml). |
+| **Demo** (25%) | [Live site](https://thepolisher.pages.dev), where your first 3 runs are free after signing in with GitHub. Try an issue from a public Python + pytest repo. |
 
 ## The problem
 

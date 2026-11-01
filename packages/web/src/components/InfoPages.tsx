@@ -40,6 +40,7 @@ export function AboutPage() {
         <li>Each fix runs in its own sandbox, and the tests pick the one to continue with.</li>
         <li>Four agents improve the code, security, docs and pull request description. A revision is only kept if it doesn't break a check that was passing.</li>
         <li>The whole test suite runs on a fresh copy of the repository. New tests must fail on the original code and pass with the fix.</li>
+        <li>On a proven fix, Muse Wonder, a stronger Meta model that didn't write it, writes its own tests to try to break it. You see the result.</li>
         <li>You review the result. A pull request opens only when you click and confirm.</li>
       </ol>
 

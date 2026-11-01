@@ -59,7 +59,7 @@ export function RunView({ view, isSimulated, model, action, notice, mergeBox }: 
       {tab === "conversation" && (
         <div className="pr-layout">
           <div className="pr-main">
-            {view.proof && <ProofCard proof={view.proof} diffs={view.current?.diffs ?? view.baseline?.diffs ?? []} />}
+            {view.proof && <ProofCard proof={view.proof} diffs={view.current?.diffs ?? view.baseline?.diffs ?? []} challenge={view.challenge} context={view.context} />}
             <Timeline items={view.feed} isLive={!view.result} />
             {mergeBox}
           </div>

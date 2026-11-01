@@ -16,6 +16,8 @@ export interface ChatCompletion {
 export type ReasoningEffort = "minimal" | "low" | "medium" | "high";
 
 export interface ChatOptions {
+  /** Another model than the client's own, for this call. */
+  model?: string;
   temperature?: number;
   maxTokens?: number;
   /** How long a reasoning model thinks first; models without the setting ignore it. Unset = model default. */
@@ -33,6 +35,7 @@ export function chatClientFromMeta(client: MetaModelClient): ChatClient {
     async complete(messages, options) {
       const res = await client.createChatCompletion(
         {
+          ...(options?.model ? { model: options.model } : {}),
           messages,
           temperature: options?.temperature,
           max_tokens: options?.maxTokens,

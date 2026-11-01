@@ -1,6 +1,7 @@
 /** Live events from an Auto-Maintainer run. Every value comes from a real step. */
 
 import type { LaneId } from "../lanes.js";
+import type { Challenge } from "./challenge.js";
 import type { Proof } from "./proof.js";
 import type { FileDiff } from "./bundle.js";
 
@@ -79,6 +80,8 @@ export type MaintainerEvent = At &
     | { type: "comparison"; before: SideMetrics; after: SideMetrics }
     /** From the final whole-suite run: do the new tests prove the fix? (the Proof card) */
     | { type: "proof"; proof: Proof }
+    /** A stronger model's own edge-case tests, run on the final patch. Evidence only: it doesn't change the verdict. */
+    | { type: "challenge"; challenge: Challenge }
     | { type: "complete"; status: MaintainerStatus; message: string; lanes: Record<LaneId, LaneSummary>; totalUSD: number; canOpenPr: boolean }
   );
 

@@ -37,6 +37,7 @@ const COST_PER_MILLION_TOKENS: Record<string, { input: number; output: number }>
   // Meta Model API (dev.meta.ai/models/muse-spark, 2026-10). Cached input ($0.15) isn't tracked separately.
   "muse-spark-1.3": { input: 1.25, output: 4.25 },
   "muse-spark-1.3-contributor": { input: 0.1, output: 0.2 },
+  "muse-wonder-1.0": { input: 4, output: 20 },
   // Scripted demo client: no real spend.
   simulated: { input: 0, output: 0 },
 };

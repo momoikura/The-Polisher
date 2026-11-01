@@ -1,5 +1,6 @@
 import type {
   CandidateSummary,
+  Challenge,
   FileDiff,
   LaneId,
   MaintainerEvent,
@@ -50,6 +51,8 @@ export interface MaintainerView {
   comparison: { before: SideMetrics; after: SideMetrics } | null;
   /** Do the new tests prove the fix? From the final whole-suite run. */
   proof: Proof | null;
+  /** A stronger model's own tests, run on the final patch. */
+  challenge: Challenge | null;
   costUSD: number;
   budgetUSD: number;
   feed: FeedItem[];
@@ -79,6 +82,7 @@ export const initialView = (): MaintainerView => ({
   current: null,
   comparison: null,
   proof: null,
+  challenge: null,
   costUSD: 0,
   budgetUSD: 0,
   feed: [],
@@ -243,6 +247,9 @@ export function maintainerReducer(view: MaintainerView, event: MaintainerEvent):
 
     case "proof":
       return { ...view, proof: event.proof };
+
+    case "challenge":
+      return { ...view, challenge: event.challenge };
 
     case "complete":
       return pushFeed(

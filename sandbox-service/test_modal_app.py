@@ -1,6 +1,6 @@
 """Tests for the sandbox's pure helpers. Run: py -m pytest sandbox-service -q"""
 
-from modal_app import classify_base_failures
+from modal_app import classify_base_failures, tox_test_deps
 
 
 def junit(*cases: str) -> str:
@@ -54,3 +54,26 @@ def test_without_E_lines_the_failure_message_is_used():
     case = '<testcase classname="t" name="x"><failure message="Failed: DID NOT RAISE ValueError">trace</failure></testcase>'
 
     assert classify_base_failures(junit(case))["example"] == "Failed: DID NOT RAISE ValueError"
+
+
+def test_tox_deps_follow_references_and_skip_tox_only_lines():
+    deps = tox_test_deps(
+        """
+[test-requirements]
+deps =
+    attrs
+    pyftpdlib >= 2.0.1  # comment
+[testenv]
+deps =
+    {[test-requirements]deps}
+    -r tests/requirements.txt
+    py310: only-on-310
+    -e .
+    {env:EXTRA}
+"""
+    )
+    assert deps == ["attrs", "pyftpdlib >= 2.0.1", "-r tests/requirements.txt"]
+
+
+def test_tox_deps_are_empty_without_a_testenv():
+    assert tox_test_deps("[tox]\nenvlist = py311\n") == []
