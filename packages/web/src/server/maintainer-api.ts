@@ -247,7 +247,10 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
         }
         const started = holder.started;
         if (started) {
-          const finished = finishedRecord(started, { status: result.status, totalUSD: result.totalUSD, title: result.snapshot?.issue.title ?? "" });
+          const finished = {
+            ...finishedRecord(started, { status: result.status, totalUSD: result.totalUSD, title: result.snapshot?.issue.title ?? "" }),
+            ...(isPullUrl(parsed.data.issueUrl) ? { checkResult: result.message } : {}),
+          };
           await saveQuietly("save the finished run", () => runStore().finish(finished, session.events));
         }
         // Kept so the PR can still be opened after a restart, or later from the run history.

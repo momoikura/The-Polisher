@@ -105,7 +105,13 @@ for (const file of files) {
     const id = r.runId ?? stableId(list, r.issue);
     const eventsFile = path.join(path.dirname(file), "events", `${id}.json`);
     const events = fs.existsSync(eventsFile) ? JSON.parse(fs.readFileSync(eventsFile, "utf8")) : [];
-    const m = r.issue.match(/github\.com\/([^/]+\/[^/]+)\/issues\/(\d+)/);
+    const m = r.issue.match(/github\.com\/([^/]+\/[^/]+)\/(?:issues|pull)\/(\d+)/);
+    const isCheck = r.issue.includes("/pull/");
+    // A check that couldn't start has nothing to show; its re-run is imported instead.
+    if (isCheck && !r.verdict) {
+      console.warn(`skipped ${r.issue}: ${r.error}`);
+      continue;
+    }
     const startedAt = r.startedAt ?? ranOn;
     if (!m || !startedAt) {
       console.warn(`skipped ${r.issue}: can't tell its repo or when it ran`);
@@ -116,7 +122,8 @@ for (const file of files) {
       issueUrl: r.issue,
       repo: m[1],
       issueNumber: Number(m[2]),
-      title: r.title || (await titleOf(...m[1].split("/"), Number(m[2]))),
+      title: isCheck ? `PR check: ${r.title}` : r.title || (await titleOf(...m[1].split("/"), Number(m[2]))),
+      ...(isCheck ? { checkResult: r.headline } : {}),
       status: r.status,
       totalUSD: r.costUSD,
       model: r.model,
@@ -126,7 +133,7 @@ for (const file of files) {
       source: "benchmark",
       benchmark: {
         list,
-        provesFix: r.provesFix,
+        provesFix: isCheck ? r.verdict === "proven" : r.provesFix,
         baselineProvesFix: r.baselineProvesFix,
         tests: r.tests,
         wallSeconds: r.wallSeconds,

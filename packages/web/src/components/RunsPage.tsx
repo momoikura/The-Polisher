@@ -21,6 +21,7 @@ interface RunRecord {
   model: string;
   startedAt: string;
   issueUrl: string;
+  checkResult?: string;
   source?: "web" | "benchmark";
   benchmark?: { list: string; provesFix: boolean; baselineProvesFix: boolean | null; tests: string | null; wallSeconds: number; seenBefore: boolean; hasTimeline: boolean };
 }
@@ -192,8 +193,8 @@ export function RunsPage() {
             <li key={r.id}>
               <button type="button" className="run-row" onClick={() => open(r.id)}>
                 <span className={`run-status run-${r.status}`}>
-                  <Icon name={STATUS[r.status].icon} size={16} className={r.status === "running" ? "spin" : ""} />
-                  {STATUS[r.status].label}
+                  <Icon name={r.checkResult ? "flask" : STATUS[r.status].icon} size={16} className={r.status === "running" ? "spin" : ""} />
+                  {r.checkResult ?? STATUS[r.status].label}
                 </span>
                 <span className="run-title">
                   <strong>{r.title || `Issue #${r.issueNumber}`}</strong>

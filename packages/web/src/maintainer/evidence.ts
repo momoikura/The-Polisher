@@ -3,8 +3,8 @@
  * benchmarks/results/final-2026-11-01.md (issue list committed before the run);
  * update both together.
  */
-/** A finished, public run anyone can open: Textualize/rich#4237. */
-export const SHOWCASE_RUN = "e53f63a5-4ee2-4823-aff1-2323ff801c76";
+/** A finished, public run anyone can open: Textualize/rich#4090, with Muse Wonder's challenge. */
+export const SHOWCASE_RUN = "09e2e317-527f-44dd-8b38-52723ce52230";
 
 export const EVIDENCE = {
   issues: 16,

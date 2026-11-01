@@ -27,7 +27,7 @@
 
 ## For judges
 
-**See it in one minute, no sign-in:** [a finished proof on a real Rich issue](https://thepolisher.pages.dev/runs/e53f63a5-4ee2-4823-aff1-2323ff801c76). Then [every saved run](https://thepolisher.pages.dev/runs).
+**See it in one minute, no sign-in:** [a finished proof on a real Rich issue](https://thepolisher.pages.dev/runs/09e2e317-527f-44dd-8b38-52723ce52230). Then [every saved run](https://thepolisher.pages.dev/runs).
 
 | Criterion | Where to look |
 | --- | --- |
@@ -72,7 +72,7 @@ Every revision goes through a gate. It is kept only if it does not break a check
 
 **Latest full run (2026-11-01): 11 of 16 fixes proven, 10 of them with no new failures in the whole test suite.** The first draft alone proved 5. All 16 issues together cost $0.43, with a median of 8.6 minutes each. That's one fewer proven than the run before, on a stricter check that now catches a fix the earlier run wrongly passed. See [final-2026-11-01.md](benchmarks/results/final-2026-11-01.md), which also covers Muse Wonder's challenge and what it hasn't found yet.
 
-**On real pull requests:** Muse Wonder's tests failed on a merged Rich PR (#4076) and passed on the code before it. It's a real bug: CRLF text gets lost, a person reported it ten days later as [Rich#4090](https://github.com/Textualize/rich/issues/4090), and it's still open. It doesn't catch this on every run, and the check doesn't predict what gets merged. See [pr-check-2026-11-02.md](benchmarks/results/pr-check-2026-11-02.md).
+**On real pull requests:** Muse Wonder's tests failed on a merged Rich PR (#4076) and passed on the code before it. It's a real bug: CRLF text gets lost, a person reported it ten days later as [Rich#4090](https://github.com/Textualize/rich/issues/4090), and it's still open. It doesn't catch this on every run, and the check doesn't predict what gets merged. See [the check on that PR](https://thepolisher.pages.dev/runs/b1eb802c-5e3b-42f5-8ba5-7859e88d0117) and [pr-check-2026-11-02.md](benchmarks/results/pr-check-2026-11-02.md).
 
 The first benchmark, from 2026-10-29, is below.
 

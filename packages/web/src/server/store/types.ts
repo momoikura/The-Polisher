@@ -18,6 +18,8 @@ export interface RunRecord {
   finishedAt: string | null;
   /** GitHub login of whoever started it; null before sign-in exists. */
   user: string | null;
+  /** A pull request check's result, shown instead of the status: it says what ran, not what the PR should do. */
+  checkResult?: string;
   /** "benchmark" for runs imported from benchmarks/ (scripts/import-benchmark-runs.mjs). */
   source?: "web" | "benchmark";
   /** Benchmark results; older ones have no timeline, and startedAt is then just the date. */
