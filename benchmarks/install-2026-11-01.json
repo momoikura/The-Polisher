@@ -1,0 +1,10 @@
+{
+  "chosen": "2026-11-01: does installing test dependencies from tox.ini let these suites run? Each of these runs reported nearly all tests failing on the original code. Chosen before running.",
+  "budgetUSD": 0.5,
+  "concurrency": 3,
+  "issues": [
+    { "url": "https://github.com/pyparsing/pyparsing/issues/693" },
+    { "url": "https://github.com/pygments/pygments/issues/3247" },
+    { "url": "https://github.com/scrapy/scrapy/issues/8418" }
+  ]
+}
