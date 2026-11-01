@@ -26,16 +26,16 @@ export const Wonder: React.FC = () => {
           <div style={{ display: "flex", gap: 40, marginTop: 56 }}>
             <div style={{ flex: "1.5", padding: 36, borderRadius: 18, background: "#111", border: "1.5px solid #2c2c2c", minHeight: 400, opacity: rise(f, at(2) - 4) }}>
               <div style={{ font: `600 26px ${MONO}`, color: "#8a8a8a", marginBottom: 24 }}>tests/test_thepolisher_challenge.py</div>
-              <div style={{ font: `500 27px/1.7 ${MONO}`, whiteSpace: "pre-wrap" }}>{typed(TEST, f, at(2) + 2, 2)}</div>
+              <div style={{ font: `500 27px/1.7 ${MONO}`, whiteSpace: "pre-wrap" }}>{typed(TEST, f, at(2) + 2, 0.4)}</div>
             </div>
             <div style={{ flex: 1 }}>
               {IDEAS.map((idea, i) => (
-                <Reveal key={idea} at={at(2) + 24 + i * 16} style={{ font: `500 32px/1.3 ${SANS}`, padding: "20px 0", borderBottom: "1.5px solid #2c2c2c", color: "#e5e5e5" }}>
+                <Reveal key={idea} at={at(2) + 6 + i * 10} style={{ font: `500 32px/1.3 ${SANS}`, padding: "20px 0", borderBottom: "1.5px solid #2c2c2c", color: "#e5e5e5" }}>
                   {idea}
                 </Reveal>
               ))}
-              <div style={{ marginTop: 34, font: `700 60px ${SANS}`, letterSpacing: -1.5, color: "#3fb950", opacity: rise(f, at(2) + 70) }}>3 of 3 pass</div>
-              <div style={{ font: `500 26px ${SANS}`, color: "#a3a3a3", opacity: rise(f, at(2) + 76), marginTop: 6 }}>on this run of Rich#4237</div>
+              <div style={{ marginTop: 34, font: `700 60px ${SANS}`, letterSpacing: -1.5, color: "#3fb950", opacity: rise(f, at(2) + 40) }}>3 of 3 pass</div>
+              <div style={{ font: `500 26px ${SANS}`, color: "#a3a3a3", opacity: rise(f, at(2) + 46), marginTop: 6 }}>on this run of Rich#4237</div>
             </div>
           </div>
         </div>
