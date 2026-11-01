@@ -1,0 +1,10 @@
+{
+  "chosen": "The two open PRs for Rich#4090, the bug found on Rich#4076. Checked read-only, so a maintainer could use the result. Nothing is posted by this run.",
+  "budgetUSD": 1,
+  "concurrency": 2,
+  "challengeModel": "muse-wonder-1.0",
+  "issues": [
+    { "url": "https://github.com/Textualize/rich/pull/4091", "outcome": "open" },
+    { "url": "https://github.com/Textualize/rich/pull/4143", "outcome": "open" }
+  ]
+}
