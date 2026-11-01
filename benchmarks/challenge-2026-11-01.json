@@ -1,0 +1,12 @@
+{
+  "chosen": "2026-11-01: does Muse Wonder's challenge work on real fixes, and does it find anything? Issues already proven in earlier runs, from different projects, chosen before running.",
+  "budgetUSD": 1,
+  "concurrency": 2,
+  "challengeModel": "muse-wonder-1.0",
+  "issues": [
+    { "url": "https://github.com/more-itertools/more-itertools/issues/1336" },
+    { "url": "https://github.com/python-humanize/humanize/issues/459" },
+    { "url": "https://github.com/python-jsonschema/jsonschema/issues/1589" },
+    { "url": "https://github.com/Textualize/rich/issues/4237" }
+  ]
+}

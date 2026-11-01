@@ -76,6 +76,7 @@ async function runOne({ url, seenBefore }) {
         sandbox,
         budgetUSD: settings.budgetUSD,
         provider: "meta",
+        ...(list.challengeModel ? { challengeModel: list.challengeModel } : {}),
         onEvent: (e) => {
           events.push(e);
           if (e.type === "context") title = e.issue.title;
@@ -98,6 +99,7 @@ async function runOne({ url, seenBefore }) {
       wallSeconds: Math.round((Date.now() - started) / 1000),
       files,
       timing,
+      ...(result.challenge ? { challenge: { total: result.challenge.total, passed: result.challenge.passed, failures: result.challenge.failures } } : {}),
       error: null,
     };
   } catch (err) {
