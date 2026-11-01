@@ -16,7 +16,9 @@ const NEUTRAL = new Set(["no_tests", "only_new_code", "tests_pass_without_it", "
 export function PrCheckView({ view, action }: Props) {
   const [isCopied, setIsCopied] = useState(false);
   const { context, prCheck: check, proof, challenge } = view;
-  const tone = !check ? "" : GOOD.has(check.verdict) ? " is-good" : NEUTRAL.has(check.verdict) ? " is-neutral" : " is-bad";
+  // Passing on the original code and failing with the PR is the strongest thing a check can find.
+  const regressions = challenge?.failures.filter((f) => f.failsOnOriginal === false).length ?? 0;
+  const tone = !check ? "" : regressions > 0 ? " is-neutral" : GOOD.has(check.verdict) ? " is-good" : NEUTRAL.has(check.verdict) ? " is-neutral" : " is-bad";
 
   const copy = () => {
     if (!check) return;
@@ -57,6 +59,14 @@ export function PrCheckView({ view, action }: Props) {
         <section className={`check-verdict${tone}`} aria-label="Result">
           <h2>{check.headline}</h2>
           <p>{check.detail}</p>
+          {regressions > 0 && (
+            <p className="check-warning">
+              <Icon name="exclamation" size={16} />
+              <strong>
+                But {regressions} of Muse Wonder's tests {regressions === 1 ? "passes" : "pass"} on the original code and {regressions === 1 ? "fails" : "fail"} with this PR. Check {regressions === 1 ? "it" : "them"} before you merge.
+              </strong>
+            </p>
+          )}
           {check.notApplied.length > 0 && (
             <p className="muted">
               Not applied in the sandbox, because they aren't Python or were removed: <span className="mono">{check.notApplied.join(", ")}</span>

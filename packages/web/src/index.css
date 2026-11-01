@@ -939,6 +939,12 @@ a {
   border-left-color: var(--danger, #cf222e);
 }
 
+.check-warning {
+  display: flex;
+  gap: var(--s-2);
+  align-items: flex-start;
+}
+
 .proof-challenge {
   margin-top: var(--s-4);
   padding: var(--s-3);
