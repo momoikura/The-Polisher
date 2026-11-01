@@ -224,38 +224,38 @@
    {
     "text": "We took sixteen real, open issues, in nine popular projects we don't control, and locked in the list before running anything.",
     "start": 2.6580416666666666,
-    "end": 8.596666666666668
+    "end": 8.594625
    },
    {
-    "text": "The first draft alone proved five.",
-    "start": 8.896666666666667,
-    "end": 10.553333333333333
+    "text": "The first draft alone proved six.",
+    "start": 8.894625,
+    "end": 10.591083333333334
    },
    {
-    "text": "ThePolisher proved eleven.",
-    "start": 10.853333333333333,
-    "end": 12.118
+    "text": "ThePolisher proved thirteen.",
+    "start": 11.011083333333334,
+    "end": 12.483791666666667
    },
    {
-    "text": "More than twice as many, for forty three cents in total.",
-    "start": 12.538,
-    "end": 14.964583333333334
+    "text": "More than twice as many, for forty eight cents in total.",
+    "start": 12.903791666666667,
+    "end": 15.786416666666668
    },
    {
     "text": "And when it can't prove a fix? It says so.",
-    "start": 15.264583333333334,
-    "end": 17.358833333333333
+    "start": 16.086416666666665,
+    "end": 18.180666666666664
    },
    {
-    "text": "Five issues are still unproven, and they're published right there with the rest.",
-    "start": 17.658833333333334,
-    "end": 21.307875
+    "text": "Three issues are still unproven, and they're published right there with the rest.",
+    "start": 18.480666666666664,
+    "end": 21.389416666666666
    }
   ]
  },
  "check": {
-  "seconds": 22,
-  "frames": 660,
+  "seconds": 21.5,
+  "frames": 645,
   "lines": [
    {
     "text": "And maintainers can point it at anyone's pull request.",
@@ -275,17 +275,17 @@
    {
     "text": "On one merged change in Rich, Muse Wonder's tests passed on the old code, and failed with the new code.",
     "start": 9.929625,
-    "end": 14.454625
+    "end": 14.330416666666666
    },
    {
     "text": "That's a real bug. A person reported it ten days after the merge, and it's still open.",
-    "start": 14.754625,
-    "end": 18.578875
+    "start": 14.630416666666665,
+    "end": 18.142875
    },
    {
     "text": "Nothing gets posted. The maintainer decides.",
-    "start": 18.878875,
-    "end": 21.382083333333334
+    "start": 18.442874999999997,
+    "end": 20.94608333333333
    }
   ]
  },
