@@ -11,6 +11,7 @@ import { FPS, SANS, sceneFrames, useFontsReady, type SceneId } from "./common";
 import timing from "./timing.json";
 import { iris } from "./transitions";
 import { Agents } from "./scenes/Agents";
+import { Check } from "./scenes/Check";
 import { Close } from "./scenes/Close";
 import { Compare } from "./scenes/Compare";
 import { Hook } from "./scenes/Hook";
@@ -20,6 +21,7 @@ import { ProofScene } from "./scenes/ProofScene";
 import { Results } from "./scenes/Results";
 import { Safety } from "./scenes/Safety";
 import { Vision } from "./scenes/Vision";
+import { Wonder } from "./scenes/Wonder";
 
 // One beat at 120 BPM, so every scene change lands on the music's grid (scripts/music.mjs).
 const TRANSITION = 15;
@@ -32,7 +34,9 @@ const SCENES: Array<{ id: SceneId; C: React.FC; into?: TransitionPresentation<Re
   { id: "vision", C: Vision, into: push("from-right") },
   { id: "proof", C: ProofScene, into: iris() as never },
   { id: "compare", C: Compare, into: push("from-bottom") },
+  { id: "wonder", C: Wonder, into: iris() as never },
   { id: "results", C: Results, into: iris() as never },
+  { id: "check", C: Check, into: push("from-right") },
   { id: "safety", C: Safety, into: iris() as never },
   { id: "close", C: Close, into: fade() as never },
 ];

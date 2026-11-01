@@ -1,67 +1,128 @@
 [
-  { "id": "hook", "mood": 0.75, "lines": [
-    "Watch this test.",
-    "On the original code, it fails.",
-    "With the fix, it passes.",
-    "An AI wrote that fix, for a real bug in Rich, a library with fifty seven thousand stars.",
-    "And it proved it, in about three minutes, for two cents."
-  ]},
-  { "id": "problem", "mood": 0.7, "lines": [
-    "Here's the thing. AI can write a fix in seconds.",
-    "But then? Someone has to check it.",
-    "Does it fix the bug?",
-    "Did it break something else?",
-    "Are the tests even real?",
-    "Right now, maintainers are drowning in AI pull requests, and they can't tell which ones work.",
-    "That's why ThePolisher exists.",
-    "A verifiable agent, on Meta's Muse Spark. Its pull requests come with proof."
-  ]},
-  { "id": "paste", "mood": 0.65, "lines": [
-    "Paste an issue from a public Python repo.",
-    "Muse Spark reads the issue and the code, then writes three fixes, all at once.",
-    "And here's my favorite part. The tests pick the winner, not the model."
-  ]},
-  { "id": "agents", "mood": 0.65, "lines": [
-    "Now four agents go to work, side by side.",
-    "CodePolish sharpens the fix and its tests.",
-    "SecurityPolish hunts for anything unsafe.",
-    "DocPolish updates the docs.",
-    "WritePolish writes the pull request, in the project's own template.",
-    "And every single change has to get past the gate.",
-    "Break something that used to pass? It's gone."
-  ]},
-  { "id": "vision", "mood": 0.6, "lines": [
-    "Muse Spark is multimodal, so it reads the screenshots in an issue too, and tells you what it saw."
-  ]},
-  { "id": "proof", "mood": 0.85, "lines": [
-    "Then comes the moment of truth.",
-    "The whole test suite runs on a fresh copy of the repo.",
-    "The new test fails on the original code, because of the bug. And passes with the fix.",
-    "That's not a model's opinion. That's proof."
-  ]},
-  { "id": "compare", "mood": 0.55, "lines": [
-    "The first draft is kept, so you can see exactly what the agents added.",
-    "Same issue. Same model."
-  ]},
-  { "id": "results", "mood": 0.8, "lines": [
-    "So does it hold up in the real world?",
-    "We took seventeen real, open issues, in nine popular projects we don't control, and locked in the list before running anything.",
-    "A single prompt proved seven.",
-    "ThePolisher proved fourteen.",
-    "Twice as many, for sixty six cents in total.",
-    "And when it can't prove a fix? It says so.",
-    "Three issues are still unproven, and they're published right there with the rest."
-  ]},
-  { "id": "safety", "mood": 0.6, "lines": [
-    "And you stay in control.",
-    "Repo code only runs in locked-down sandboxes, with no secrets.",
-    "Issue text is treated as data, never as instructions.",
-    "Agents only learn from runs the tests verified.",
-    "And nothing gets pushed for you. The pull request opens when you click, and confirm."
-  ]},
-  { "id": "close", "mood": 0.8, "lines": [
-    "Everything you just saw was built during this hackathon.",
-    "AI writes fixes.",
-    "ThePolisher proves them."
-  ]}
+  {
+    "id": "hook",
+    "mood": 0.75,
+    "lines": [
+      "Watch this test.",
+      "On the original code, it fails.",
+      "With the fix, it passes.",
+      "An AI wrote that fix, for a real bug in Rich, a library with fifty seven thousand stars.",
+      "And it proved it, in about three minutes, for two cents."
+    ]
+  },
+  {
+    "id": "problem",
+    "mood": 0.7,
+    "lines": [
+      "Here's the thing. AI can write a fix in seconds.",
+      "But then? Someone has to check it.",
+      "Does it fix the bug?",
+      "Did it break something else?",
+      "Are the tests even real?",
+      "Right now, maintainers are drowning in AI pull requests, and they can't tell which ones work.",
+      "That's why ThePolisher exists.",
+      "A verifiable agent, on Meta's Muse Spark. Its pull requests come with proof."
+    ]
+  },
+  {
+    "id": "paste",
+    "mood": 0.65,
+    "lines": [
+      "Paste an issue from a public Python repo.",
+      "Muse Spark reads the issue and the code, then writes three fixes, all at once.",
+      "And here's my favorite part. The tests pick the winner, not the model."
+    ]
+  },
+  {
+    "id": "agents",
+    "mood": 0.65,
+    "lines": [
+      "Now four agents go to work, side by side.",
+      "CodePolish sharpens the fix and its tests.",
+      "SecurityPolish hunts for anything unsafe.",
+      "DocPolish updates the docs.",
+      "WritePolish writes the pull request, in the project's own template.",
+      "And every single change has to get past the gate.",
+      "Break something that used to pass? It's gone."
+    ]
+  },
+  {
+    "id": "vision",
+    "mood": 0.6,
+    "lines": [
+      "Muse Spark is multimodal, so it reads the screenshots in an issue too, and tells you what it saw."
+    ]
+  },
+  {
+    "id": "proof",
+    "mood": 0.85,
+    "lines": [
+      "Then comes the moment of truth.",
+      "The whole test suite runs on a fresh copy of the repo.",
+      "The new test fails on the original code, because of the bug. And passes with the fix.",
+      "That's not a model's opinion. That's proof."
+    ]
+  },
+  {
+    "id": "compare",
+    "mood": 0.55,
+    "lines": [
+      "The first draft is kept, so you can see exactly what the agents added.",
+      "Same issue. Same model."
+    ]
+  },
+  {
+    "id": "wonder",
+    "mood": 0.75,
+    "lines": [
+      "But a proof is only as good as its tests.",
+      "So Muse Wonder, Meta's stronger model, tries to break the fix.",
+      "It didn't write it. It writes its own tests, and they run in the sandbox."
+    ]
+  },
+  {
+    "id": "results",
+    "mood": 0.8,
+    "lines": [
+      "So does it hold up in the real world?",
+      "We took sixteen real, open issues, in nine popular projects we don't control, and locked in the list before running anything.",
+      "The first draft alone proved five.",
+      "ThePolisher proved eleven.",
+      "More than twice as many, for forty three cents in total.",
+      "And when it can't prove a fix? It says so.",
+      "Five issues are still unproven, and they're published right there with the rest."
+    ]
+  },
+  {
+    "id": "check",
+    "mood": 0.8,
+    "lines": [
+      "And maintainers can point it at anyone's pull request.",
+      "Paste a link, and it runs the code and tries to break it, usually in about two minutes.",
+      "We tried it on pull requests that had already closed.",
+      "On one merged change in Rich, Muse Wonder's tests passed on the old code, and failed with the new code.",
+      "That's a real bug. A person reported it ten days after the merge, and it's still open.",
+      "Nothing gets posted. The maintainer decides."
+    ]
+  },
+  {
+    "id": "safety",
+    "mood": 0.6,
+    "lines": [
+      "And you stay in control.",
+      "Repo code only runs in locked-down sandboxes, with no secrets.",
+      "Issue text is treated as data, never as instructions.",
+      "Agents only learn from runs the tests verified.",
+      "And nothing gets pushed for you. The pull request opens when you click, and confirm."
+    ]
+  },
+  {
+    "id": "close",
+    "mood": 0.8,
+    "lines": [
+      "Everything you just saw was built during this hackathon.",
+      "AI writes fixes.",
+      "ThePolisher proves them."
+    ]
+  }
 ]

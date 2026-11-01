@@ -26,6 +26,7 @@ SAY = {
     "DocPolish": "Doc Polish",
     "WritePolish": "Write Polish",
     "Muse Spark": "Mewz Spark",
+    "Muse Wonder": "Mewz Wonder",
     "AI ": "A.I. ",
 }
 # What a correct transcript looks like: digits for numbers, the product's name as one word.

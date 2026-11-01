@@ -303,7 +303,7 @@ impact(line("proof", 2), 0.14);
 chime(line("proof", 2) + beats.proofPass, [76, 79, 84], 0.05); // passes with the fix
 impact(line("proof", 3) + beats.proofWord, 0.3); // "That's proof"
 chime(line("proof", 3) + beats.proofWord, [72, 76, 79, 84], 0.06);
-impact(line("results", 3), 0.28); // proved fourteen
+impact(line("results", 3), 0.28); // proved eleven
 chime(line("results", 4), [79, 84, 88], 0.04);
 click(line("safety", 4) + beats.safetyClick, 0.4);
 impact(line("close", 2), 0.3);

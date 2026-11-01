@@ -2,11 +2,11 @@ import { AbsoluteFill, useCurrentFrame } from "remotion";
 import { INK, MONO, MUTED, RED, Reveal, SANS, Words, count, lineAt, rise } from "../common";
 
 const PROJECTS = ["Rich", "jsonschema", "sqlglot", "urllib3", "Pygments", "astroid", "pyparsing", "more-itertools", "humanize"];
-const MISSES = ["pyparsing#693", "astroid#3255", "pygments#3247"];
-const ISSUES = 17;
+const MISSES = ["rich#4238", "sqlglot#8752", "astroid#3255", "pyparsing#693", "pygments#3247"];
+const ISSUES = 16;
 const at = (i: number) => lineAt("results", i);
 
-/** One row of 17 cells, one per issue, filling up one at a time. */
+/** One row of 16 cells, one per issue, filling up one at a time. */
 const Board = ({ label, proven, start, ink, isOurs = false }: { label: string; proven: number; start: number; ink: string; isOurs?: boolean }) => {
   const f = useCurrentFrame();
   const showMisses = isOurs && f >= at(5);
@@ -37,7 +37,7 @@ export const Results: React.FC = () => {
       </AbsoluteFill>
       {intro > 0 && (
         <div style={{ position: "absolute", left: 110, right: 110, top: 54, opacity: intro }}>
-          <Words text="17 real open issues. 9 projects we don't control." at={at(1)} stagger={2} style={{ font: `700 62px ${SANS}`, letterSpacing: -1.5 }} />
+          <Words text="16 real open issues. 9 projects we don't control." at={at(1)} stagger={2} style={{ font: `700 62px ${SANS}`, letterSpacing: -1.5 }} />
           <div style={{ display: "flex", gap: 12, marginTop: 18 }}>
             {PROJECTS.map((p, i) => (
               <Reveal key={p} at={at(1) + 12 + i * 4} y={10} style={{ padding: "7px 16px", borderRadius: 30, border: "1.5px solid #bbb", font: `500 24px ${MONO}`, whiteSpace: "nowrap" }}>
@@ -46,12 +46,12 @@ export const Results: React.FC = () => {
             ))}
           </div>
           <div style={{ marginTop: 40 }}>
-            {f >= at(2) - 8 && <Board label="Single prompt, same model" proven={7} start={at(2)} ink="#bdbdbd" />}
-            {f >= at(3) - 8 && <Board label="ThePolisher" proven={14} start={at(3)} ink="#000" isOurs />}
+            {f >= at(2) - 8 && <Board label="First draft, same model" proven={5} start={at(2)} ink="#bdbdbd" />}
+            {f >= at(3) - 8 && <Board label="ThePolisher" proven={11} start={at(3)} ink="#000" isOurs />}
           </div>
           <div style={{ display: "flex", gap: 80, alignItems: "flex-start", marginTop: 6 }}>
             <Reveal at={at(4)} style={{ flex: "none" }}>
-              <div style={{ font: `700 66px ${SANS}`, letterSpacing: -1.5, fontVariantNumeric: "tabular-nums" }}>2× · ${count(f, at(4) + 6, 0.66).toFixed(2)}</div>
+              <div style={{ font: `700 66px ${SANS}`, letterSpacing: -1.5, fontVariantNumeric: "tabular-nums" }}>2× · ${count(f, at(4) + 6, 0.43).toFixed(2)}</div>
               <div style={{ font: `500 30px ${SANS}`, color: MUTED }}>as many proven, total cost</div>
             </Reveal>
             <Reveal at={at(5)}>

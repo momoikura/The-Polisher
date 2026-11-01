@@ -191,9 +191,30 @@
    }
   ]
  },
+ "wonder": {
+  "seconds": 9.5,
+  "frames": 285,
+  "lines": [
+   {
+    "text": "But a proof is only as good as its tests.",
+    "start": 0.55,
+    "end": 2.3559583333333336
+   },
+   {
+    "text": "So Muse Wonder, Meta's stronger model, tries to break the fix.",
+    "start": 2.6559583333333334,
+    "end": 5.9747916666666665
+   },
+   {
+    "text": "It didn't write it. It writes its own tests, and they run in the sandbox.",
+    "start": 6.274791666666667,
+    "end": 9.07625
+   }
+  ]
+ },
  "results": {
-  "seconds": 21.5,
-  "frames": 645,
+  "seconds": 22,
+  "frames": 660,
   "lines": [
    {
     "text": "So does it hold up in the real world?",
@@ -201,34 +222,70 @@
     "end": 2.1580416666666666
    },
    {
-    "text": "We took seventeen real, open issues, in nine popular projects we don't control, and locked in the list before running anything.",
+    "text": "We took sixteen real, open issues, in nine popular projects we don't control, and locked in the list before running anything.",
     "start": 2.6580416666666666,
-    "end": 8.420541666666667
+    "end": 8.596666666666668
    },
    {
-    "text": "A single prompt proved seven.",
-    "start": 8.720541666666666,
-    "end": 10.530583333333333
+    "text": "The first draft alone proved five.",
+    "start": 8.896666666666667,
+    "end": 10.553333333333333
    },
    {
-    "text": "ThePolisher proved fourteen.",
-    "start": 10.950583333333332,
-    "end": 12.462666666666665
+    "text": "ThePolisher proved eleven.",
+    "start": 10.853333333333333,
+    "end": 12.118
    },
    {
-    "text": "Twice as many, for sixty six cents in total.",
-    "start": 12.882666666666665,
-    "end": 15.178624999999998
+    "text": "More than twice as many, for forty three cents in total.",
+    "start": 12.538,
+    "end": 14.964583333333334
    },
    {
     "text": "And when it can't prove a fix? It says so.",
-    "start": 15.478625,
-    "end": 17.572875
+    "start": 15.264583333333334,
+    "end": 17.358833333333333
    },
    {
-    "text": "Three issues are still unproven, and they're published right there with the rest.",
-    "start": 17.872875,
-    "end": 20.781625000000002
+    "text": "Five issues are still unproven, and they're published right there with the rest.",
+    "start": 17.658833333333334,
+    "end": 21.307875
+   }
+  ]
+ },
+ "check": {
+  "seconds": 22,
+  "frames": 660,
+  "lines": [
+   {
+    "text": "And maintainers can point it at anyone's pull request.",
+    "start": 0.55,
+    "end": 3.2134583333333335
+   },
+   {
+    "text": "Paste a link, and it runs the code and tries to break it, usually in about two minutes.",
+    "start": 3.5134583333333333,
+    "end": 6.883583333333333
+   },
+   {
+    "text": "We tried it on pull requests that had already closed.",
+    "start": 7.183583333333333,
+    "end": 9.629624999999999
+   },
+   {
+    "text": "On one merged change in Rich, Muse Wonder's tests passed on the old code, and failed with the new code.",
+    "start": 9.929625,
+    "end": 14.454625
+   },
+   {
+    "text": "That's a real bug. A person reported it ten days after the merge, and it's still open.",
+    "start": 14.754625,
+    "end": 18.578875
+   },
+   {
+    "text": "Nothing gets posted. The maintainer decides.",
+    "start": 18.878875,
+    "end": 21.382083333333334
    }
   ]
  },
