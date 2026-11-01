@@ -62,7 +62,7 @@ export interface MaintainerOptions {
   provider?: string;
   /** A stronger model that tries to break a proven fix with its own tests. Off when unset. */
   challengeModel?: string;
-  /** A stronger model that takes one revision when CodePolish is stuck on an unproven fix. Off when unset. */
+  /** A stronger model that takes one revision when CodePolish is stuck on an unproven fix. Off when unset: it proved nothing in its first test (benchmarks/results/rescue-2026-11-02.md), so the app leaves it off. */
   rescueModel?: string;
 }
 

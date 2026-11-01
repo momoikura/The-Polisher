@@ -37,9 +37,9 @@ flowchart TD
 | Proof | Records which new tests failed on the base commit and pass after the fix. The Proof card on the run page shows this. | `maintainer/proof.ts`, `web/components/ProofCard.tsx` |
 | Challenge | On a proven fix, Muse Wonder (`muse-wonder-1.0`), which didn't write it, writes up to three edge-case tests, and the sandbox runs them on the final patch. Runs after the verdict and never changes it, because a failing test may be a real gap or a wrong guess by the model. Skipped when too little time or budget is left. | `maintainer/challenge.ts` |
 
-### Muse Wonder's other two jobs
+### Muse Wonder's other jobs
 
-- **Rescue (`maintainer/rescue.ts`):** when CodePolish changes approach after rejected revisions and the fix still isn't proven, one revision goes to Muse Wonder and through the same gate. At most twice per run, with at least $0.50 of budget left.
+- **Rescue (`maintainer/rescue.ts`), off in the app:** when CodePolish changes approach after rejected revisions and the fix still isn't proven, one revision goes to Muse Wonder and through the same gate. It proved nothing in its [first test](../benchmarks/results/rescue-2026-11-02.md), so only benchmark lists can turn it on (`rescueModel`).
 - **Pull request check (`maintainer/pr-check.ts`):** a PR link runs the PR's Python files in the sandbox on the commit it branched from, then the challenge. It only reads GitHub. The maintainer gets a verdict and a comment to paste.
 
 ### Limits on every run

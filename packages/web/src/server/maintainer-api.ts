@@ -42,7 +42,7 @@ import {
 import { SessionRegistry } from "./sessions.js";
 import { withProofSection } from "./pr-proof.js";
 
-/** Tries to break each proven fix, tests others' PRs, and steps in when Muse Spark is stuck. Stronger, and costs more per token. */
+/** Tries to break each proven fix and tests others' PRs. Stronger than Muse Spark, and costs more per token. */
 const WONDER_MODEL = "muse-wonder-1.0";
 
 const StartSchema = z.object({
@@ -228,7 +228,7 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
             client,
             sandbox: sandboxClientOrNull() ?? undefined,
             budgetUSD,
-            ...(!isSimulated() && activeProvider() === "meta" ? { challengeModel: WONDER_MODEL, rescueModel: WONDER_MODEL } : {}),
+            ...(!isSimulated() && activeProvider() === "meta" ? { challengeModel: WONDER_MODEL } : {}),
             experience: memory,
             provider,
             onEvent: publish,
