@@ -20,7 +20,7 @@ export interface Challenge {
   model: string;
   total: number;
   passed: number;
-  /** failsOnOriginal: false means the fix broke this; true means it never held, so it's likely a wrong guess. */
+  /** failsOnOriginal: false means it passed before this change. true means it failed then too, maybe for another reason. */
   failures: Array<{ test: string; message: string; failsOnOriginal?: boolean }>;
   tests: string;
   ideas: string[];

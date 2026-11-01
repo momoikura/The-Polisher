@@ -141,7 +141,6 @@ export class GitHubClient {
   async getPullRequest(ref: IssueRef) {
     const base = `/repos/${ref.owner}/${ref.repo}`;
     const pr = await this.request(`${base}/pulls/${ref.number}`, PullSchema);
-    if (!pr.head.repo) throw new GitHubError("This pull request's fork was deleted, so its code can't be read.");
     const [compare, files] = await Promise.all([
       this.request(`${base}/compare/${pr.base.sha}...${pr.head.sha}`, z.object({ merge_base_commit: z.object({ sha: z.string() }) })),
       this.request(`${base}/pulls/${ref.number}/files?per_page=100`, z.array(z.object({ filename: z.string(), status: z.string() }))),
@@ -152,8 +151,9 @@ export class GitHubClient {
       baseSha: compare.merge_base_commit.sha,
       baseBranch: pr.base.ref,
       headSha: pr.head.sha,
-      headOwner: pr.head.repo.owner.login,
-      headRepo: pr.head.repo.name,
+      // A deleted fork's commits can still be read through the repo the PR was made to.
+      headOwner: pr.head.repo?.owner.login ?? ref.owner,
+      headRepo: pr.head.repo?.name ?? ref.repo,
       files: files.map((f) => ({ path: f.filename, status: f.status })),
     };
   }

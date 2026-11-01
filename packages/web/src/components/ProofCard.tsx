@@ -31,8 +31,8 @@ export function ChallengeSection({ challenge }: { challenge: Challenge }) {
       {challenge.failures.map((f) => (
         <pre key={f.test} className="proof-output">
           {f.test}
-          {f.failsOnOriginal === true && "\nAlso fails on the original code, so this fix didn't cause it."}
-          {f.failsOnOriginal === false && "\nPasses on the original code, so this fix changed it."}
+          {f.failsOnOriginal === true && "\nAlso fails on the original code, possibly for a different reason."}
+          {f.failsOnOriginal === false && "\nPasses on the original code and fails with this change."}
           {"\n"}
           {f.message}
         </pre>

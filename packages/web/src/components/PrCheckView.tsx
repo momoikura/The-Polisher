@@ -10,7 +10,7 @@ type Props = {
 };
 
 const GOOD = new Set(["proven"]);
-const NEUTRAL = new Set(["no_tests", "only_new_code", "not_run"]);
+const NEUTRAL = new Set(["no_tests", "only_new_code", "tests_pass_without_it", "not_run"]);
 
 /** The result of checking someone's pull request. Nothing here posts to GitHub. */
 export function PrCheckView({ view, action }: Props) {
@@ -70,7 +70,7 @@ export function PrCheckView({ view, action }: Props) {
       )}
 
       {proof ? <ProofCard proof={proof} diffs={view.current?.diffs ?? []} challenge={challenge} context={context} /> : challenge && <ChallengeSection challenge={challenge} />}
-      {view.current && <FilesChanged baseline={null} current={view.current} isFinal={view.result !== null} />}
+      {view.current && <FilesChanged baseline={null} current={view.current} isFinal={view.result !== null} isPlain />}
     </div>
   );
 }

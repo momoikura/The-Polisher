@@ -1,8 +1,8 @@
 import type { Challenge, Proof } from "@thepolisher/agents";
 
 function challengeNote(failsOnOriginal: boolean | undefined): string {
-  if (failsOnOriginal === true) return "It also fails on the original code, so this change didn't cause it.";
-  if (failsOnOriginal === false) return "It passes on the original code, so this change affects it. Please check it.";
+  if (failsOnOriginal === true) return "It also fails on the original code, possibly for a different reason.";
+  if (failsOnOriginal === false) return "It passes on the original code and fails with this change. Please check it.";
   return "Please check whether this is a real gap.";
 }
 

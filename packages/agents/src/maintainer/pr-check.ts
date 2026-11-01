@@ -16,6 +16,7 @@ import { proofFrom, type Proof } from "./proof.js";
 import { newFailing, type SandboxClient, type Validation } from "./sandbox.js";
 
 const MAX_FILES = 40;
+const MAX_FILE_CHARS = 1_000_000;
 const TIME_LIMIT_MS = 20 * 60_000;
 /** Roughly the most one challenge costs. */
 const CHALLENGE_MIN_USD = 0.15;
@@ -66,9 +67,9 @@ export function judgePr(v: Validation, proof: Proof | null): Pick<PrCheck, "verd
     if (broken > 0) return { verdict: "new_failures", headline: `This PR breaks ${plural(broken, "test")}`, detail: `${counts}${already}. It also adds no tests.` };
     return { verdict: "no_tests", headline: "Nothing breaks, but no test shows it works", detail: `${counts}${already}. The PR adds or changes no tests.` };
   }
-  if (!proof.passedAfter) return { verdict: "tests_fail", headline: "Its own tests fail", detail: `The tests this PR adds or changes fail with its code. ${counts}${already}.` };
+  if (!proof.passedAfter) return { verdict: "tests_fail", headline: "Its own tests fail", detail: `The tests this PR adds or changes fail with its code in the sandbox, which installs the newest dependencies. If they pass in the project's CI, a dependency version may be the cause. ${counts}${already}.` };
   if (broken > 0) return { verdict: "new_failures", headline: `This PR breaks ${plural(broken, "test")}`, detail: `Its own tests pass, but ${plural(broken, "other test")} newly ${broken === 1 ? "fails" : "fail"}. ${counts}${already}.` };
-  if (!proof.failedOnBase) return { verdict: "tests_pass_without_it", headline: "Its tests pass without it too", detail: `The tests it adds or changes also pass on the original code, so they don't show what this PR changes. ${counts}${already}.` };
+  if (!proof.failedOnBase) return { verdict: "tests_pass_without_it", headline: "Its tests pass without it too", detail: `The tests it adds or changes also pass on the original code, so they don't show what this PR changes. That's normal for a refactor. ${counts}${already}.` };
   if (!proof.proven) return { verdict: "only_new_code", headline: "Its tests only fail for missing code", detail: `Its tests fail on the original code only because they use code this PR adds. That's normal for a new feature, but doesn't show a bug being fixed. ${counts}${already}.` };
   return { verdict: "proven", headline: "Its tests show it works", detail: `Its tests fail on the original code and pass with this PR, and nothing else newly fails. ${counts}${already}.` };
 }
@@ -121,6 +122,8 @@ export async function runPrCheck(
   if (pythonFiles.length > MAX_FILES) throw new Error(`This pull request changes ${pythonFiles.length} Python files; the check handles up to ${MAX_FILES}.`);
 
   const changes = Object.fromEntries(await Promise.all(pythonFiles.map(async (f) => [f.path, await github.getFile(pr.headOwner, pr.headRepo, f.path, pr.headSha)] as const)));
+  const tooLarge = Object.entries(changes).find(([, content]) => content.length > MAX_FILE_CHARS);
+  if (tooLarge) throw new Error(`${tooLarge[0]} is too large to run; the check handles files up to 1 MB.`);
   const originals = await Promise.all(
     pythonFiles.map(async (f) => [f.path, await github.getFile(ref.owner, ref.repo, f.path, pr.baseSha).catch(() => null)] as const)
   );

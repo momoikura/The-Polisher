@@ -45,9 +45,15 @@ function DiffFile({ diff, isOpen }: { diff: FileDiff; isOpen: boolean }) {
   );
 }
 
-type Props = { baseline: Side | null; current: Side | null; isFinal: boolean };
+type Props = {
+  baseline: Side | null;
+  current: Side | null;
+  isFinal: boolean;
+  /** Someone else's PR: one version, and no agents to compare against. */
+  isPlain?: boolean;
+};
 
-export function FilesChanged({ baseline, current, isFinal }: Props) {
+export function FilesChanged({ baseline, current, isFinal, isPlain = false }: Props) {
   const [version, setVersion] = useState<Version>("final");
   const [showDescription, setShowDescription] = useState(false);
   const side = version === "final" ? current : baseline;
@@ -57,26 +63,32 @@ export function FilesChanged({ baseline, current, isFinal }: Props) {
   return (
     <section className="files" aria-label="Files changed">
       <div className="files-toolbar">
-        <div className="segmented" role="radiogroup" aria-label="Version">
-          {(["final", "draft"] as const).map((v) => (
-            <label key={v} className={`segment${version === v ? " is-active" : ""}`}>
-              <input type="radio" name="version" checked={version === v} onChange={() => setVersion(v)} />
-              {v === "final" ? (isFinal ? "After ThePolisher" : "Current best") : "First draft"}
+        {!isPlain && (
+          <>
+            <div className="segmented" role="radiogroup" aria-label="Version">
+              {(["final", "draft"] as const).map((v) => (
+                <label key={v} className={`segment${version === v ? " is-active" : ""}`}>
+                  <input type="radio" name="version" checked={version === v} onChange={() => setVersion(v)} />
+                  {v === "final" ? (isFinal ? "After ThePolisher" : "Current best") : "First draft"}
+                </label>
+              ))}
+            </div>
+            <label className="check-toggle">
+              <input type="checkbox" checked={showDescription} onChange={(e) => setShowDescription(e.target.checked)} />
+              Show PR description
             </label>
-          ))}
-        </div>
-        <label className="check-toggle">
-          <input type="checkbox" checked={showDescription} onChange={(e) => setShowDescription(e.target.checked)} />
-          Show PR description
-        </label>
+          </>
+        )}
         <span className="mono files-total">
           {side?.diffs.length ?? 0} files <strong>+{added}</strong> <span className="muted">−{removed}</span>
         </span>
       </div>
 
-      <p className="files-note muted">
-        {version === "draft" ? "One prompt, no review. Kept unchanged so you can compare." : isFinal ? "The version the reviewers approved, or the best they reached." : "Updates live as revisions are kept."}
-      </p>
+      {!isPlain && (
+        <p className="files-note muted">
+          {version === "draft" ? "One prompt, no review. Kept unchanged so you can compare." : isFinal ? "The version the reviewers approved, or the best they reached." : "Updates live as revisions are kept."}
+        </p>
+      )}
 
       {!side ? (
         <p className="blankslate">Nothing written yet.</p>

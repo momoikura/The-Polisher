@@ -44,7 +44,7 @@ ALLOWED_DOMAINS = ["github.com", "codeload.github.com", "pypi.org", "files.pytho
 INSTALL_TIMEOUT_S = 240
 TEST_TIMEOUT_S = 300
 MAX_FILES = 40
-MAX_FILE_CHARS = 200_000
+MAX_FILE_CHARS = 1_000_000
 TAIL_CHARS = 2_000
 # pytest names tests relative to its root folder; given specific files it may pick tests/ as the root,
 # which renames every test (test_cells vs tests.test_cells). Pinning the root keeps names stable

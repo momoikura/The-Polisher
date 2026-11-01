@@ -11,7 +11,7 @@
 ![target](https://img.shields.io/badge/fixes-Python_%2B_pytest-3776ab)
 ![stack](https://img.shields.io/badge/TypeScript-React_19-3178c6)
 ![hosting](https://img.shields.io/badge/hosting-Cloudflare_Pages-f38020)
-![tests](https://img.shields.io/badge/tests-359_passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-377_passing-brightgreen)
 
 **Paste a GitHub issue. Get a pull request whose tests prove the fix.**
 
@@ -31,8 +31,8 @@
 
 | Criterion | Where to look |
 | --- | --- |
-| **Impact** (30%) | Maintainers are flooded with AI pull requests they can't trust. Each PR from ThePolisher carries its own evidence: fails before, passes after, whole-suite counts. [The problem](#the-problem), [results on projects we don't control](#results), including [the mistake we published](benchmarks/results/rerun-2026-10-30.md). |
-| **Use of Meta AI tooling** (25%) | Two Meta models with different jobs. Muse Spark writes three drafts and polishes the best, with `reasoning_effort` set per task and issue screenshots read as images. Muse Wonder, which didn't write the fix, then writes its own tests to try to break it. [Models](docs/architecture.md). |
+| **Impact** (30%) | Maintainers are flooded with AI pull requests they can't trust. ThePolisher's own PRs carry their evidence, and maintainers can paste anyone's PR to test it. On one merged Rich PR, it [found a real bug](benchmarks/results/pr-check-2026-11-02.md) that's still open. [The problem](#the-problem), [results on projects we don't control](#results), including [the mistake we published](benchmarks/results/rerun-2026-10-30.md). |
+| **Use of Meta AI tooling** (25%) | Two Meta models with different jobs. Muse Spark does the work: three drafts, then polishing, with `reasoning_effort` set per task and issue screenshots read as images. Muse Wonder, which didn't write the code, tries to break each proven fix and checks other people's PRs, and takes a revision when Muse Spark is stuck. [Models](docs/architecture.md). |
 | **Technical depth** (20%) | Tests decide, not the model: a revision that breaks a passing check is thrown away. Untrusted code runs only in Modal sandboxes with no secrets. A hard 20-minute limit. Issue lists committed before each benchmark. [Architecture](docs/architecture.md), [CI](https://github.com/momoikura/The-Polisher/actions/workflows/ci.yml). |
 | **Demo** (25%) | [Live site](https://thepolisher.pages.dev), where your first 3 runs are free after signing in with GitHub. Try an issue from a public Python + pytest repo. |
 
@@ -53,6 +53,7 @@ ThePolisher is a verifiable agent built for that gap. It's for maintainers and c
 | **Polishes** | Four agents improve the code, security, docs and PR description in parallel. |
 | **Proves** | New tests must fail on the original code and pass with the fix. |
 | **Waits for you** | You compare the first draft with the result. The PR opens only when you click. |
+| **Checks others' PRs** | Paste a pull request. Its code runs in the sandbox and Muse Wonder tries to break it. You get a verdict and a comment to paste. Nothing is posted. |
 
 ## How it works
 
@@ -70,6 +71,8 @@ Every revision goes through a gate. It is kept only if it does not break a check
 ## Results
 
 **Latest full run (2026-11-01): 11 of 16 fixes proven, 10 of them with no new failures in the whole test suite.** The first draft alone proved 5. All 16 issues together cost $0.43, with a median of 8.6 minutes each. That's one fewer proven than the run before, on a stricter check that now catches a fix the earlier run wrongly passed. See [final-2026-11-01.md](benchmarks/results/final-2026-11-01.md), which also covers Muse Wonder's challenge and what it hasn't found yet.
+
+**On real pull requests:** Muse Wonder's tests failed on a merged Rich PR (#4076) and passed on the code before it. It's a real bug: CRLF text gets lost, a person reported it ten days later as [Rich#4090](https://github.com/Textualize/rich/issues/4090), and it's still open. It doesn't catch this on every run, and the check doesn't predict what gets merged. See [pr-check-2026-11-02.md](benchmarks/results/pr-check-2026-11-02.md).
 
 The first benchmark, from 2026-10-29, is below.
 
