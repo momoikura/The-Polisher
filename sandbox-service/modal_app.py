@@ -43,13 +43,17 @@ REPO_DIR = "/repo"
 ALLOWED_DOMAINS = ["github.com", "codeload.github.com", "pypi.org", "files.pythonhosted.org"]
 INSTALL_TIMEOUT_S = 240
 TEST_TIMEOUT_S = 300
+# A test the model wrote can hang: stop it, so it fails with a message instead of using up the run.
+PER_TEST_TIMEOUT_S = 60
+TARGETED_TIMEOUT_S = 120
 MAX_FILES = 40
 MAX_FILE_CHARS = 1_000_000
 TAIL_CHARS = 2_000
 # pytest names tests relative to its root folder; given specific files it may pick tests/ as the root,
 # which renames every test (test_cells vs tests.test_cells). Pinning the root keeps names stable
 # across targeted and whole-suite runs, so new tests and old failures are always recognised.
-PYTEST = f"python -m pytest -q -p no:cacheprovider --rootdir={REPO_DIR}"
+# -o, not --timeout: if the plugin doesn't load, an unknown ini option only warns.
+PYTEST = f"python -m pytest -q -p no:cacheprovider --rootdir={REPO_DIR} -o timeout={PER_TEST_TIMEOUT_S}"
 LINT_RULES = "E9,F63,F7,F82,F401,F811,F841"
 # The repo's dependencies go into this venv; it sees the image's pytest/ruff/bandit.
 VENV = "/opt/venv"
@@ -148,7 +152,7 @@ web_image = modal.Image.debian_slim(python_version="3.12").pip_install("fastapi[
 sandbox_image = (
     modal.Image.debian_slim(python_version="3.12")
     .apt_install("curl", "git")
-    .pip_install("pip>=24", "setuptools", "wheel", "pytest==8.3.3", "ruff==0.6.9", "bandit==1.7.10")
+    .pip_install("pip>=24", "setuptools", "wheel", "pytest==8.3.3", "pytest-timeout==2.3.1", "ruff==0.6.9", "bandit==1.7.10")
 )
 
 SAFE_PATH = re.compile(r"^(?!/)(?!.*\.\.)[A-Za-z0-9_./-]+\.py$")
@@ -541,7 +545,7 @@ def validate_patch(repo: str, sha: str, changes: dict[str, str], new_tests: list
             bcode, _, _ = run(
                 sb,
                 f"{PYTEST} --junitxml=/tmp/base.xml {' '.join(shlex.quote(t) for t in tests)}",
-                timeout=TEST_TIMEOUT_S,
+                timeout=TARGETED_TIMEOUT_S,
             )
             failed_on_base = bcode != 0
             base_failures = None
@@ -592,7 +596,10 @@ def validate_patch(repo: str, sha: str, changes: dict[str, str], new_tests: list
         # full: the whole suite. Falls back to the whole suite when nothing related is found.
         targets = select_tests(sb, sources, [p for p in changes if TEST_PATH.search(p)]) if scope == "targeted" else None
         target_args = " ".join(shlex.quote(t) for t in targets) if targets else ""
-        tcode, tout, terr = run(sb, f"{PYTEST} --junitxml=/tmp/junit.xml {target_args}", timeout=TEST_TIMEOUT_S)
+        limit = TARGETED_TIMEOUT_S if targets else TEST_TIMEOUT_S
+        tcode, tout, terr = run(sb, f"{PYTEST} --junitxml=/tmp/junit.xml {target_args}", timeout=limit)
+        if tcode == 124:
+            terr += f"\nThe tests didn't finish in {limit} seconds. A test probably hangs, from an infinite loop or a regex that backtracks forever: bound it, or test it on a smaller input."
         junit_text = None
         try:
             junit_text = sb.filesystem.read_text("/tmp/junit.xml")

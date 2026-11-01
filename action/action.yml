@@ -1,0 +1,18 @@
+name: ThePolisher PR check
+description: Tests each pull request in a sandbox, has Muse Wonder try to break it, and comments with what it found.
+branding:
+  icon: check-circle
+  color: gray-dark
+inputs:
+  meta-api-key:
+    description: Your Meta Model API key, sent to ThePolisher for this one check and not stored. Store it as a repository secret.
+    required: true
+  github-token:
+    description: Used only to post or update the comment.
+    default: ${{ github.token }}
+  server:
+    description: The ThePolisher server to use.
+    default: https://thepolisher.pages.dev
+runs:
+  using: node24
+  main: check.mjs

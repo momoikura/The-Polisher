@@ -681,6 +681,31 @@ describe("fixes from run 4", () => {
 });
 
 describe("an unusable revision", () => {
+  it("thinks for less on the next round after a model timeout", async () => {
+    const efforts: Array<string | undefined> = [];
+    const slow = {
+      async complete(_messages: unknown, options?: { reasoningEffort?: string }): Promise<never> {
+        efforts.push(options?.reasoningEffort);
+        throw new ModelTimeoutError(300_000);
+      },
+    };
+    const content = serializeFiles({ [SRC]: base[SRC] });
+    const agent = new MaintainerLaneAgent({
+      lane: "code",
+      client: slow,
+      workspace: new PrWorkspace(DEMO_SNAPSHOT, { code: { [SRC]: base[SRC] }, docs: {}, pr: "# x" }),
+      board: new ValidationBoard(),
+      onActivity: () => {},
+    });
+    const evaluation = { scores: { overall: 5, dimensions: {}, rationale: "" }, issues: [] };
+    const tests = { checks: [], allObjectivesPassed: true } as never;
+
+    await agent.repair({} as never, {} as never, content, evaluation, tests);
+    await agent.repair({} as never, {} as never, content, evaluation, tests);
+
+    expect(efforts).toEqual([undefined, "low"]);
+  });
+
   it("counts as a rejected attempt instead of ending the agent's lane", async () => {
     const garbage = { async complete() { return { text: "I could not do it.", model: "m", promptTokens: 7, completionTokens: 3 }; } };
     const content = serializeFiles({ [SRC]: base[SRC] });

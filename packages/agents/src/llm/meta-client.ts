@@ -111,7 +111,8 @@ export type MetaChatCompletionRequest = z.infer<typeof MetaChatCompletionRequest
 
 export const ChatChoiceSchema = z.object({
   index: z.number().optional().default(0),
-  message: ChatMessageSchema,
+  // A reasoning model that spends all its tokens thinking replies with null: a failed attempt, still charged.
+  message: ChatMessageSchema.extend({ content: ChatMessageSchema.shape.content.nullable() }),
   finish_reason: z.string().nullable().optional(),
 });
 

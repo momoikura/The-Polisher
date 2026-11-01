@@ -127,6 +127,21 @@ describe("runChallenge", () => {
     expect(charged).toEqual(["muse-wonder-1.0"]);
   });
 
+  it("shows the model the changed code in full, not just the diff", async () => {
+    let prompt = "";
+    const client: ChatClient = {
+      complete: async (messages) => {
+        prompt = JSON.stringify(messages);
+        return { text: json, model: "muse-wonder-1.0", promptTokens: 1, completionTokens: 1 };
+      },
+    };
+    const code = { "tinyslug/__init__.py": "# a line the change didn't touch\nfixed = True\n" };
+
+    await runChallenge({ client, sandbox: sandboxWith({ failToPass: toPass }).sandbox, snapshot: { ...DEMO_SNAPSHOT, files: { ...DEMO_SNAPSHOT.files, "tinyslug/__init__.py": "# a line the change didn't touch\nfixed = False\n" } }, bundle: { code, docs: {}, pr: "" }, model: "muse-wonder-1.0" });
+
+    expect(prompt).toContain("a line the change didn't touch");
+  });
+
   it("claims nothing when the model wrote no tests", async () => {
     const { client } = replyWith(JSON.stringify({ tests: "x = 1\n", ideas: [] }));
 

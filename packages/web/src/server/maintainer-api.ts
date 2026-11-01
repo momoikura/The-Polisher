@@ -16,6 +16,7 @@ import {
   diffBundle,
   isPullUrl,
   parseIssueUrl,
+  parsePullUrl,
   runPrCheck,
   runMaintainer,
   splitPr,
@@ -44,6 +45,10 @@ import { withProofSection } from "./pr-proof.js";
 
 /** Tries to break each proven fix and tests others' PRs. Stronger than Muse Spark, and costs more per token. */
 const WONDER_MODEL = "muse-wonder-1.0";
+const ACTION_BUDGET_USD = 1;
+
+/** From the GitHub Action: no sign-in, so the Meta key is what identifies a real user. */
+const CheckSchema = z.object({ pullUrl: z.string().trim().max(500), metaApiKey: z.string().trim().min(1).max(500) });
 
 const StartSchema = z.object({
   issueUrl: z.string().trim().min(1, "Paste a GitHub issue or pull request link.").max(500),
@@ -112,6 +117,8 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
     });
     return true;
   }
+
+  if (req.method === "POST" && url === "/api/check") return startActionCheck(req, res);
 
   if (req.method === "POST" && url === "/api/maintainer") {
     let body: unknown;
@@ -299,6 +306,86 @@ const runAddress = (runId: string): string | null => {
   const site = process.env.THEPOLISHER_PUBLIC_URL?.trim().replace(/\/+$/, "");
   return site ? `${site}/runs/${runId}` : null;
 };
+
+/** Starts a pull request check for the GitHub Action (action/). The key is used for this run and not stored. */
+async function startActionCheck(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
+  let body: unknown;
+  try {
+    body = await readJsonBody(req, MAX_BODY_BYTES);
+  } catch (err) {
+    sendJson(res, 400, { error: err instanceof Error ? err.message : "Invalid request." });
+    return true;
+  }
+  const parsed = CheckSchema.safeParse(body);
+  if (!parsed.success || !isPullUrl(parsed.data.pullUrl)) {
+    sendJson(res, 400, { error: "Send a GitHub pull request link and a Meta Model API key." });
+    return true;
+  }
+  const sandbox = sandboxClientOrNull();
+  if (isSimulated() || activeProvider() !== "meta" || !sandbox) {
+    sendJson(res, 503, { error: "This server can't check pull requests." });
+    return true;
+  }
+  const { pullUrl, metaApiKey } = parsed.data;
+  // Limited per repo, because each check uses the owner's sandbox.
+  const ref = parsePullUrl(pullUrl);
+  const owner = `action:${ref.owner}/${ref.repo}`;
+  const active = registry.activeSessions();
+  const blocked = checkRunLimits(
+    { userActive: active.filter((s) => s.meta.owner === owner).length, userToday: await runStore().countSince(owner, startOfTodayUtc()), globalActive: active.length },
+    runLimitsFromEnv()
+  );
+  if (blocked) {
+    sendJson(res, 429, { error: blocked });
+    return true;
+  }
+  // Checked first, so a made-up key can't use the sandbox.
+  const client = modelClientForKey(metaApiKey);
+  try {
+    await client.complete([{ role: "user", content: "ok" }], { maxTokens: 1, reasoningEffort: "minimal" });
+  } catch {
+    sendJson(res, 401, { error: "Meta didn't accept this API key." });
+    return true;
+  }
+
+  const holder: { started: RunRecord | null } = { started: null };
+  const session = registry.start(
+    async (publish) => {
+      let result: MaintainerResult;
+      try {
+        result = await runPrCheck(pullUrl, {
+          github: githubClient(),
+          sandbox,
+          client,
+          budgetUSD: ACTION_BUDGET_USD,
+          challengeModel: WONDER_MODEL,
+          runUrl: () => runAddress(session.id),
+          onEvent: publish,
+        });
+      } catch (err) {
+        const started = holder.started;
+        if (started) {
+          const spent = session.events.reduce((usd, e) => (e.type === "cost" ? e.totalUSD : usd), 0);
+          await saveQuietly("save the failed run", () => runStore().finish(finishedRecord(started, { status: "failed", totalUSD: spent, title: "" }), session.events));
+        }
+        throw err;
+      }
+      const started = holder.started;
+      if (started) {
+        const finished = { ...finishedRecord(started, { status: result.status, totalUSD: result.totalUSD, title: result.snapshot?.issue.title ?? "" }), checkResult: result.message };
+        await saveQuietly("save the finished run", () => runStore().finish(finished, session.events));
+      }
+      return result;
+    },
+    (message) => ({ type: "error", message, at: Date.now() })
+  );
+  session.meta.owner = owner;
+  holder.started = startedRecord(session.id, pullUrl, providerStatus().model, owner);
+  const started = holder.started;
+  void saveQuietly("record the run start", () => runStore().start(started));
+  sendJson(res, 201, { id: session.id });
+  return true;
+}
 
 export function pullRequestFrom(result: MaintainerResult, model: string, runId?: string): SavedPullRequest | null {
   const { snapshot, final, status } = result;

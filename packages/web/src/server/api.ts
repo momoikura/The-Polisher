@@ -12,7 +12,7 @@ import { handleMaintainerRequest } from "./maintainer-api.js";
 export async function handleApiRequest(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
   const url = req.url ?? "";
   if (url.startsWith("/api/auth/")) return handleAuthRequest(req, res);
-  if (url.startsWith("/api/maintainer")) return handleMaintainerRequest(req, res);
+  if (url.startsWith("/api/maintainer") || url === "/api/check") return handleMaintainerRequest(req, res);
   if (url.startsWith("/api/experience")) return handleExperienceRequest(req, res);
   if (url.startsWith("/api/runs")) return handleHistoryRequest(req, res);
   return false;

@@ -11,7 +11,7 @@
 ![target](https://img.shields.io/badge/fixes-Python_%2B_pytest-3776ab)
 ![stack](https://img.shields.io/badge/TypeScript-React_19-3178c6)
 ![hosting](https://img.shields.io/badge/hosting-Cloudflare_Pages-f38020)
-![tests](https://img.shields.io/badge/tests-377_passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-385_passing-brightgreen)
 
 **Paste a GitHub issue. Get a pull request whose tests prove the fix.**
 
@@ -53,7 +53,29 @@ ThePolisher is a verifiable agent built for that gap. It's for maintainers and c
 | **Polishes** | Four agents improve the code, security, docs and PR description in parallel. |
 | **Proves** | New tests must fail on the original code and pass with the fix. |
 | **Waits for you** | You compare the first draft with the result. The PR opens only when you click. |
-| **Checks others' PRs** | Paste a pull request. Its code runs in the sandbox and Muse Wonder tries to break it. You get a verdict and a comment to paste. Nothing is posted. |
+| **Checks others' PRs** | Paste a pull request, or [add the GitHub Action](#check-prs-automatically). Its code runs in the sandbox and Muse Wonder tries to break it. On the site, you get a comment to paste and nothing is posted. |
+
+## Check PRs automatically
+
+Add this to a Python project's `.github/workflows/thepolisher.yml` to check each pull request and comment with the result. Store your [Meta Model API key](https://dev.meta.ai) as the `META_API_KEY` secret.
+
+```yaml
+name: ThePolisher
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+permissions:
+  pull-requests: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: momoikura/The-Polisher/action@main
+        with:
+          meta-api-key: ${{ secrets.META_API_KEY }}
+```
+
+`pull_request_target` is what makes this work for PRs from forks, and it's safe here because the workflow never checks out the PR's code: only ThePolisher's sandbox runs it. A verdict never fails the workflow. Each check costs up to $1 on your Meta key, usually under $0.10, with limits of one check at a time and 10 a day per repo. The key is used for that check and not stored. Results are public, like every run.
 
 ## How it works
 

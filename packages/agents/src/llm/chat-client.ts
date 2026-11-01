@@ -149,7 +149,7 @@ export async function completeStructured<T>(
   messages: ChatMessage[],
   // Input type left open so schemas with .default() infer T as their parsed output.
   schema: z.ZodType<T, z.ZodTypeDef, unknown>,
-  options?: ChatOptions
+  { maxAttempts = MAX_ATTEMPTS, ...options }: ChatOptions & { maxAttempts?: number } = {}
 ): Promise<StructuredResult<T>> {
   let conversation = [...messages];
   let promptTokens = 0;
@@ -157,7 +157,7 @@ export async function completeStructured<T>(
   let lastError = "";
   let model = "";
 
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     const reply = await client.complete(conversation, options);
     model = reply.model;
     promptTokens += reply.promptTokens;
@@ -187,7 +187,7 @@ export async function completeStructured<T>(
     ];
   }
 
-  throw new StructuredOutputError(`Structured output invalid after ${MAX_ATTEMPTS} attempts: ${lastError}`, {
+  throw new StructuredOutputError(`Structured output invalid after ${maxAttempts} attempts: ${lastError}`, {
     model,
     promptTokens,
     completionTokens,

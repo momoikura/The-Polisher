@@ -27,7 +27,7 @@ export function parseIssueUrl(input: string): IssueRef {
 const PullSchema = z.object({
   title: z.string(),
   body: z.string().nullable(),
-  base: z.object({ sha: z.string(), ref: z.string() }),
+  base: z.object({ sha: z.string(), ref: z.string(), repo: z.object({ private: z.boolean() }) }),
   head: z.object({ sha: z.string(), repo: z.object({ name: z.string(), owner: z.object({ login: z.string() }) }).nullable() }),
 });
 
@@ -141,6 +141,8 @@ export class GitHubClient {
   async getPullRequest(ref: IssueRef) {
     const base = `/repos/${ref.owner}/${ref.repo}`;
     const pr = await this.request(`${base}/pulls/${ref.number}`, PullSchema);
+    // Checks are public, and the sandbox can only download public repos.
+    if (pr.base.repo.private) throw new GitHubError("ThePolisher only checks public repositories.");
     const [compare, files] = await Promise.all([
       this.request(`${base}/compare/${pr.base.sha}...${pr.head.sha}`, z.object({ merge_base_commit: z.object({ sha: z.string() }) })),
       this.request(`${base}/pulls/${ref.number}/files?per_page=100`, z.array(z.object({ filename: z.string(), status: z.string() }))),

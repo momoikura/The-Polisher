@@ -197,6 +197,8 @@ export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, Teste
     return { checks: [...codeStaticChecks(bundle.code, snap), ...uxChecks(bundle.code, snap), ...sandboxChecks] };
   }
 
+  private timedOut = false;
+
   async repair(
     _run: Run,
     _a: ArtifactVersion,
@@ -243,7 +245,7 @@ export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, Teste
         const r = await completeStructured(this.o.client, messages, FilesRepairSchema, {
           ...(stronger ? { model: stronger } : {}),
           temperature,
-          reasoningEffort: this.o.lane === "code" ? EFFORT.codeRepair : EFFORT.otherRepair,
+          reasoningEffort: this.o.lane === "code" && !this.timedOut ? EFFORT.codeRepair : EFFORT.otherRepair,
         });
         ({ model, promptTokens, completionTokens } = r);
         const current = parseFiles(content);
@@ -271,6 +273,8 @@ export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, Teste
       // One unusable reply or timeout is a failed attempt, not the end of the lane: hand back the
       // current version so the gate rejects it and the next round adapts, with any tokens charged.
       if (err instanceof ModelTimeoutError) {
+        // Thinking for less is what gets the next round back in time (pyparsing#693 lost two rounds in a row).
+        this.timedOut = true;
         return { content, changesMade: [`The model timed out (${err.message}); nothing was changed`], model: "", promptTokens: 0, completionTokens: 0 };
       }
       if (!(err instanceof StructuredOutputError)) throw err;
