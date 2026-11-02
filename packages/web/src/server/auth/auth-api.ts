@@ -70,6 +70,16 @@ export function isSameOrigin(req: IncomingMessage): boolean {
 }
 
 /** The signed-in user for this request, or null. */
+/**
+ * A session outlives its GitHub token: the user can revoke it, and GitHub drops the oldest once an
+ * app holds too many for one person. Ends the session, so the page offers sign-in again.
+ */
+export async function endExpiredSession(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const id = parseCookies(req.headers.cookie)[SESSION_COOKIE];
+  if (id) await sessionStore().delete(id);
+  res.setHeader("Set-Cookie", clearedCookie(SESSION_COOKIE, config().secure));
+}
+
 export async function currentUser(req: IncomingMessage): Promise<SignedInUser | null> {
   if (!isAuthEnabled()) return null;
   const id = parseCookies(req.headers.cookie)[SESSION_COOKIE];

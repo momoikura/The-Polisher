@@ -124,7 +124,7 @@ export class GitHubClient {
       signal: AbortSignal.timeout(30_000),
     });
     if (res.status === 404) throw new GitHubError("Not found on GitHub (or the token can't see it).", 404);
-    if (res.status === 401) throw new GitHubError("GitHub rejected GITHUB_TOKEN.", 401);
+    if (res.status === 401) throw new GitHubError("GitHub rejected the token. If you're signed in, sign out and sign in again.", 401);
     if (res.status === 403 || res.status === 429) {
       throw new GitHubError(
         this.opts.token ? "GitHub refused the request (permissions or rate limit)." : "GitHub rate limit hit; set GITHUB_TOKEN for higher limits.",
@@ -158,6 +158,16 @@ export class GitHubClient {
       headRepo: pr.head.repo?.name ?? ref.repo,
       files: files.map((f) => ({ path: f.filename, status: f.status })),
     };
+  }
+
+  /** False only when GitHub says the token is no longer valid; a network problem isn't a verdict on it. */
+  async tokenWorks(): Promise<boolean> {
+    try {
+      await this.request("/user", z.object({}));
+      return true;
+    } catch (err) {
+      return !(err instanceof GitHubError && err.status === 401);
+    }
   }
 
   async getIssue(ref: IssueRef): Promise<Issue> {

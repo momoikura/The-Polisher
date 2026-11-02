@@ -3,6 +3,7 @@ import type { Challenge, Proof } from "@thepolisher/agents";
 import { withProofSection } from "../src/server/pr-proof.js";
 import { buildReceipt, patchHash } from "../src/maintainer/receipt.js";
 import { pageFromPath, pathForRun, runIdFromPath } from "../src/maintainer/routes.js";
+import { publicRun } from "../src/server/history.js";
 
 const proof: Proof = {
   proven: true,
@@ -70,6 +71,24 @@ describe("the receipt", () => {
 
     expect(receipt).toMatchObject({ repo: "o/r", commit: "abc", issue: "u", proven: true, tests: { passed: 950, total: 983, alreadyFailing: 8, newFailing: 0 }, challenge: { passed: 3, total: 3 } });
     expect(receipt.patchSha256).toBe(await patchHash(diffs));
+  });
+});
+
+describe("a run saved as running", () => {
+  const STARTED = "2026-11-02T06:00:00.000Z";
+  const record = { id: "1", issueUrl: "u", repo: "o/r", issueNumber: 1, title: "", status: "running", totalUSD: 0, model: "m", startedAt: STARTED, finishedAt: null, user: "someone" } as const;
+  const after = (minutes: number) => Date.parse(STARTED) + minutes * 60_000;
+
+  it("still shows running while it can be", () => {
+    expect(publicRun(record, after(20)).status).toBe("running");
+  });
+
+  it("stops showing running once no run could still be going", () => {
+    expect(publicRun(record, after(41)).status).toBe("failed");
+  });
+
+  it("never shows who started it", () => {
+    expect(publicRun(record, after(1))).not.toHaveProperty("user");
   });
 });
 

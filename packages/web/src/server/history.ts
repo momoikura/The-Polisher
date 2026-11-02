@@ -28,8 +28,12 @@ const WITHDRAWN = new Set([
 
 export const isWithdrawn = (id: string): boolean => WITHDRAWN.has(id);
 
-export function publicRun({ user: _user, ...shown }: RunRecord): Omit<RunRecord, "user"> {
-  return shown;
+/** Longer than any run can last. Past it, a run still marked running had its server stop, or its result lost. */
+const RUN_OVER_MS = 40 * 60_000;
+
+export function publicRun({ user: _user, ...shown }: RunRecord, now = Date.now()): Omit<RunRecord, "user"> {
+  const isLost = shown.status === "running" && now - Date.parse(shown.startedAt) > RUN_OVER_MS;
+  return isLost ? { ...shown, status: "failed" } : shown;
 }
 
 export function runForViewer(saved: SavedRun, viewer: string | null) {

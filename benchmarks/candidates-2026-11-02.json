@@ -1,0 +1,12 @@
+{
+  "chosen": "Dry runs of open issues a person could try on the live site. No PR is opened by this run.",
+  "budgetUSD": 3,
+  "concurrency": 4,
+  "challengeModel": "muse-wonder-1.0",
+  "issues": [
+    { "url": "https://github.com/kurtmckee/feedparser/issues/610" },
+    { "url": "https://github.com/scrapy/w3lib/issues/409" },
+    { "url": "https://github.com/pyinvoke/invoke/issues/1066" },
+    { "url": "https://github.com/gruns/icecream/issues/265" }
+  ]
+}

@@ -23,7 +23,7 @@ import {
   type MaintainerEvent,
   type MaintainerResult,
 } from "@thepolisher/agents";
-import { currentUser, isAuthEnabled, isSameOrigin, rememberMetaKey, savedMetaKey } from "./auth/auth-api.js";
+import { currentUser, endExpiredSession, isAuthEnabled, isSameOrigin, rememberMetaKey, savedMetaKey } from "./auth/auth-api.js";
 import { checkRunLimits, freeRunsFromEnv, runLimitsFromEnv } from "./auth/limits.js";
 import { finishedRecord, saveQuietly, startedRecord } from "./history.js";
 import { VerifiedMemory, freeRunStore, runStore, sharedMemory, type RunRecord, type SavedPullRequest } from "./store/index.js";
@@ -44,6 +44,7 @@ import { SessionRegistry } from "./sessions.js";
 import { withProofSection } from "./pr-proof.js";
 
 /** Tries to break each proven fix and tests others' PRs. Stronger than Muse Spark, and costs more per token. */
+const EXPIRED_SIGN_IN = "Your GitHub sign-in has expired. Sign in again.";
 const WONDER_MODEL = "muse-wonder-1.0";
 const ACTION_BUDGET_USD = 1;
 
@@ -150,6 +151,12 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
       sendJson(res, 401, { error: "Sign in with GitHub to start a run." });
       return true;
     }
+    // Before anything is spent: a run on a dead token would fail at once and still use up a free run.
+    if (user && !(await new GitHubClient({ token: user.token }).tokenWorks())) {
+      await endExpiredSession(req, res);
+      sendJson(res, 401, { error: EXPIRED_SIGN_IN });
+      return true;
+    }
     // Without sign-in (local development) every run belongs to one local owner.
     const owner = user?.login ?? LOCAL_OWNER;
     const active = registry.activeSessions();
@@ -213,7 +220,7 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
     const provider = activeProvider();
     // Shared memory only learns from this run if the sandbox verifies its result.
     const memory = new VerifiedMemory(sharedMemory(provider));
-    const holder: { started: RunRecord | null } = { started: null };
+    const holder: { started: RunRecord | null; saved?: Promise<void> } = { started: null };
     const session = registry.start(
       async (publish) => {
         let result: MaintainerResult;
@@ -243,6 +250,7 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
         } catch (err) {
           // A run that stops with an error (closed issue, file too large) is saved as failed, not left "running".
           const started = holder.started;
+          await holder.saved;
           if (started) {
             // What was spent before it stopped: the running total from the last cost event.
             const spent = session.events.reduce((usd, e) => (e.type === "cost" ? e.totalUSD : usd), 0);
@@ -253,6 +261,7 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
           throw err;
         }
         const started = holder.started;
+        await holder.saved;
         if (started) {
           const finished = {
             ...finishedRecord(started, { status: result.status, totalUSD: result.totalUSD, title: result.snapshot?.issue.title ?? "" }),
@@ -271,7 +280,7 @@ export async function handleMaintainerRequest(req: IncomingMessage, res: ServerR
     session.meta.owner = owner;
     holder.started = startedRecord(session.id, parsed.data.issueUrl, providerStatus().model, user?.login ?? null);
     const started = holder.started;
-    void saveQuietly("record the run start", () => runStore().start(started));
+    holder.saved = saveQuietly("record the run start", () => runStore().start(started));
     sendJson(res, 201, { id: session.id, isSimulated: isSimulated() });
     return true;
   }
@@ -348,7 +357,7 @@ async function startActionCheck(req: IncomingMessage, res: ServerResponse): Prom
     return true;
   }
 
-  const holder: { started: RunRecord | null } = { started: null };
+  const holder: { started: RunRecord | null; saved?: Promise<void> } = { started: null };
   const session = registry.start(
     async (publish) => {
       let result: MaintainerResult;
@@ -364,6 +373,7 @@ async function startActionCheck(req: IncomingMessage, res: ServerResponse): Prom
         });
       } catch (err) {
         const started = holder.started;
+        await holder.saved;
         if (started) {
           const spent = session.events.reduce((usd, e) => (e.type === "cost" ? e.totalUSD : usd), 0);
           await saveQuietly("save the failed run", () => runStore().finish(finishedRecord(started, { status: "failed", totalUSD: spent, title: "" }), session.events));
@@ -371,6 +381,7 @@ async function startActionCheck(req: IncomingMessage, res: ServerResponse): Prom
         throw err;
       }
       const started = holder.started;
+      await holder.saved;
       if (started) {
         const finished = { ...finishedRecord(started, { status: result.status, totalUSD: result.totalUSD, title: result.snapshot?.issue.title ?? "" }), checkResult: result.message };
         await saveQuietly("save the finished run", () => runStore().finish(finished, session.events));
@@ -382,7 +393,7 @@ async function startActionCheck(req: IncomingMessage, res: ServerResponse): Prom
   session.meta.owner = owner;
   holder.started = startedRecord(session.id, pullUrl, providerStatus().model, owner);
   const started = holder.started;
-  void saveQuietly("record the run start", () => runStore().start(started));
+  holder.saved = saveQuietly("record the run start", () => runStore().start(started));
   sendJson(res, 201, { id: session.id });
   return true;
 }
@@ -450,6 +461,11 @@ async function openPullRequest(req: IncomingMessage, res: ServerResponse, id: st
     return;
   }
   const github = user ? new GitHubClient({ token: user.token }) : githubClient();
+  if (user && !(await github.tokenWorks())) {
+    await endExpiredSession(req, res);
+    sendJson(res, 401, { error: `${EXPIRED_SIGN_IN} Your finished run is saved, so you can open this pull request from the Runs page.` });
+    return;
+  }
   if (!github.hasToken()) {
     sendJson(res, 400, { error: "Set GITHUB_TOKEN in .env (with write access to this repo) and restart the dev server." });
     return;
