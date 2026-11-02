@@ -258,6 +258,9 @@ export function maintainerReducer(view: MaintainerView, event: MaintainerEvent):
     case "pr_check":
       return { ...view, prCheck: event.check };
 
+    case "formatted":
+      return pushFeed(view, event, { lane: "code", tone: "neutral", text: `Formatted ${event.files.length} ${event.files.length === 1 ? "file" : "files"} with the project's own ${event.formatters.join(" and ")}. Layout only.` });
+
     case "rescue":
       return pushFeed(view, event, { lane: event.lane, tone: "warn", text: `Stuck on an unproven fix, so ${event.model} writes this one revision. It goes through the same gate.` });
 

@@ -1,0 +1,14 @@
+{
+  "chosen": "Checks for two changes: invoke#1066, whose PR needed formatting by hand (does the project formatter now run?), and pyparsing#693, stopped before by its 249 KB file (does the 900 KB limit let it run?). One run each.",
+  "budgetUSD": 3,
+  "concurrency": 2,
+  "challengeModel": "muse-wonder-1.0",
+  "issues": [
+    {
+      "url": "https://github.com/pyinvoke/invoke/issues/1066"
+    },
+    {
+      "url": "https://github.com/pyparsing/pyparsing/issues/693"
+    }
+  ]
+}

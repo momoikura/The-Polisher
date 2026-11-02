@@ -412,7 +412,7 @@ export function pullRequestFrom(result: MaintainerResult, model: string, runId?:
     status,
     model,
     files,
-    pr: withProofSection(final.pr, result.proof, result.challenge, runId ? runAddress(runId) : null),
+    pr: withProofSection(final.pr, result.proof, result.challenge, runId ? runAddress(runId) : null, result.formatters),
   };
 }
 

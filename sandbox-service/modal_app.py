@@ -368,6 +368,65 @@ TEST_PATH = re.compile(r"(^|/)(tests?/|test_[^/]*\.py$|[^/]*_test\.py$|conftest\
 SECURITY_SEVERITIES = {"MEDIUM", "HIGH"}
 
 
+# The project's own formatters, when its dependencies installed them. Never installed by us: the
+# project's version is the one its CI expects.
+FORMATTERS = {
+    "black": ("black", "python -m black -q {files}"),
+    "ruff-format": ("ruff", "python -m ruff format -q {files}"),
+    "isort": ("isort", "python -m isort -q {files}"),
+}
+
+
+def project_formatters(config: str, hooks: str) -> list[str]:
+    """The formatters a project's config or pre-commit hooks say it uses, in the order to run them."""
+    wanted = []
+    if "[tool.isort]" in config or "[isort]" in config or re.search(r"id:\s*isort\b", hooks):
+        wanted.append("isort")
+    if "[tool.black]" in config or re.search(r"[\"'\s]black[\s\"'<>=~!,\]]", config) or re.search(r"id:\s*black\b", hooks):
+        wanted.append("black")
+    if "[tool.ruff.format]" in config or re.search(r"id:\s*ruff-format\b", hooks):
+        wanted.append("ruff-format")
+    return wanted
+
+
+def format_patch(sb: "modal.Sandbox", changes: dict[str, str], originals: dict[str, str | None]) -> tuple[dict[str, str], list[str]]:
+    """Runs the project's formatters on the changed Python files and returns those that changed.
+
+    A file the formatter would also change on the original code is left alone: the project doesn't
+    use this version of it there, and the PR shouldn't reformat lines it didn't touch.
+    """
+    config = "".join(read_file(sb, p) or "" for p in ("pyproject.toml", "setup.cfg", "tox.ini", ".isort.cfg"))
+    hooks = read_file(sb, ".pre-commit-config.yaml") or ""
+    paths = [p for p in changes if p.endswith(".py")]
+    current = {p: changes[p] for p in paths}
+    used: list[str] = []
+    for name in project_formatters(config, hooks):
+        module, command = FORMATTERS[name]
+        if run(sb, f"python -c 'import {module}'")[0] != 0:
+            continue
+        stable = []
+        for path in paths:
+            original = originals.get(path)
+            if original is None:
+                stable.append(path)
+                continue
+            copy = f".thepolisher_original/{path}"
+            write_file(sb, copy, original)
+            run(sb, command.format(files=shlex.quote(copy)))
+            if read_file(sb, copy) == original:
+                stable.append(path)
+        run(sb, "rm -rf .thepolisher_original")
+        if not stable or run(sb, command.format(files=" ".join(shlex.quote(p) for p in stable)))[0] != 0:
+            continue
+        for path in stable:
+            after = read_file(sb, path)
+            if after is not None and after != current[path]:
+                current[path] = after
+                if name not in used:
+                    used.append(name)
+    return {p: c for p, c in current.items() if c != changes[p]}, used
+
+
 def bandit_scan(sb: "modal.Sandbox", paths: list[str]) -> list[dict] | None:
     """Bandit findings in the given files, or None if the scan itself failed."""
     if not paths:
@@ -645,6 +704,9 @@ def validate_patch(repo: str, sha: str, changes: dict[str, str], new_tests: list
         else:
             tests_result = {"ran": False, "total": 0, "passed": 0, "failed": 0, "errors": 0, "skipped": 0, "failures": [], "outputTail": tail(tout + terr)}
 
+        # Only for the final whole-suite run: the formatted files are what the pull request carries.
+        formatted, formatters = format_patch(sb, changes, originals) if scope == "full" else ({}, [])
+
         return {
             "install": {"ok": install_ok, "logTail": tail(install_log), "cached": from_cache},
             "compile": {"ok": not compile_errors, "errors": compile_errors},
@@ -652,6 +714,8 @@ def validate_patch(repo: str, sha: str, changes: dict[str, str], new_tests: list
             "tests": tests_result,
             "failToPass": fail_to_pass,
             "security": security,
+            "formatted": formatted,
+            "formatters": formatters,
             "durationMs": int((time.time() - started) * 1000),
         }
     finally:

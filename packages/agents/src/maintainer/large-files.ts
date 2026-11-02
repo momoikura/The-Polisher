@@ -12,8 +12,8 @@ import { computeLineDiff } from "@thepolisher/core";
 
 /** Files up to this size are shown whole; agents may return them with full contents. */
 export const MAX_FILE_CHARS = 40_000;
-/** Largest file loaded at all: the sandbox's per-file limit. */
-export const MAX_LARGE_FILE_CHARS = 200_000;
+/** Largest file loaded at all: under GitHub's 1 MB limit for reading a file's contents, and the sandbox's. */
+export const MAX_LARGE_FILE_CHARS = 900_000;
 /** Budget for one excerpt in a prompt. */
 export const EXCERPT_CHARS = 24_000;
 

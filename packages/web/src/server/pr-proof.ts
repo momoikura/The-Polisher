@@ -9,7 +9,7 @@ function challengeNote(failsOnOriginal: boolean | undefined): string {
  * Adds the evidence to the pull request itself, so a maintainer can judge the change without
  * opening ThePolisher. Only for a proven fix, and only what the sandbox reported.
  */
-export function withProofSection(pr: string, proof: Proof | null, challenge: Challenge | null, runUrl: string | null): string {
+export function withProofSection(pr: string, proof: Proof | null, challenge: Challenge | null, runUrl: string | null, formatters: readonly string[] = []): string {
   if (!proof?.proven) return pr;
   // Test output comes from the repo, so it can't be allowed to close the code span it's shown in.
   const code = (text: string) => `\`${text.replaceAll("`", "'")}\``;
@@ -28,6 +28,7 @@ export function withProofSection(pr: string, proof: Proof | null, challenge: Cha
           ...(alsoFailing > 0 ? [`${alsoFailing} also failed on the original code, so they say little about this change.`] : []),
         ]
       : []),
+    ...(formatters.length > 0 ? [`Formatted with the project's own ${formatters.join(" and ")}, using its settings.`] : []),
     ...(runUrl ? [`Full run: ${runUrl}`] : []),
   ];
   return `${pr.trimEnd()}\n\n## Proof from the sandbox\n\n${lines.map((l) => `- ${l}`).join("\n")}\n`;

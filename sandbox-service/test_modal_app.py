@@ -1,6 +1,6 @@
 """Tests for the sandbox's pure helpers. Run: py -m pytest sandbox-service -q"""
 
-from modal_app import classify_base_failures, tox_test_deps
+from modal_app import classify_base_failures, project_formatters, tox_test_deps
 
 
 def junit(*cases: str) -> str:
@@ -77,3 +77,13 @@ deps =
 
 def test_tox_deps_are_empty_without_a_testenv():
     assert tox_test_deps("[tox]\nenvlist = py311\n") == []
+
+
+def test_formatters_come_from_the_projects_own_config():
+    assert project_formatters('[dependency-groups]\ndev = ["black>=23.3.0"]\n', "") == ["black"]
+    assert project_formatters("[tool.black]\nline-length = 88\n[tool.isort]\nprofile = 'black'\n", "") == ["isort", "black"]
+    assert project_formatters("", "  - id: ruff-format\n") == ["ruff-format"]
+
+
+def test_no_formatter_when_the_project_names_none():
+    assert project_formatters('[project]\nname = "blackbird"\n', "") == []

@@ -89,6 +89,8 @@ export type MaintainerEvent = At &
     | { type: "rescue"; lane: LaneId; round: number; model: string }
     /** The result of checking someone's pull request. */
     | { type: "pr_check"; check: PrCheck }
+    /** The project's own formatters changed the final patch; layout only. */
+    | { type: "formatted"; formatters: string[]; files: string[] }
     | { type: "complete"; status: MaintainerStatus; message: string; lanes: Record<LaneId, LaneSummary>; totalUSD: number; canOpenPr: boolean }
   );
 

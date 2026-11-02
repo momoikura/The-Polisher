@@ -104,6 +104,33 @@ describe("runChallenge", () => {
     });
   });
 
+  it("lets the model fix a test that also fails on the original code", async () => {
+    const replies = [json, JSON.stringify({ tests: TESTS.replace("== \"cafe\"", "== \"cafe!\""), ideas: [] })];
+    const asked: string[] = [];
+    const client: ChatClient = {
+      complete: async (messages) => {
+        asked.push(String(messages.at(-1)?.content ?? ""));
+        return { text: replies.shift() ?? json, model: "muse-wonder-1.0", promptTokens: 1, completionTokens: 1 };
+      },
+    };
+    const failure = { test: "tests.test_thepolisher_challenge::test_unicode", message: "boom" };
+    let patchedRuns = 0;
+    const sandbox: SandboxClient = {
+      validate: async (req) => {
+        const onPatch = "tinyslug/__init__.py" in req.changes;
+        if (onPatch) patchedRuns++;
+        // The first version fails on both; the revised one passes on the patch.
+        const failing = patchedRuns === 1 || !onPatch ? [failure] : [];
+        return { install: { ok: true, logTail: "" }, compile: { ok: true, errors: [] }, lint: { issues: [] }, tests: tests(failing), failToPass: { ...toPass, passedAfter: failing.length === 0 }, durationMs: 1 } as Validation;
+      },
+    };
+
+    const result = await challenge(client, sandbox);
+
+    expect(asked[1]).toContain("also fail on the original code");
+    expect(result).toMatchObject({ total: 2, passed: 2, failures: [] });
+  });
+
   it("claims nothing when the tests didn't really run", async () => {
     const { client } = replyWith(json);
 

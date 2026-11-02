@@ -7,6 +7,7 @@
 
 import { z } from "zod";
 import { StructuredOutputError, completeStructured, type ChatClient } from "../llm/chat-client.js";
+import type { ChatMessage } from "../llm/meta-client.js";
 import { diffBundle, isTestPath, type PrBundle, type RepoSnapshot } from "./bundle.js";
 import { wrapArtifact } from "../prompts/shared.js";
 import type { SandboxClient, Validation } from "./sandbox.js";
@@ -77,6 +78,18 @@ async function againstOriginal(sandbox: SandboxClient, snapshot: RepoSnapshot, t
   }
 }
 
+/**
+ * Tests that fail on the original code too are often wrong guesses, like an argument that doesn't
+ * exist. The model gets one chance to correct them, or to keep any it's sure about.
+ */
+const reviseMessage = (failing: Challenge["failures"]) => ({
+  role: "user" as const,
+  content: `These tests also fail on the original code, before the change, so they say nothing about it:
+${failing.map((f) => `- ${f.test.split("::").pop()}: ${f.message.slice(0, 400)}`).join("\n")}
+For each one: if your expectation was wrong, or it calls something that doesn't exist, fix it. Keep it only if you're sure the original code is wrong. Leave the other tests as they are.
+Respond with ONLY the same JSON shape, with the full file.`,
+});
+
 export async function runChallenge(input: {
   client: ChatClient;
   sandbox: SandboxClient;
@@ -87,12 +100,31 @@ export async function runChallenge(input: {
   charge?: (usage: { model: string; promptTokens: number; completionTokens: number }) => void;
 }): Promise<Challenge | null> {
   const { client, sandbox, snapshot, bundle, model, charge } = input;
-  const reply = await completeStructured(client, buildMessages(snapshot, bundle), ChallengeSchema, { model, maxTokens: MAX_TOKENS, reasoningEffort: "low", maxAttempts: MAX_ATTEMPTS }).catch((err: unknown) => {
-    if (err instanceof StructuredOutputError && err.usage) charge?.(err.usage);
-    throw err;
-  });
-  charge?.({ model: reply.model, promptTokens: reply.promptTokens, completionTokens: reply.completionTokens });
-  const { tests, ideas } = reply.data;
+  const ask = async (messages: ChatMessage[]) => {
+    const reply = await completeStructured(client, messages, ChallengeSchema, { model, maxTokens: MAX_TOKENS, reasoningEffort: "low", maxAttempts: MAX_ATTEMPTS }).catch((err: unknown) => {
+      if (err instanceof StructuredOutputError && err.usage) charge?.(err.usage);
+      throw err;
+    });
+    charge?.({ model: reply.model, promptTokens: reply.promptTokens, completionTokens: reply.completionTokens });
+    return reply.data;
+  };
+  const messages = buildMessages(snapshot, bundle);
+  const first = await ask(messages);
+  const result = await testChallenge(sandbox, snapshot, bundle, model, first);
+  const guesses = result?.failures.filter((f) => f.failsOnOriginal === true) ?? [];
+  if (!result || guesses.length === 0) return result;
+  // A failed revision keeps the first result: it's still a real result.
+  try {
+    const revised = await ask([...messages, { role: "assistant" as const, content: JSON.stringify(first) }, reviseMessage(guesses)]);
+    return (await testChallenge(sandbox, snapshot, bundle, model, revised)) ?? result;
+  } catch {
+    return result;
+  }
+}
+
+/** Runs one version of the model's tests on the patch, and any failures on the original code too. */
+async function testChallenge(sandbox: SandboxClient, snapshot: RepoSnapshot, bundle: PrBundle, model: string, data: z.infer<typeof ChallengeSchema>): Promise<Challenge | null> {
+  const { tests, ideas } = data;
   const total = [...tests.matchAll(/^\s*(?:async\s+)?def\s+test_\w+/gm)].length;
   if (total === 0) return null;
 

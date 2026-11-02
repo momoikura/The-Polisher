@@ -76,6 +76,8 @@ export interface MaintainerResult {
   totalUSD: number;
   proof: Proof | null;
   challenge: Challenge | null;
+  /** The project's formatters that changed the final patch. */
+  formatters?: string[];
 }
 
 /** What one challenge usually costs at most (free runs have $0.20 in all), and the time it takes. */
@@ -283,6 +285,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
   const deadlineAt = Date.now() + cfg.timeLimitMs;
   let finalProof: Proof | null = null;
   let finalChallenge: Challenge | null = null;
+  let finalFormatters: string[] = [];
   // The limit is hard: model and sandbox calls still in flight stop at it. Polishing stops
   // earlier, so the final whole-suite run and reconcile still fit before it.
   const polishUntil = deadlineAt - cfg.timeLimitMs * FINAL_SHARE;
@@ -436,6 +439,16 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
       reconcileDocs(snap, ws),
     ]);
     const finalValidation = await repairSuiteFailures(fullRun, snap, ws);
+    // Layout only: the tests just ran on the same code before formatting, so their result still holds.
+    const formatted = finalValidation?.formatted ?? {};
+    if (finalValidation && Object.keys(formatted).length > 0) {
+      const code = { ...ws.get().code, ...formatted };
+      board.record(code, finalValidation);
+      ws.set({ code });
+      publishPatch(snap, ws);
+      finalFormatters = finalValidation.formatters ?? [];
+      emit({ type: "formatted", formatters: finalFormatters, files: Object.keys(formatted) });
+    }
     const final = ws.get();
     const proof = proofFrom(finalValidation);
     finalProof = proof;
@@ -632,7 +645,7 @@ export async function runMaintainer(source: MaintainerSource, options: Maintaine
     const hasChanges = Boolean(snapshot && final && diffBundle(snapshot, final).length > 0);
     emit({ type: "phase", phase: "done" });
     emit({ type: "complete", status, message, lanes: summary, totalUSD: totalSpent(), canOpenPr: status !== "failed" && hasChanges });
-    return { status, message, snapshot, baseline, final, lanes: summary, totalUSD: totalSpent(), proof: finalProof, challenge: finalChallenge };
+    return { status, message, snapshot, baseline, final, lanes: summary, totalUSD: totalSpent(), proof: finalProof, challenge: finalChallenge, formatters: finalFormatters };
   }
 
   function publishPatch(snap: RepoSnapshot, ws: PrWorkspace) {

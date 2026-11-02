@@ -37,6 +37,9 @@ export const ValidationSchema = z.object({
       baseFailures: z.object({ reproduced: z.number(), missingCode: z.number(), example: z.string() }).nullable().optional(),
     })
     .nullable(),
+  /** The final run only: changed files the project's own formatters changed, and which formatters. */
+  formatted: z.record(z.string()).optional(),
+  formatters: z.array(z.string()).optional(),
   /** Bandit findings (medium/high) the patch introduced in the source files it changes. */
   security: z
     .object({

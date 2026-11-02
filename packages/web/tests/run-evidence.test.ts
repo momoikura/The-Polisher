@@ -43,6 +43,11 @@ describe("the proof in the pull request", () => {
     expect(withProofSection("# T", proof, failed, URL)).toContain("t::test_x");
   });
 
+  it("says when the project's formatter changed the layout", () => {
+    expect(withProofSection("# T", proof, null, null, ["black"])).toContain("Formatted with the project's own black");
+    expect(withProofSection("# T", proof, null, null)).not.toContain("Formatted");
+  });
+
   it("claims nothing when the fix isn't proven", () => {
     expect(withProofSection("# T", { ...proof, proven: false }, null, URL)).toBe("# T");
     expect(withProofSection("# T", null, null, URL)).toBe("# T");

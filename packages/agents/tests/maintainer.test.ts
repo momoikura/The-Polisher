@@ -489,12 +489,12 @@ describe("ownedFiles", () => {
 });
 
 describe("tooLargeToFix", () => {
-  const sizes = { "more_itertools/more.py": 250_000, "more_itertools/__init__.py": 600, "tests/test_more.py": 200_000, "README.rst": 9_000 };
+  const sizes = { "more_itertools/more.py": 950_000, "more_itertools/__init__.py": 600, "tests/test_more.py": 200_000, "README.rst": 9_000 };
 
   it("stops the run when every source file the planner wants is too large to load", () => {
     const message = tooLargeToFix(["more_itertools/more.py", "tests/test_more.py"], sizes, ["README.rst"]);
-    expect(message).toContain("more_itertools/more.py (244 KB)");
-    expect(message).toContain("up to 200 KB");
+    expect(message).toContain("more_itertools/more.py (928 KB)");
+    expect(message).toContain("up to 900 KB");
   });
 
   it("lets the run go on when some source file it wants was loaded", () => {
