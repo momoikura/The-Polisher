@@ -213,8 +213,8 @@
   ]
  },
  "results": {
-  "seconds": 22,
-  "frames": 660,
+  "seconds": 21,
+  "frames": 630,
   "lines": [
    {
     "text": "So does it hold up in the real world?",
@@ -224,38 +224,38 @@
    {
     "text": "We took sixteen real, open issues, in nine popular projects we don't control, and locked in the list before running anything.",
     "start": 2.6580416666666666,
-    "end": 8.594625
+    "end": 8.194458333333333
    },
    {
     "text": "The first draft alone proved six.",
-    "start": 8.894625,
-    "end": 10.591083333333334
+    "start": 8.494458333333334,
+    "end": 10.011333333333335
    },
    {
     "text": "ThePolisher proved thirteen.",
-    "start": 11.011083333333334,
-    "end": 12.483791666666667
+    "start": 10.431333333333335,
+    "end": 11.904041666666668
    },
    {
     "text": "More than twice as many, for forty eight cents in total.",
-    "start": 12.903791666666667,
-    "end": 15.786416666666668
+    "start": 12.324041666666668,
+    "end": 14.586291666666668
    },
    {
     "text": "And when it can't prove a fix? It says so.",
-    "start": 16.086416666666665,
-    "end": 18.180666666666664
+    "start": 14.886291666666668,
+    "end": 16.980541666666667
    },
    {
     "text": "Three issues are still unproven, and they're published right there with the rest.",
-    "start": 18.480666666666664,
-    "end": 21.389416666666666
+    "start": 17.280541666666668,
+    "end": 20.18929166666667
    }
   ]
  },
  "check": {
-  "seconds": 21.5,
-  "frames": 645,
+  "seconds": 22,
+  "frames": 660,
   "lines": [
    {
     "text": "And maintainers can point it at anyone's pull request.",
@@ -275,17 +275,33 @@
    {
     "text": "On one merged change in Rich, Muse Wonder's tests passed on the old code, and failed with the new code.",
     "start": 9.929625,
-    "end": 14.330416666666666
+    "end": 14.543833333333332
    },
    {
     "text": "That's a real bug. A person reported it ten days after the merge, and it's still open.",
-    "start": 14.630416666666665,
-    "end": 18.142875
+    "start": 14.843833333333333,
+    "end": 18.668083333333332
    },
    {
     "text": "Nothing gets posted. The maintainer decides.",
-    "start": 18.442874999999997,
-    "end": 20.94608333333333
+    "start": 18.968083333333333,
+    "end": 21.471291666666666
+   }
+  ]
+ },
+ "action": {
+  "seconds": 7.5,
+  "frames": 225,
+  "lines": [
+   {
+    "text": "It also runs as a GitHub Action, on every new pull request.",
+    "start": 0.55,
+    "end": 3.582583333333333
+   },
+   {
+    "text": "About a minute later, the result is posted right on the PR.",
+    "start": 3.882583333333333,
+    "end": 6.809625
    }
   ]
  },

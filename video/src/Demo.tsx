@@ -10,6 +10,7 @@ import { AbsoluteFill, Easing, staticFile, useCurrentFrame } from "remotion";
 import { FPS, SANS, sceneFrames, useFontsReady, type SceneId } from "./common";
 import timing from "./timing.json";
 import { iris } from "./transitions";
+import { Action } from "./scenes/Action";
 import { Agents } from "./scenes/Agents";
 import { Check } from "./scenes/Check";
 import { Close } from "./scenes/Close";
@@ -37,6 +38,7 @@ const SCENES: Array<{ id: SceneId; C: React.FC; into?: TransitionPresentation<Re
   { id: "wonder", C: Wonder, into: iris() as never },
   { id: "results", C: Results, into: iris() as never },
   { id: "check", C: Check, into: push("from-right") },
+  { id: "action", C: Action, into: fade() as never },
   { id: "safety", C: Safety, into: iris() as never },
   { id: "close", C: Close, into: fade() as never },
 ];

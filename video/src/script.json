@@ -106,6 +106,14 @@
     ]
   },
   {
+    "id": "action",
+    "mood": 0.7,
+    "lines": [
+      "It also runs as a GitHub Action, on every new pull request.",
+      "About a minute later, the result is posted right on the PR."
+    ]
+  },
+  {
     "id": "safety",
     "mood": 0.6,
     "lines": [
