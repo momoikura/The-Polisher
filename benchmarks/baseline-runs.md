@@ -63,7 +63,7 @@ the rerun.
 Why it didn't finish clean, and what it showed:
 - `debug_leftovers` flagged `print(..., file=sys.stderr)` in `cli.py`. That is
   the CLI's intended error output (the issue asks for exactly these messages),
-  so this is a false positive in our check.
+  so this is a false positive in my check.
 - CodePolish repeatedly added a CHANGELOG line (out of its scope). The sandbox
   only accepts `.py` files, so it rejected the whole request (HTTP 422) and
   every compile/test check reported failure. Three of six revisions were lost

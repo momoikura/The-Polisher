@@ -35,8 +35,8 @@
 
 | Criterion | Where to look |
 | --- | --- |
-| **Impact** (30%) | Maintainers are flooded with AI pull requests they can't trust. ThePolisher's own PRs carry their evidence, and maintainers can paste anyone's PR to test it. On one merged Rich PR, it [found a real bug](benchmarks/results/pr-check-2026-11-02.md) that's still open. [The problem](#the-problem), [results on projects we don't control](#results), including [the mistake we published](benchmarks/results/rerun-2026-10-30.md). |
-| **Use of Meta AI tooling** (25%) | Two Meta models with different jobs. Muse Spark does the work: three drafts, then polishing, with `reasoning_effort` set per task and issue screenshots read as images. Muse Wonder, which didn't write the code, tries to break each proven fix and tests other people's PRs. We also [tried it as a rescue](benchmarks/results/rescue-2026-11-02.md) when Muse Spark gets stuck, measured no gain, and turned it off. [Models](docs/architecture.md). |
+| **Impact** (30%) | Maintainers are flooded with AI pull requests they can't trust. ThePolisher's own PRs carry their evidence, and maintainers can paste anyone's PR to test it. On one merged Rich PR, it [found a real bug](benchmarks/results/pr-check-2026-11-02.md) that's still open. [The problem](#the-problem), [results on projects I don't control](#results), including [the mistake I published](benchmarks/results/rerun-2026-10-30.md). |
+| **Use of Meta AI tooling** (25%) | Two Meta models with different jobs. Muse Spark does the work: three drafts, then polishing, with `reasoning_effort` set per task and issue screenshots read as images. Muse Wonder, which didn't write the code, tries to break each proven fix and tests other people's PRs. I also [tried it as a rescue](benchmarks/results/rescue-2026-11-02.md) when Muse Spark gets stuck, measured no gain, and turned it off. [Models](docs/architecture.md). |
 | **Technical depth** (20%) | Tests decide, not the model: a revision that breaks a passing check is thrown away. Untrusted code runs only in Modal sandboxes with no secrets. A hard 20-minute limit. Issue lists committed before each benchmark. [Architecture](docs/architecture.md), [CI](https://github.com/momoikura/The-Polisher/actions/workflows/ci.yml). |
 | **Demo** (25%) | [The 2:48 demo video](https://youtu.be/owxcagxox9g), and the [live site](https://thepolisher.pages.dev), where your first 3 runs are free after signing in with GitHub. Try an issue from a public Python + pytest repo. |
 
@@ -46,7 +46,7 @@ Open source maintainers are being flooded with AI pull requests, and they can't 
 
 Writing a fix is now the easy part. Checking it is the slow part: does it fix the bug, did it break something, are the tests real, is the description true?
 
-ThePolisher is a verifiable agent built for that gap. It's for maintainers and contributors who need a pull request someone can trust. It runs the tests in a sandbox, keeps only changes that make things better, and says plainly when it could not prove a fix. Its results are on real open issues in projects we don't control.
+ThePolisher is a verifiable agent built for that gap. It's for maintainers and contributors who need a pull request someone can trust. It runs the tests in a sandbox, keeps only changes that make things better, and says plainly when it could not prove a fix. Its results are on real open issues in projects I don't control.
 
 ## What it does
 
@@ -98,7 +98,7 @@ Every revision goes through a gate. It is kept only if it does not break a check
 
 ## Results
 
-**Latest runs (2026-11-02): 13 and 14 of 16 fixes proven with no new failures in the whole test suite,** run twice to see past single-run luck. The first draft alone proved 6 and 8. Each run of all 16 cost under $0.50. Before we fixed hung tests and lost model calls, it was [10 of 16](benchmarks/results/final-2026-11-01.md). It didn't get faster, and one issue that was proven before no longer is. See [repeat-2026-11-02.md](benchmarks/results/repeat-2026-11-02.md).
+**Latest runs (2026-11-02): 13 and 14 of 16 fixes proven with no new failures in the whole test suite,** run twice to see past single-run luck. The first draft alone proved 6 and 8. Each run of all 16 cost under $0.50. Before I fixed hung tests and lost model calls, it was [10 of 16](benchmarks/results/final-2026-11-01.md). It didn't get faster, and one issue that was proven before no longer is. See [repeat-2026-11-02.md](benchmarks/results/repeat-2026-11-02.md).
 
 **On real pull requests:** Muse Wonder's tests failed on a merged Rich PR (#4076) and passed on the code before it. It's a real bug: CRLF text gets lost, a person reported it ten days later as [Rich#4090](https://github.com/Textualize/rich/issues/4090), and it's still open. Muse Wonder doesn't flag this exact bug on every run, and the check doesn't predict what gets merged. Letting Muse Wonder fix its own wrong guesses cut tests that fail both ways from 43% to 11%. See [the check on that PR](https://thepolisher.pages.dev/runs/b1eb802c-5e3b-42f5-8ba5-7859e88d0117) and [pr-check-2026-11-02.md](benchmarks/results/pr-check-2026-11-02.md).
 
