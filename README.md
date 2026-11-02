@@ -61,6 +61,8 @@ ThePolisher is a verifiable agent built for that gap. It's for maintainers and c
 
 ## Check PRs automatically
 
+See it working on [a demo repo's pull request](https://github.com/momoikura/thepolisher-action-demo/pull/1), where the check took about a minute.
+
 Add this to a Python project's `.github/workflows/thepolisher.yml` to check each pull request and comment with the result. Store your [Meta Model API key](https://dev.meta.ai) as the `META_API_KEY` secret.
 
 ```yaml
