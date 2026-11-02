@@ -87,6 +87,10 @@ describe("a run saved as running", () => {
     expect(publicRun(record, after(41)).status).toBe("failed");
   });
 
+  it("also works when a list maps over it", () => {
+    expect([{ ...record, startedAt: "2020-01-01T00:00:00.000Z" }].map((r) => publicRun(r))[0].status).toBe("failed");
+  });
+
   it("never shows who started it", () => {
     expect(publicRun(record, after(1))).not.toHaveProperty("user");
   });

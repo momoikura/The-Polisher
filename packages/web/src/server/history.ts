@@ -72,7 +72,7 @@ export async function handleHistoryRequest(req: IncomingMessage, res: ServerResp
   if (req.method !== "GET") return false;
 
   if (url === "/api/runs") {
-    sendJson(res, 200, { runs: (await runStore().list(LIST_LIMIT)).filter((r) => !isWithdrawn(r.id)).map(publicRun) });
+    sendJson(res, 200, { runs: (await runStore().list(LIST_LIMIT)).filter((r) => !isWithdrawn(r.id)).map((r) => publicRun(r)) });
     return true;
   }
 
