@@ -15,7 +15,11 @@
 
 **Paste a GitHub issue. Get a pull request whose tests prove the fix.**
 
-[Try it](https://thepolisher.pages.dev) · [How it works](#how-it-works) · [Results](#results) · [Screenshots](#screenshots) · [Architecture](docs/architecture.md)
+[Watch the demo](https://youtu.be/SCsXsJyoKZk) · [Try it](https://thepolisher.pages.dev) · [How it works](#how-it-works) · [Results](#results) · [Screenshots](#screenshots) · [Architecture](docs/architecture.md)
+
+<br>
+
+<a href="https://youtu.be/SCsXsJyoKZk"><img src="https://img.youtube.com/vi/SCsXsJyoKZk/maxresdefault.jpg" alt="Watch the 2:42 demo of ThePolisher on YouTube" width="720"></a>
 
 </div>
 
@@ -23,7 +27,7 @@
 
 > [!NOTE]
 > Built for the **Meta Global AI Developer Hackathon**, *Push the Frontier* track.
-> Try it at **[thepolisher.pages.dev](https://thepolisher.pages.dev)**. Sign in with GitHub and your first 3 runs are free. After that, bring your own Meta Model API key.
+> Watch the **[2:42 demo](https://youtu.be/SCsXsJyoKZk)**, then try it at **[thepolisher.pages.dev](https://thepolisher.pages.dev)**. Sign in with GitHub and your first 3 runs are free. After that, bring your own Meta Model API key.
 
 ## For judges
 
@@ -34,7 +38,7 @@
 | **Impact** (30%) | Maintainers are flooded with AI pull requests they can't trust. ThePolisher's own PRs carry their evidence, and maintainers can paste anyone's PR to test it. On one merged Rich PR, it [found a real bug](benchmarks/results/pr-check-2026-11-02.md) that's still open. [The problem](#the-problem), [results on projects we don't control](#results), including [the mistake we published](benchmarks/results/rerun-2026-10-30.md). |
 | **Use of Meta AI tooling** (25%) | Two Meta models with different jobs. Muse Spark does the work: three drafts, then polishing, with `reasoning_effort` set per task and issue screenshots read as images. Muse Wonder, which didn't write the code, tries to break each proven fix and tests other people's PRs. We also [tried it as a rescue](benchmarks/results/rescue-2026-11-02.md) when Muse Spark gets stuck, measured no gain, and turned it off. [Models](docs/architecture.md). |
 | **Technical depth** (20%) | Tests decide, not the model: a revision that breaks a passing check is thrown away. Untrusted code runs only in Modal sandboxes with no secrets. A hard 20-minute limit. Issue lists committed before each benchmark. [Architecture](docs/architecture.md), [CI](https://github.com/momoikura/The-Polisher/actions/workflows/ci.yml). |
-| **Demo** (25%) | [Live site](https://thepolisher.pages.dev), where your first 3 runs are free after signing in with GitHub. Try an issue from a public Python + pytest repo. |
+| **Demo** (25%) | [The 2:42 demo video](https://youtu.be/SCsXsJyoKZk), and the [live site](https://thepolisher.pages.dev), where your first 3 runs are free after signing in with GitHub. Try an issue from a public Python + pytest repo. |
 
 ## The problem
 
