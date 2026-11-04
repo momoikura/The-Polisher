@@ -13,7 +13,7 @@
 ![hosting](https://img.shields.io/badge/hosting-Cloudflare_Pages-f38020)
 ![tests](https://img.shields.io/badge/tests-398_passing-brightgreen)
 
-**Paste a GitHub issue. Get a pull request whose tests prove the fix.**
+**Paste a GitHub issue from a Python repo. Get a pull request whose tests prove the fix.**
 
 [Watch the demo](https://youtu.be/owxcagxox9g) · [Try it](https://thepolisher.pages.dev) · [How it works](#how-it-works) · [Results](#results) · [Screenshots](#screenshots) · [Architecture](docs/architecture.md)
 
@@ -27,6 +27,7 @@
 
 > [!NOTE]
 > Built for the **Meta Global AI Developer Hackathon**, *Push the Frontier* track.
+> **Works on public Python repositories that use pytest.** Other languages aren't supported yet.
 > Watch the **[2:48 demo](https://youtu.be/owxcagxox9g)**, then try it at **[thepolisher.pages.dev](https://thepolisher.pages.dev)**. Sign in with GitHub and your first 3 runs are free. After that, bring your own Meta Model API key.
 
 ## For judges
