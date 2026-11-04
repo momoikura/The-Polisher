@@ -110,6 +110,18 @@ const CONTEXT_EXT = /\.(py|pyi|md|rst|txt|toml|cfg)$/i;
 
 const IGNORED_DIRS = /(^|\/)(\.git|node_modules|\.venv|venv|site-packages|dist|build)\//;
 
+/**
+ * Why a repo can't be worked on, before anything is spent. A fix is only proven by a test that
+ * fails without it, so a repo with no pytest tests (an issue tracker, a docs site) can't be done.
+ */
+export function unsupportedRepo(paths: readonly string[]): string | null {
+  if (!paths.some((p) => p.endsWith(".py"))) return "This repository has no Python files; only Python + pytest repos are supported.";
+  if (!paths.some((p) => (isTestPath(p) && p.endsWith(".py")) || /(^|\/)pytest\.ini$/.test(p))) {
+    return "This repository has no pytest tests, so ThePolisher can't prove a fix here. It needs a public Python repo with a pytest test suite.";
+  }
+  return null;
+}
+
 async function loadFromGitHub(
   issueUrl: string,
   github: GitHubClient
@@ -121,7 +133,8 @@ async function loadFromGitHub(
     throw new Error(`Issue #${issue.number} is already closed, so its fix may already be in the code. Pick an open issue.`);
   }
   const { files } = await github.listFiles(ref.owner, ref.repo, repo.headSha);
-  if (!files.some((f) => f.path.endsWith(".py"))) throw new Error("This repository has no Python files; only Python + pytest repos are supported.");
+  const unsupported = unsupportedRepo(files.map((f) => f.path));
+  if (unsupported) throw new Error(unsupported);
   const kept = files.filter((f) => !IGNORED_DIRS.test(f.path));
   const tree = kept.map((f) => f.path);
   return {

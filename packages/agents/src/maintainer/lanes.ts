@@ -180,13 +180,16 @@ export class MaintainerLaneAgent implements EvaluatorAgent, RepairerAgent, Teste
 
     let sandboxChecks: TestCheck[];
     if (!this.o.sandbox) {
-      sandboxChecks = validationFailureChecks("no sandbox configured");
+      sandboxChecks = validationFailureChecks("no sandbox is configured");
+    } else if (Object.keys(bundle.code).length === 0) {
+      // Nothing to run, so no sandbox call: the patch scope check already says what's wrong.
+      sandboxChecks = validationFailureChecks("the patch changes no files, so there is nothing to test");
     } else {
       // A sandbox hiccup is not the agent's fault: retry once before it counts against the code.
       const attempt = () => this.validate(bundle.code);
       try {
         const v = await attempt().catch((err: unknown) => (isTimeLimit(err) ? Promise.reject(err) : attempt()));
-        sandboxChecks = v ? validationChecks(v) : validationFailureChecks("no result");
+        sandboxChecks = v ? validationChecks(v) : validationFailureChecks("the sandbox returned no result");
       } catch (err) {
         // Cut short by the time limit, the run never finished: failing checks here would mislead the gate.
         if (isTimeLimit(err)) throw err;

@@ -114,6 +114,8 @@ export class ModalSandboxClient implements SandboxClient {
       signal: AbortSignal.timeout(this.cfg.timeoutMs ?? DEFAULT_TIMEOUT_MS),
     });
     if (res.status === 401 || res.status === 403) throw new Error("Sandbox rejected SANDBOX_TOKEN.");
+    // 422: the request itself was refused (no files, a path it won't take), which retrying won't change.
+    if (res.status === 422) throw new Error(`the sandbox refused this patch: ${await refusalReason(res)}`);
     if (!res.ok) throw new Error(`Sandbox returned HTTP ${res.status}.`);
     const parsed = ValidationSchema.safeParse(await res.json());
     if (!parsed.success) throw new Error("Sandbox returned an unexpected response.");
@@ -183,6 +185,16 @@ function securityProblems(security: Validation["security"]): string[] {
     .map((i) => `${i.file}:${i.line} ${i.testId} (${i.severity.toLowerCase()}): ${i.text}`);
 }
 
+async function refusalReason(res: Response): Promise<string> {
+  try {
+    const body = (await res.json()) as { detail?: Array<{ msg?: string }> | string };
+    const first = Array.isArray(body.detail) ? body.detail[0]?.msg : body.detail;
+    return (first ?? "invalid request").replace(/^Value error, /, "");
+  } catch {
+    return "invalid request";
+  }
+}
+
 /** A validation that could not run must never look like a pass. */
 export function validationFailureChecks(reason: string): TestCheck[] {
   return (["py_compile", "py_lint", "py_tests", "fail_to_pass", "security_scan"] as const).map((testType) => ({
@@ -190,7 +202,7 @@ export function validationFailureChecks(reason: string): TestCheck[] {
     authority: "objective" as const,
     passed: false,
     problemCount: 1,
-    message: `Not verified: sandbox unavailable (${reason})`,
+    message: `Not verified: ${reason}`,
   }));
 }
 
